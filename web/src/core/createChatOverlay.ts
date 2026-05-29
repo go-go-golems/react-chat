@@ -2,10 +2,25 @@ import { store, type AppDispatch } from '../store/store';
 import { overlaySlice } from '../store/overlaySlice';
 import { timelineSlice } from '../store/timelineSlice';
 import { wsManager } from '../ws/wsManager';
+import { defaultToolRegistry, type ToolRegistry } from '../tools/toolRegistry';
+import { cancelActiveFrontendTools, configureToolRuntime } from '../tools/toolRuntime';
 
 export type ChatOverlayConfig = {
   basePrefix?: string;
   apiBase?: string;
+};
+
+export type ToolResultSubmission = {
+  toolCallId: string;
+  toolName: string;
+  status: 'success' | 'failed' | 'cancelled' | 'denied';
+  result?: Record<string, unknown>;
+  error?: string;
+};
+
+export type ChatOverlayTools = ToolRegistry & {
+  syncManifest: () => Promise<void>;
+  submitResult: (result: ToolResultSubmission) => Promise<void>;
 };
 
 export type ChatOverlay = {
@@ -16,6 +31,7 @@ export type ChatOverlay = {
   toggle: () => void;
   reset: () => void;
   getStore: () => typeof store;
+  tools: ChatOverlayTools;
 };
 
 export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
@@ -49,6 +65,52 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
     });
   }
 
+  async function syncToolManifest() {
+    const sessionId = store.getState().overlay.sessionId;
+    if (!sessionId) return;
+    const res = await fetch(
+      `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          revision: defaultToolRegistry.revision(),
+          tools: defaultToolRegistry.manifest(),
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`sync tool manifest failed: ${res.status} ${await res.text()}`);
+    }
+  }
+
+  async function submitToolResult(result: ToolResultSubmission) {
+    const sessionId = store.getState().overlay.sessionId;
+    if (!sessionId) throw new Error('cannot submit frontend tool result without a session');
+    const res = await fetch(
+      `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/results`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`submit frontend tool result failed: ${res.status} ${await res.text()}`);
+    }
+  }
+
+  const tools: ChatOverlayTools = {
+    register: defaultToolRegistry.register.bind(defaultToolRegistry),
+    get: defaultToolRegistry.get.bind(defaultToolRegistry),
+    manifest: defaultToolRegistry.manifest.bind(defaultToolRegistry),
+    revision: defaultToolRegistry.revision.bind(defaultToolRegistry),
+    syncManifest: syncToolManifest,
+    submitResult: submitToolResult,
+  };
+
+  configureToolRuntime({ submitToolResult });
+
   return {
     async send(prompt: string) {
       const dispatch = store.dispatch as AppDispatch;
@@ -56,6 +118,7 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
         dispatch(overlaySlice.actions.setError(null));
         const sessionId = await ensureSession(dispatch);
         await ensureConnection(sessionId, dispatch);
+        await syncToolManifest();
         const res = await fetch(
           `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`,
           {
@@ -76,6 +139,7 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
     async stop() {
       const sessionId = store.getState().overlay.sessionId;
       if (!sessionId) return;
+      cancelActiveFrontendTools();
       await fetch(
         `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`,
         { method: 'POST' },
@@ -95,11 +159,13 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
     },
 
     reset() {
+      cancelActiveFrontendTools();
       wsManager.disconnect();
       store.dispatch(overlaySlice.actions.reset());
       store.dispatch(timelineSlice.actions.clear());
     },
 
     getStore: () => store,
+    tools,
   };
 }

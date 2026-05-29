@@ -10,6 +10,10 @@ export function widgetEntity(id: string, props: Record<string, unknown>): Timeli
   return { id, kind: 'widget', createdAt: Date.now(), updatedAt: Date.now(), props };
 }
 
+export function toolCallEntity(id: string, props: Record<string, unknown>): TimelineEntity {
+  return { id, kind: 'tool_call', createdAt: Date.now(), updatedAt: Date.now(), props };
+}
+
 export function timelineEntityFromSnapshotEntity(entity: SnapshotEntityFrame): TimelineEntity | null {
   const kind = asString(entity?.kind);
   const id = asString(entity?.id);
@@ -34,6 +38,19 @@ export function timelineEntityFromSnapshotEntity(entity: SnapshotEntityFrame): T
       parentMessageId: asString(payload.parentMessageId),
       status: asString(payload.status) || 'READY',
       props: payload.props || {},
+    });
+  }
+
+  if (kind === 'ChatFrontendToolCall') {
+    return toolCallEntity(id, {
+      toolCallId: asString(payload.toolCallId) || id,
+      toolName: asString(payload.toolName),
+      parentMessageId: asString(payload.parentMessageId),
+      mode: asString(payload.mode),
+      status: asString(payload.status) || 'requested',
+      input: payload.input || {},
+      result: payload.result || undefined,
+      error: asString(payload.error),
     });
   }
 

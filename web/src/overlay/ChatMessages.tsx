@@ -1,12 +1,13 @@
 import { useAppSelector, selectTimelineEntities } from '../store/store';
 import { WidgetOutlet } from '../widgets/WidgetOutlet';
+import { ToolCallOutlet } from '../tools/ToolCallOutlet';
 
 export function ChatMessages() {
   const entities = useAppSelector(selectTimelineEntities);
 
-  // Filter to message and widget entities only
+  // Filter to user-visible timeline entities only
   const visible = entities.filter(
-    (e) => e.kind === 'message' || e.kind === 'widget',
+    (e) => e.kind === 'message' || e.kind === 'widget' || e.kind === 'tool_call',
   );
 
   if (visible.length === 0) {
@@ -28,6 +29,20 @@ export function ChatMessages() {
               widgetName={(entity.props.widgetName as string) || 'unknown'}
               status={(entity.props.status as string) || 'READY'}
               props={(entity.props.props as Record<string, unknown>) || {}}
+            />
+          );
+        }
+
+        if (entity.kind === 'tool_call') {
+          return (
+            <ToolCallOutlet
+              key={entity.id}
+              toolCallId={(entity.props.toolCallId as string) || entity.id}
+              toolName={(entity.props.toolName as string) || 'unknown'}
+              status={(entity.props.status as string) || 'requested'}
+              input={entity.props.input as Record<string, unknown> | undefined}
+              result={entity.props.result as Record<string, unknown> | undefined}
+              error={entity.props.error as string | undefined}
             />
           );
         }

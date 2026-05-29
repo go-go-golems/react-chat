@@ -6,3 +6,7 @@ export { ChatBubble } from '../overlay/ChatBubble';
 export { defineWidget } from '../widgets/widgetRegistry';
 export type { WidgetProps, WidgetDefinition } from '../widgets/widgetRegistry';
 export { WidgetOutlet } from '../widgets/WidgetOutlet';
+export { defineTool } from '../tools/toolRegistry';
+export type { FrontendTool, ToolRegistry, ToolExecutionMode } from '../tools/toolRegistry';
+export { useFrontendTool } from '../tools/useFrontendTool';
+export { ToolCallOutlet } from '../tools/ToolCallOutlet';

@@ -62,6 +62,7 @@ function StatusIndicator({ status }: { status: string }) {
   const label: Record<string, string> = {
     connected: '●',
     hydrated: '●',
+    subscribed: '●',
     disconnected: '○',
     connecting: '◐',
     closed: '○',
@@ -70,6 +71,7 @@ function StatusIndicator({ status }: { status: string }) {
   const color: Record<string, string> = {
     connected: 'text-mac-black',
     hydrated: 'text-mac-black',
+    subscribed: 'text-mac-black',
     disconnected: 'text-mac-gray-3',
     connecting: 'text-mac-gray-2',
     closed: 'text-mac-gray-3',

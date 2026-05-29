@@ -1,8 +1,9 @@
 import { type TimelineEntity, timelineSlice } from '../store/timelineSlice';
 import { overlaySlice } from '../store/overlaySlice';
 import type { AppDispatch } from '../store/store';
-import { messageEntity, widgetEntity } from './timelineSnapshot';
+import { messageEntity, toolCallEntity, widgetEntity } from './timelineSnapshot';
 import type { CanonicalFrame } from './protocol';
+import { handleFrontendToolUIEvent } from '../tools/toolRuntime';
 
 type TimelineMutation = {
   upsert?: TimelineEntity;
@@ -130,12 +131,41 @@ export function timelineMutationFromUIEvent(frame: CanonicalFrame): TimelineMuta
       if (!instanceId) return null;
       return { deleteId: instanceId };
     }
+    case 'ChatFrontendToolCallRequested': {
+      const toolCallId = payload.toolCallId as string;
+      if (!toolCallId) return null;
+      return {
+        upsert: toolCallEntity(toolCallId, {
+          toolCallId,
+          toolName: payload.toolName,
+          parentMessageId: payload.messageId,
+          mode: payload.mode,
+          status: payload.status || 'requested',
+          input: payload.input || {},
+        }),
+      };
+    }
+    case 'ChatFrontendToolResultReceived': {
+      const toolCallId = payload.toolCallId as string;
+      if (!toolCallId) return null;
+      return {
+        upsert: toolCallEntity(toolCallId, {
+          toolCallId,
+          toolName: payload.toolName,
+          parentMessageId: payload.messageId,
+          status: payload.status || 'success',
+          result: payload.result || {},
+          error: payload.error,
+        }),
+      };
+    }
     default:
       return null;
   }
 }
 
 export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '') {
+  handleFrontendToolUIEvent(frame);
   const mutation = timelineMutationFromUIEvent(frame);
   if (!mutation) return;
   if (mutation.deleteId) {
