@@ -35,3 +35,14 @@ Implemented frontend tool calling smoke path: sessionstream protocol, mock-engin
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/03-client-tool-browser-smoke.js — Smoke validation script
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRuntime.ts — Frontend browser tool executor
 
+
+## 2026-05-29
+
+Added human-in-the-loop frontend tools with checkout.confirm approval UI and browser smoke validation (commit e7c1dba).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/04-human-tool-browser-smoke.js — Human tool browser smoke
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/ToolCallOutlet.tsx — Approval UI rendering and respond/reject callbacks
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/useHumanTool.ts — Human tool registration API
+

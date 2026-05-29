@@ -25,6 +25,8 @@ RelatedFiles:
       Note: Frontend tool protocol implemented in smoke slice
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/01-fetch-research-sources.sh
       Note: Defuddle source download script for prior-art docs
+    - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/04-human-tool-browser-smoke.js
+      Note: Browser smoke test for human-in-the-loop tools
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/01-copilotkit-use-frontend-tool.md
       Note: Downloaded CopilotKit frontend tool reference
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/05-ai-sdk-chatbot-tool-usage.md
@@ -35,14 +37,19 @@ RelatedFiles:
       Note: Smoke demo cart.add tool registration and visible cart state
     - Path: web/src/core/createChatOverlay.ts
       Note: Overlay API now exposes tools namespace and manifest/result calls
+    - Path: web/src/tools/ToolCallOutlet.tsx
+      Note: Timeline renderer now hosts human approval UI
     - Path: web/src/tools/toolRuntime.ts
       Note: Browser-side frontend tool execution and result submission
+    - Path: web/src/tools/useHumanTool.ts
+      Note: Scoped registration hook for human approval tools
 ExternalSources: []
 Summary: Chronological research diary for CHATOVERLAY-002.
 LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -283,3 +290,71 @@ The visible browser smoke now demonstrates the important invariant: tool calls a
 - Running frontend: tmux session `chat-overlay`, pane `0.1`, `npx vite --host 127.0.0.1 --port 5173`.
 - Browser URL: `http://127.0.0.1:5173`.
 - Smoke prompt: `add boots to cart`.
+
+## Step 4: Add human-in-the-loop frontend tools
+
+This step extended the automatic frontend tool runtime with a human approval mode. Automatic frontend tools execute a browser handler as soon as the backend requests them. Human tools are different: the backend publishes the same typed tool request, but the browser renders a decision UI and only submits a result after the user clicks an approval or denial action.
+
+The checkout smoke path now exercises that mode. A prompt of `approve checkout` causes the mock engine to request `checkout.confirm` with mode `FRONTEND_HUMAN`. The frontend shows an approval card in the timeline, the user clicks `APPROVE`, and the backend resumes with an assistant confirmation.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Alright, do it, continue. good job"
+
+**Assistant interpretation:** Continue implementing the follow-up production slice after the automatic frontend-tool smoke, starting with human-in-the-loop tools.
+
+**Inferred user intent:** Move the framework toward the researched CopilotKit/assistant-ui style approval workflow, not just automatic browser handlers.
+
+**Commit (code):** `e7c1dba00e568b97c7f7fb7f7b74c52e01067ee8` — "feat: add human-in-the-loop frontend tools"
+
+### What I did
+- Added `HumanTool`, `HumanToolRenderProps`, and human/backend tool variants to `web/src/tools/toolRegistry.ts`.
+- Added `useHumanTool()` for scoped React registration.
+- Extended `toolRuntime.ts` so `mode === 'human'` stays pending instead of auto-executing.
+- Extended `ToolCallOutlet.tsx` to render a registered human tool UI and provide `respond()` / `reject()` callbacks.
+- Added a demo `checkout.confirm` human tool to `web/src/App.tsx`.
+- Extended the mock engine with an `approve checkout` prompt path that waits for `checkout.confirm` and resumes after approval.
+- Added `TestHumanToolRoundTripResumesMockRun`.
+- Added `scripts/04-human-tool-browser-smoke.js`.
+
+### Why
+- Approval tools are required for mutating or sensitive browser actions. A framework that can only auto-execute tools pushes too much policy into individual handlers.
+- The human tool path proves that frontend tool calls can pause a run for user interaction, not just for asynchronous browser code.
+
+### What worked
+- `go test ./...` passed.
+- `cd web && npm run build` passed.
+- `scripts/03-client-tool-browser-smoke.js` passed.
+- `scripts/04-human-tool-browser-smoke.js` passed with `OK: human-in-the-loop browser smoke passed`.
+
+### What didn't work
+- The first TypeScript build after widening tool definitions failed because the generic `FrontendTool<TInput, TResult>` and `HumanTool<TInput, TResult>` types were too narrow for storage in a common registry. The fix was to define the stored union as `ToolDefinition = FrontendTool<any, any> | HumanTool<any, any> | BackendToolUI<any, any>` while preserving typed hooks at the API boundary.
+
+### What I learned
+- Human tools need a separate pending state in the frontend runtime. Treating them like failed auto-execution would make the backend resume too early.
+- The timeline outlet is the right place to render approval UI because the pending decision is part of the conversation state.
+
+### What was tricky to build
+- The registered render function needs a typed input/result shape for application ergonomics, but the registry must store heterogeneous tools by name. The registry therefore uses a broad stored union while the hook preserves generic authoring types.
+- The result callback has to remove the pending human marker before submitting the result, otherwise refresh/re-render paths can keep showing active approval controls after the result arrives.
+
+### What warrants a second pair of eyes
+- Review the singleton pending-human set in `toolRuntime.ts`; this should become overlay-instance scoped before supporting multiple overlays on one page.
+- Review whether `reject()` should submit `status: denied` with `{ approved: false }` by convention or a richer denial envelope.
+
+### What should be done in the future
+- Persist pending human tool calls across refreshes with snapshot hydration plus registry reattachment.
+- Add Storybook stories for pending, approved, denied, failed, and cancelled human tools.
+- Add real UI polish for approval cards.
+
+### Code review instructions
+- Start with `web/src/tools/toolRegistry.ts`, then read `web/src/tools/toolRuntime.ts` and `web/src/tools/ToolCallOutlet.tsx`.
+- Validate with:
+  - `go test ./...`
+  - `cd web && npm run build`
+  - `cd web && node ../ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/04-human-tool-browser-smoke.js`
+
+### Technical details
+- Human tool name: `checkout.confirm`.
+- Smoke prompt: `approve checkout`.
+- Backend final text: `Checkout approval returned approved=true; approval count is now 1.`
