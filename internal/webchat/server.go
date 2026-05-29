@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
 	mockengine "github.com/go-go-golems/chat-overlay/internal/mockengine"
 	"github.com/go-go-golems/chat-overlay/internal/widgets"
 	chatapp "github.com/go-go-golems/pinocchio/pkg/chatapp"
@@ -32,8 +33,10 @@ type Server struct {
 // NewServer creates a fully wired chat overlay server.
 func NewServer(opts ServerOptions) (*Server, func() error, error) {
 	widgetPlugin := widgets.NewWidgetPlugin()
+	frontendToolPlugin := frontendtools.NewPlugin()
+	frontendToolManager := frontendtools.NewManager()
 	reg := sessionstream.NewSchemaRegistry()
-	if err := chatapp.RegisterSchemas(reg, widgetPlugin); err != nil {
+	if err := chatapp.RegisterSchemas(reg, widgetPlugin, frontendToolPlugin); err != nil {
 		return nil, nil, fmt.Errorf("register chat schemas: %w", err)
 	}
 	if err := mockengine.RegisterSchemas(reg); err != nil {
@@ -53,9 +56,12 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 
 	chatEngine := chatapp.NewEngine(
 		chatapp.WithChunkDelay(opts.effectiveChunkDelay()),
-		chatapp.WithPlugins(widgetPlugin),
+		chatapp.WithPlugins(widgetPlugin, frontendToolPlugin),
 	)
-	mockEngine := mockengine.New(mockengine.WithChunkDelay(opts.effectiveChunkDelay()))
+	mockEngine := mockengine.New(
+		mockengine.WithChunkDelay(opts.effectiveChunkDelay()),
+		mockengine.WithFrontendTools(frontendToolManager),
+	)
 
 	hub, err := sessionstream.NewHub(
 		sessionstream.WithSchemaRegistry(reg),
@@ -65,6 +71,10 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 	if err != nil {
 		_ = store.Close()
 		return nil, nil, fmt.Errorf("create hub: %w", err)
+	}
+	if err := frontendToolManager.Install(hub); err != nil {
+		_ = store.Close()
+		return nil, nil, fmt.Errorf("install frontend tools: %w", err)
 	}
 	if err := mockEngine.Install(hub); err != nil {
 		_ = store.Close()
@@ -98,6 +108,8 @@ func (s *Server) Mux() *http.ServeMux {
 	mux.HandleFunc("POST /api/chat/sessions/{id}/messages", s.HandleSubmitMessage)
 	mux.HandleFunc("GET /api/chat/sessions/{id}", s.HandleSessionSnapshot)
 	mux.HandleFunc("POST /api/chat/sessions/{id}/stop", s.HandleStopSession)
+	mux.HandleFunc("POST /api/chat/sessions/{id}/tools/manifest", s.HandleToolManifest)
+	mux.HandleFunc("POST /api/chat/sessions/{id}/tools/results", s.HandleToolResult)
 	mux.HandleFunc("GET /api/chat/ws", s.HandleWS)
 	return mux
 }

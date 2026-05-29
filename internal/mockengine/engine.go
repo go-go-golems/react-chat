@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
+	toolv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/tools/v1"
 	widgetv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/widgets/v1"
 	"github.com/go-go-golems/chat-overlay/internal/widgets"
 	chatapp "github.com/go-go-golems/pinocchio/pkg/chatapp"
@@ -26,11 +28,12 @@ const (
 type Option func(*Engine)
 
 type Engine struct {
-	mu         sync.Mutex
-	nextID     int
-	active     map[sessionstream.SessionId]*run
-	responses  []Response
-	chunkDelay time.Duration
+	mu            sync.Mutex
+	nextID        int
+	active        map[sessionstream.SessionId]*run
+	responses     []Response
+	chunkDelay    time.Duration
+	frontendTools *frontendtools.Manager
 }
 
 type run struct {
@@ -52,6 +55,12 @@ func WithResponses(responses []Response) Option {
 		if len(responses) > 0 {
 			e.responses = responses
 		}
+	}
+}
+
+func WithFrontendTools(manager *frontendtools.Manager) Option {
+	return func(e *Engine) {
+		e.frontendTools = manager
 	}
 }
 
@@ -204,9 +213,78 @@ func (e *Engine) run(ctx context.Context, sid sessionstream.SessionId, messageID
 		}
 	}
 
+	if e.shouldUseCartTool(prompt) {
+		if err := e.runCartTool(ctx, publishCtx, sid, messageID, prompt, pub); err != nil {
+			if ctx.Err() != nil {
+				e.publishRunStoppedOnly(publishCtx, sid, pub, messageID)
+				return
+			}
+			e.publishToolFailureText(publishCtx, sid, pub, messageID, err)
+		}
+	}
+
 	if err := publish(publishCtx, sid, pub, chatapp.EventChatRunFinished, &chatappv1.ChatRunFinished{MessageId: messageID, Status: "finished"}); err != nil {
 		e.logPublishError(err, sid, messageID, chatapp.EventChatRunFinished, prompt)
 	}
+}
+
+func (e *Engine) shouldUseCartTool(prompt string) bool {
+	lower := strings.ToLower(prompt)
+	return strings.Contains(lower, "client tool") || strings.Contains(lower, "cart.add") || (strings.Contains(lower, "add") && strings.Contains(lower, "cart"))
+}
+
+func (e *Engine) runCartTool(runCtx, publishCtx context.Context, sid sessionstream.SessionId, messageID, prompt string, pub sessionstream.EventPublisher) error {
+	if e.frontendTools == nil {
+		return fmt.Errorf("frontend tools manager is not installed")
+	}
+	result, err := e.frontendTools.Request(runCtx, sid, pub, frontendtools.Request{
+		MessageID:  messageID,
+		ToolCallID: messageID + ":tool:cart-add",
+		ToolName:   "cart.add",
+		Mode:       toolv1.ToolExecutionMode_TOOL_EXECUTION_MODE_FRONTEND_AUTO,
+		Input: map[string]any{
+			"sku":      "retro-boot",
+			"name":     "Retro Hiking Boot",
+			"quantity": float64(1),
+			"reason":   "The user asked the assistant to add boots to the browser cart.",
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if result.GetStatus() != "success" {
+		if result.GetError() != "" {
+			return fmt.Errorf("frontend tool %s returned %s: %s", result.GetToolName(), result.GetStatus(), result.GetError())
+		}
+		return fmt.Errorf("frontend tool %s returned %s", result.GetToolName(), result.GetStatus())
+	}
+
+	summary := "The browser ran cart.add and updated the demo cart."
+	if result.GetResult() != nil {
+		m := result.GetResult().AsMap()
+		if cartCount, ok := m["cartCount"]; ok {
+			summary = fmt.Sprintf("The browser ran cart.add and the demo cart now contains %v item(s).", cartCount)
+		}
+	}
+	return e.publishAssistantText(publishCtx, sid, pub, messageID+":text:2", prompt, summary)
+}
+
+func (e *Engine) publishAssistantText(ctx context.Context, sid sessionstream.SessionId, pub sessionstream.EventPublisher, textSegmentID, prompt, text string) error {
+	if err := publish(ctx, sid, pub, chatapp.EventChatTextSegmentStarted, &chatappv1.ChatTextSegmentStarted{MessageId: textSegmentID, Role: "assistant", Prompt: prompt, Status: "streaming", Streaming: true}); err != nil {
+		return err
+	}
+	if err := publish(ctx, sid, pub, chatapp.EventChatTextPatch, &chatappv1.ChatTextPatch{MessageId: textSegmentID, Role: "assistant", Prompt: prompt, StreamId: textSegmentID, Sequence: 1, Text: text, Mode: chatappv1.ChatStreamPatchMode_CHAT_STREAM_PATCH_MODE_APPEND, Status: "streaming"}); err != nil {
+		return err
+	}
+	return publish(ctx, sid, pub, chatapp.EventChatTextSegmentFinished, &chatappv1.ChatTextSegmentFinished{MessageId: textSegmentID, Role: "assistant", Prompt: prompt, Text: text, Content: text, Status: "finished", Streaming: false, Final: true})
+}
+
+func (e *Engine) publishToolFailureText(ctx context.Context, sid sessionstream.SessionId, pub sessionstream.EventPublisher, messageID string, err error) {
+	_ = e.publishAssistantText(ctx, sid, pub, messageID+":text:tool-error", "", fmt.Sprintf("I could not run the browser cart tool: %v", err))
+}
+
+func (e *Engine) publishRunStoppedOnly(ctx context.Context, sid sessionstream.SessionId, pub sessionstream.EventPublisher, messageID string) {
+	_ = publish(ctx, sid, pub, chatapp.EventChatRunStopped, &chatappv1.ChatRunStopped{MessageId: messageID, Status: "stopped"})
 }
 
 func (e *Engine) publishWidget(runCtx, publishCtx context.Context, sid sessionstream.SessionId, parentMessageID string, w WidgetSpec, pub sessionstream.EventPublisher) error {

@@ -33,6 +33,33 @@ type stopSessionResponse struct {
 	Status    string `json:"status"`
 }
 
+type toolDescriptorRequest struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	InputSchema map[string]any `json:"inputSchema,omitempty"`
+	Mode        string         `json:"mode,omitempty"`
+	Available   bool           `json:"available"`
+}
+
+type toolManifestRequest struct {
+	Revision uint64                  `json:"revision,omitempty"`
+	Tools    []toolDescriptorRequest `json:"tools"`
+}
+
+type toolResultRequest struct {
+	ToolCallID string         `json:"toolCallId"`
+	ToolName   string         `json:"toolName,omitempty"`
+	Result     map[string]any `json:"result,omitempty"`
+	Status     string         `json:"status,omitempty"`
+	Error      string         `json:"error,omitempty"`
+}
+
+type toolCommandResponse struct {
+	SessionID string `json:"sessionId"`
+	Accepted  bool   `json:"accepted"`
+	Status    string `json:"status"`
+}
+
 type errorResponse struct {
 	Error string `json:"error"`
 }

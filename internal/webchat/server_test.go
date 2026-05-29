@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	toolv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/tools/v1"
 	widgetv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/widgets/v1"
 	chatappv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/v1"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
@@ -57,6 +58,48 @@ func TestSubmitBootsProducesAssistantMessageAndWidgetSnapshot(t *testing.T) {
 	}
 	if !sawWidget {
 		t.Fatalf("snapshot did not contain ready ProductCarousel with 3 products: %#v", snap.Entities)
+	}
+}
+
+func TestFrontendToolRoundTripResumesMockRun(t *testing.T) {
+	server, cleanup, err := NewServer(ServerOptions{ChunkDelay: time.Millisecond})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	defer cleanup()
+
+	sessionID := createSession(t, server)
+	postToolManifest(t, server, sessionID)
+	submitPrompt(t, server, sessionID, "add boots to cart")
+	waitForToolCall(t, server, sessionID)
+	postToolResult(t, server, sessionID, "overlay-msg-1:tool:cart-add")
+	waitIdle(t, server, sessionID)
+
+	snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+
+	var sawTool, sawFinal bool
+	for _, entity := range snap.Entities {
+		switch payload := entity.Payload.(type) {
+		case *toolv1.FrontendToolCallEntity:
+			if payload.GetToolName() == "cart.add" && payload.GetStatus() == "success" {
+				if payload.GetResult().AsMap()["cartCount"] == float64(1) {
+					sawTool = true
+				}
+			}
+		case *chatappv1.ChatMessageEntity:
+			if payload.GetRole() == "assistant" && payload.GetContent() == "The browser ran cart.add and the demo cart now contains 1 item(s)." {
+				sawFinal = true
+			}
+		}
+	}
+	if !sawTool {
+		t.Fatalf("snapshot did not contain completed frontend tool call: %#v", snap.Entities)
+	}
+	if !sawFinal {
+		t.Fatalf("snapshot did not contain resumed assistant confirmation: %#v", snap.Entities)
 	}
 }
 
@@ -116,6 +159,64 @@ func submitPrompt(t *testing.T, server *Server, sessionID, prompt string) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("submit status=%d body=%s", rec.Code, rec.Body.String())
 	}
+}
+
+func postToolManifest(t *testing.T, server *Server, sessionID string) {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]any{
+		"revision": 1,
+		"tools": []map[string]any{{
+			"name":        "cart.add",
+			"description": "Add an item to the browser cart",
+			"mode":        "frontend",
+			"available":   true,
+			"inputSchema": map[string]any{"type": "object"},
+		}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/"+sessionID+"/tools/manifest", bytes.NewReader(body))
+	server.Mux().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("tool manifest status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func postToolResult(t *testing.T, server *Server, sessionID, toolCallID string) {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]any{
+		"toolCallId": toolCallID,
+		"toolName":   "cart.add",
+		"status":     "success",
+		"result": map[string]any{
+			"ok":        true,
+			"cartCount": float64(1),
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/"+sessionID+"/tools/results", bytes.NewReader(body))
+	server.Mux().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("tool result status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func waitForToolCall(t *testing.T, server *Server, sessionID string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
+		if err != nil {
+			t.Fatalf("Snapshot: %v", err)
+		}
+		for _, entity := range snap.Entities {
+			payload, ok := entity.Payload.(*toolv1.FrontendToolCallEntity)
+			if ok && payload.GetToolName() == "cart.add" && payload.GetStatus() == "requested" {
+				return
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for frontend tool call")
 }
 
 func stopSession(t *testing.T, server *Server, sessionID string) {
