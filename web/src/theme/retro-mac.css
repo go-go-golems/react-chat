@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/*
+ * Retro Mac OS 1 monochrome theme
+ * Inspired by the original 1984 Macintosh: black on white, 1px borders,
+ * monospace typography, no gradients, no rounded corners, no drop shadows.
+ * Subtle text grays for visual hierarchy instead of color.
+ */
+
+@theme {
+  --font-mono: "Menlo", "Monaco", "Courier New", monospace;
+  --font-sans: "Chicago", "Geneva", "Helvetica Neue", sans-serif;
+
+  --color-mac-black: #000000;
+  --color-mac-white: #ffffff;
+  --color-mac-gray-1: #333333;
+  --color-mac-gray-2: #666666;
+  --color-mac-gray-3: #999999;
+  --color-mac-gray-4: #cccccc;
+  --color-mac-gray-5: #eeeeee;
+}
+
+/* Base reset for the overlay */
+.chat-overlay-root {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-mac-black);
+  background: var(--color-mac-white);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+/* Scrollbar: minimal, monochrome */
+.chat-overlay-root ::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-overlay-root ::-webkit-scrollbar-track {
+  background: var(--color-mac-white);
+}
+.chat-overlay-root ::-webkit-scrollbar-thumb {
+  background: var(--color-mac-black);
+  border: 1px solid var(--color-mac-black);
+}
+
+/* Cursor blink animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Selection */
+.chat-overlay-root ::selection {
+  background: var(--color-mac-black);
+  color: var(--color-mac-white);
+}
