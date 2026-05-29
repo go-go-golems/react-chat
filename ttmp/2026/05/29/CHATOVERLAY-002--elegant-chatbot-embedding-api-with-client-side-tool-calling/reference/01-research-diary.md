@@ -688,7 +688,7 @@ The main behavioral change is observability. Running `chat-overlay serve --real-
 
 **Inferred user intent:** Make real-model profile resolution and runtime debugging reliable before continuing frontend-tool bridge smoke work.
 
-**Commit (code):** `4bd5aab` — "feat: wire glazed profile-aware serve command"
+**Commit (code):** `bf88adc` — "feat: wire glazed profile-aware serve command"
 
 ### What I did
 - Rewrote `cmd/chat-overlay/main.go` so the root command initializes Glazed logging with `logging.AddLoggingSectionToRootCommand(...)` and `logging.InitLoggerFromCobra(...)`.
