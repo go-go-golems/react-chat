@@ -111,6 +111,10 @@ export function defineTool<T extends ToolDefinition>(tool: T): T {
   return tool;
 }
 
+export function defineToolUI<TInput, TResult>(toolUI: BackendToolUI<TInput, TResult>): BackendToolUI<TInput, TResult> {
+  return toolUI;
+}
+
 export function parseToolInput<TInput>(tool: BaseTool<TInput>, value: unknown): TInput {
   if (tool.parameters) {
     return tool.parameters.parse(value);

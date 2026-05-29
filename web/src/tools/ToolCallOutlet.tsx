@@ -15,6 +15,7 @@ export function ToolCallOutlet({ toolCallId, toolName, status, input, result, er
   const tool = defaultToolRegistry.get(toolName);
   const isHuman = tool?.mode === 'human' && isPendingHumanTool(toolCallId) && !result;
   const humanTool = isHuman ? tool as HumanTool<Record<string, unknown>, Record<string, unknown>> : null;
+  const backendToolUI = tool?.mode === 'backend' && tool.render ? tool : null;
   let parsedHumanInput: Record<string, unknown> | null = null;
   let validationError = '';
   if (humanTool) {
@@ -65,6 +66,11 @@ export function ToolCallOutlet({ toolCallId, toolName, status, input, result, er
               void respondToHumanTool({ toolCallId, toolName, status: 'denied', result: { approved: false }, error: message });
             },
           })}
+        </div>
+      ) : null}
+      {backendToolUI?.render ? (
+        <div className="mt-2" data-testid="backend-tool-ui">
+          {backendToolUI.render({ input: input ?? {}, result, status: statusText })}
         </div>
       ) : null}
       {result ? (
