@@ -56,3 +56,14 @@ Added Zod validation for frontend tool inputs/results and JSON Schema manifest e
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRegistry.ts — Schema API and manifest export
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRuntime.ts — Runtime input/result validation
 
+
+## 2026-05-29
+
+Added backend tool UI registration with defineToolUI/useToolUI and ToolCallOutlet rendering support (commit f57e6ed).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/stories/ToolCallOutlet.stories.tsx — Tool UI stories
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRegistry.ts — defineToolUI API
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/useToolUI.ts — React registration hook
+

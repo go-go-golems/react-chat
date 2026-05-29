@@ -39,6 +39,8 @@ RelatedFiles:
         Demo tools now use Zod schemas
     - Path: web/src/core/createChatOverlay.ts
       Note: Overlay API now exposes tools namespace and manifest/result calls
+    - Path: web/src/stories/ToolCallOutlet.stories.tsx
+      Note: Storybook examples for frontend/backend/failed tool cards
     - Path: web/src/tools/ToolCallOutlet.tsx
       Note: |-
         Timeline renderer now hosts human approval UI
@@ -51,12 +53,15 @@ RelatedFiles:
         Validated automatic frontend tool execution
     - Path: web/src/tools/useHumanTool.ts
       Note: Scoped registration hook for human approval tools
+    - Path: web/src/tools/useToolUI.ts
+      Note: Scoped registration hook for backend tool visualization
 ExternalSources: []
 Summary: Chronological research diary for CHATOVERLAY-002.
 LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -444,3 +449,62 @@ The important architectural point is that the browser should validate the same c
 - Demo automatic result schema: `CartAddResultSchema`.
 - Demo human input schema: `CheckoutConfirmInputSchema`.
 - Demo human result schema: `CheckoutConfirmResultSchema`.
+
+## Step 6: Add backend tool UI registration
+
+This step added the missing visualization half of the tool API. Frontend tools execute in the browser. Human tools render approval UI and then submit a result. Backend tools are different: execution happens in Go or inside the future Geppetto tool loop, but the browser may still need a custom renderer for the call and result. The new `defineToolUI()` and `useToolUI()` APIs cover that case.
+
+The implementation is intentionally small. A backend tool UI is registered in the same registry as other tool definitions, advertises `mode: "backend"`, and may provide a `render({ input, result, status })` function. `ToolCallOutlet` now detects backend tool UI definitions and renders them above the raw JSON fallback.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue production hardening after schema validation by filling in the backend tool visualization API from the design.
+
+**Inferred user intent:** Keep converting the design doc into usable frontend framework primitives.
+
+**Commit (code):** `f57e6ed3119387043d5d01647b017a42b478b3a8` — "feat: add backend tool UI registration"
+
+### What I did
+- Added `defineToolUI()` to `web/src/tools/toolRegistry.ts`.
+- Added `useToolUI()` for scoped React registration of backend tool renderers.
+- Exported `defineToolUI` and `useToolUI` from `web/src/core/index.ts`.
+- Extended `ToolCallOutlet` to render registered backend tool UIs.
+- Added Storybook examples in `web/src/stories/ToolCallOutlet.stories.tsx` for automatic frontend tools, backend tool UI, and failed tools.
+
+### Why
+- Some tools should execute on the backend but still have a rich, domain-specific frontend representation.
+- Tool execution and tool visualization are separate concerns. `defineToolUI()` makes that distinction explicit.
+- This mirrors the assistant-ui pattern researched earlier: frontend tools, human tools, and backend tool UIs are related but not identical.
+
+### What worked
+- `cd web && npm run build` passed.
+- `go test ./...` passed.
+
+### What didn't work
+- The first Storybook story build failed because the generic backend UI render props inferred `input` as `unknown` and `result` as `{}`. I fixed the story by narrowing with runtime object/property checks before reading `query` and `products`.
+
+### What I learned
+- The common tool registry is a reasonable home for visualization definitions, but stories need careful typing because backend tool results can be absent or unknown.
+
+### What was tricky to build
+- `ToolCallOutlet` must keep the raw JSON fallback even when custom UI exists. The custom UI teaches the domain meaning; the JSON fallback remains useful for debugging and for verifying exact payloads.
+
+### What warrants a second pair of eyes
+- Review whether backend tool UIs should be registered through the same manifest sent to the backend, or whether visualization-only definitions should remain frontend-local.
+- Review the naming: `defineToolUI()` may be clearer than overloading `defineTool({ mode: "backend" })`, but both currently use the same registry.
+
+### What should be done in the future
+- Add real backend tool-call events from Pinocchio/Geppetto and render them through `defineToolUI()`.
+- Add stories for backend tool streaming/partial result states.
+
+### Code review instructions
+- Start with `web/src/tools/toolRegistry.ts` for `defineToolUI()`.
+- Read `web/src/tools/useToolUI.ts` for scoped registration.
+- Read `web/src/tools/ToolCallOutlet.tsx` for rendering behavior.
+- Run `cd web && npm run build`.
+
+### Technical details
+- Story file: `web/src/stories/ToolCallOutlet.stories.tsx`.
+- Example backend tool UI name: `catalog.search`.
