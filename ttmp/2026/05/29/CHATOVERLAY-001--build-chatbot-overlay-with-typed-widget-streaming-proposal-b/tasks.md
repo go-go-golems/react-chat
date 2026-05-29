@@ -50,7 +50,7 @@
 - [x] T31: Add test that `show me boots` produces user message, assistant message, and `ChatWidgetInstance` snapshot entity.
 - [ ] T32: Add test that WebSocket subscribe receives snapshot first and live events after submit.
 - [x] T33: Add test that stop cancels the custom mock run, not only Pinocchio's default engine run.
-- [ ] T34: Add smoke script or Makefile target for backend validation.
+- [x] T34: Add smoke script or Makefile target for backend validation.
 - [x] T35: Run `go test ./...` cleanly from the project root.
 
 ## Phase 6: Frontend foundation already created, backend integration pending
@@ -64,5 +64,5 @@
 - [x] T42: Implement widget registry, `WidgetOutlet`, and unknown widget fallback.
 - [x] T43: Implement ecommerce widget renderers (`ProductCarousel`, `CartReview`, `CheckoutNudge`).
 - [x] T44: Add Storybook stories for overlay and widget states.
-- [ ] T45: Re-test live frontend flow after backend mock engine is fixed.
+- [x] T45: Re-test live frontend flow after backend mock engine is fixed.
 - [ ] T46: Embed frontend build in Go binary with `go:embed`.

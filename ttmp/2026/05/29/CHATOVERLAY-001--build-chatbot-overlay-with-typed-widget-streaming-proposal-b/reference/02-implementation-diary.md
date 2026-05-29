@@ -397,3 +397,69 @@ The frontend work is substantial and useful, but it is separate from the backend
 ### Technical details
 - Frontend build command: `npm run build`.
 - Build result: Vite production build succeeded.
+
+---
+
+## Step 7: Restart servers, save smoke scripts, and verify live frontend flow
+
+I restarted the backend and frontend in the `chat-overlay` tmux session and tested the full browser path again. The backend was already producing correct HTTP snapshot state, but the browser was not receiving live WebSocket events through Vite. The missing piece was the Vite proxy configuration for WebSocket upgrade requests.
+
+I changed the Vite dev proxy from a string shorthand to an object with `ws: true`, restarted the frontend dev server, and verified that the live overlay now renders the user message, assistant response, and `ProductCarousel` widget after sending `show me boots`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "save all the scrpts you write in the scripts/ folder of the ticket"
+
+**Assistant interpretation:** Persist operational smoke/restart scripts under the ticket workspace instead of leaving them as throwaway shell snippets.
+
+**Inferred user intent:** Make the debugging workflow repeatable and reviewable for later backend/frontend integration work.
+
+**Commit (code):** pending — Vite proxy fix, ticket scripts, task/diary update.
+
+### What I did
+- Added `scripts/01-restart-dev-servers.sh` to restart backend and frontend in tmux panes.
+- Added `scripts/02-backend-smoke-boots.sh` to verify create session + submit `show me boots` + snapshot state.
+- Added `scripts/03-websocket-smoke-boots.js` to verify direct backend WebSocket events.
+- Updated `web/vite.config.ts` to proxy WebSocket upgrade requests with `ws: true`.
+- Restarted both dev servers via the saved restart script.
+- Ran backend smoke and WebSocket smoke scripts successfully.
+- Tested the browser with Playwright and confirmed the overlay renders the user message, assistant message, and product carousel.
+- Marked T34 and T45 complete.
+
+### Why
+The browser state showed `wsStatus: "connecting..."`, which meant the frontend created a session and submitted the prompt but never completed the WebSocket connection through Vite. The backend was already correct. The frontend dev proxy needed explicit WebSocket support.
+
+### What worked
+- Backend smoke script showed `ChatMessage` user, `ChatMessage` assistant, and `ChatWidgetInstance` in the snapshot.
+- WebSocket smoke script saw `ChatUserMessageAccepted`, `ChatTextPatch`, and `ChatWidgetInstanceStarted`.
+- Browser screenshot `chat-overlay-live-boots-working.png` shows the retro chat panel with the rendered `ProductCarousel`.
+
+### What didn't work
+- Before the Vite proxy fix, the browser overlay stayed empty even though HTTP submit returned 200.
+- The status indicator still shows `?` for `subscribed`; the UI should add a label/color mapping for that status.
+
+### What I learned
+- Vite's simple proxy string is not sufficient for this WebSocket dev-server path. The proxy entry should explicitly enable `ws: true`.
+- Inspecting the Redux store in the browser (`await import('/src/store/store.ts')`) made it clear that the problem was connection state, not event mapping.
+
+### What was tricky to build
+- The backend direct WebSocket test worked, while the browser did not. That narrowed the failure to the Vite proxy/browser dev path rather than sessionstream or mock engine behavior.
+
+### What warrants a second pair of eyes
+- Review the frontend status model. `subscribed` is a valid transport status but the current status indicator treats unknown statuses as `?`.
+- Review whether the smoke scripts should become Makefile targets.
+
+### What should be done in the future
+- Add a Playwright or Vitest integration test for the live overlay flow.
+- Add a frontend status mapping for `subscribed`.
+
+### Code review instructions
+- Review `web/vite.config.ts` for the `ws: true` proxy setting.
+- Run `scripts/01-restart-dev-servers.sh`.
+- Run `scripts/02-backend-smoke-boots.sh`.
+- Run `scripts/03-websocket-smoke-boots.js`.
+- Open `http://localhost:5173`, send `show me boots`, and verify the product carousel renders.
+
+### Technical details
+- Browser verification screenshot: `chat-overlay-live-boots-working.png`.
+- Redux state after submit contained three timeline entities: user message, assistant message, and widget entity.

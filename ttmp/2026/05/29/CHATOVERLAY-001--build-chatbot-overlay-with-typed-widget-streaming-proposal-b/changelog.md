@@ -73,3 +73,15 @@ Committed frontend overlay and Storybook implementation separately from backend 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/core/createChatOverlay.ts — Overlay API implementation
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/stories/ChatPanel.stories.tsx — Storybook overlay state coverage
 
+
+## 2026-05-29
+
+Fixed frontend live integration by enabling Vite WebSocket proxying (ws: true), saved restart/backend/ws smoke scripts under ticket scripts/, and verified browser renders boots ProductCarousel.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-001--build-chatbot-overlay-with-typed-widget-streaming-proposal-b/scripts/01-restart-dev-servers.sh — Repeatable tmux restart workflow
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-001--build-chatbot-overlay-with-typed-widget-streaming-proposal-b/scripts/02-backend-smoke-boots.sh — HTTP backend smoke script
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-001--build-chatbot-overlay-with-typed-widget-streaming-proposal-b/scripts/03-websocket-smoke-boots.js — WebSocket smoke script
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/vite.config.ts — WebSocket proxy fix for frontend dev server
+
