@@ -44,6 +44,21 @@ func (s *Server) HandleSubmitMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sid := sessionstream.SessionId(sessionID)
+	if s.realRuntime != nil {
+		req, err := s.realRuntime.promptRequest(r.Context(), sid, prompt)
+		if err != nil {
+			log.Error().Err(err).Str("sessionId", sessionID).Msg("create real runtime prompt request failed")
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+			return
+		}
+		if err := s.service.SubmitPromptRequest(r.Context(), sid, req); err != nil {
+			log.Error().Err(err).Str("sessionId", sessionID).Msg("submit real prompt failed")
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, submitMessageResponse{SessionID: sessionID, Accepted: true, Status: "running"})
+		return
+	}
 	if err := s.hub.Submit(r.Context(), sid, mockengine.CommandStart, &chatappv1.StartInferenceCommand{Prompt: prompt}); err != nil {
 		log.Error().Err(err).Str("sessionId", sessionID).Msg("submit prompt failed")
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
@@ -81,6 +96,14 @@ func (s *Server) HandleStopSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sid := sessionstream.SessionId(sessionID)
+	if s.realRuntime != nil {
+		if err := s.service.Stop(r.Context(), sid); err != nil {
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, stopSessionResponse{SessionID: sessionID, Accepted: true, Status: "stop_requested"})
+		return
+	}
 	if err := s.hub.Submit(r.Context(), sid, mockengine.CommandStop, &chatappv1.StopInferenceCommand{}); err != nil {
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
 		return

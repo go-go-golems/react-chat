@@ -21,8 +21,14 @@ RelatedFiles:
       Note: PromptRequest RuntimeContext hook for per-run bridge context
     - Path: ../../../../../../../pinocchio/pkg/inference/runtime/composer.go
       Note: ComposedRuntime now carries Registry and ToolExecutor
+    - Path: cmd/chat-overlay/cmds/serve.go
+      Note: Glazed serve command with Pinocchio profile settings
+    - Path: cmd/chat-overlay/main.go
+      Note: Glazed root command and logging setup
     - Path: internal/frontendtools/bridge.go
-      Note: Geppetto ToolExecutor bridge for browser frontend tools
+      Note: |-
+        Geppetto ToolExecutor bridge for browser frontend tools
+        Frontend tool bridge logging instrumentation
     - Path: internal/frontendtools/bridge_test.go
       Note: Unit test for bridge request/result round trip
     - Path: internal/frontendtools/manager.go
@@ -31,6 +37,8 @@ RelatedFiles:
       Note: Sessionstream UI and timeline projections for frontend tools
     - Path: internal/mockengine/engine.go
       Note: Mock engine requests cart.add and resumes after browser result
+    - Path: internal/webchat/real_runtime.go
+      Note: Parsed-value Pinocchio profile resolution for real runtime
     - Path: proto/chatoverlay/tools/v1/frontend_tool.proto
       Note: Frontend tool protocol implemented in smoke slice
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/01-fetch-research-sources.sh
@@ -75,6 +83,7 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -664,3 +673,85 @@ The bridge executor is the production-shaped adapter. If a model calls a tool th
 - Bridge context carries `SessionID`, `MessageID`, and `Publisher`.
 - `BridgeExecutor` intercepts calls only when the current session has an available frontend descriptor for `call.Name`.
 - Non-frontend calls delegate to `Fallback`, defaulting to Geppetto's `NewDefaultToolExecutor`.
+
+## Step 9: Convert chat-overlay serve to Glazed profile-aware command wiring
+
+This step replaced the plain Cobra-only `chat-overlay serve` command with a Glazed command so the binary participates in the same command parsing, profile-bootstrap, and logging conventions as the existing Pinocchio web-chat entrypoint. The real-runtime path now receives the parsed Glazed values directly, which lets `profilebootstrap.ResolveCLIEngineSettings(...)` see `--profile`, `--profile-registries`, `--config-file`, environment/config layers, and the standard Pinocchio profile registry fallback instead of reconstructing only a few flags by hand.
+
+The main behavioral change is observability. Running `chat-overlay serve --real-runtime --profile gpt-5-mini-low --log-level debug --with-caller` now initializes Glazed logging, emits caller-aware startup lines, and logs profile resolution details when the first real-runtime prompt is submitted. The backend also logs frontend-tool bridge routing/fallback decisions so a real model tool-loop can be debugged without guessing whether Geppetto, Pinocchio, sessionstream, or the browser bridge owns the current state.
+
+### Prompt Context
+
+**User prompt (verbatim):** "convert binary to glazed commands, so that you can properly load profile registries like @2026-03-16--gec-rag/ or @pinocchio/cmd/web-chat/ do it, and properly set up logging as well. Then test it with --log-level debug --with-caller"
+
+**Assistant interpretation:** Refactor the chat-overlay CLI from plain Cobra flags to Glazed command wiring, reuse Pinocchio profile settings for real runtime profile registry loading, initialize Glazed logging at the root, and verify debug/caller logging with the requested flags.
+
+**Inferred user intent:** Make real-model profile resolution and runtime debugging reliable before continuing frontend-tool bridge smoke work.
+
+**Commit (code):** `4bd5aab` — "feat: wire glazed profile-aware serve command"
+
+### What I did
+- Rewrote `cmd/chat-overlay/main.go` so the root command initializes Glazed logging with `logging.AddLoggingSectionToRootCommand(...)` and `logging.InitLoggerFromCobra(...)`.
+- Rebuilt `serve` as a Glazed `cmds.BareCommand` using `cli.BuildCobraCommandFromCommand(...)`.
+- Added the Pinocchio `profilebootstrap.NewProfileSettingsSection()` to `serve`, exposing `--profile`, `--profile-registries`, and `--config-file` through the Glazed parser.
+- Configured the parser with `AppName: "pinocchio"` so profile loading follows Pinocchio web-chat conventions and can find `/home/manuel/.config/pinocchio/profiles.yaml`.
+- Passed parsed Glazed values into `webchat.ServerOptions` and then into the real-runtime factory so `ResolveCLIEngineSettings(...)` operates on the complete parsed value stack.
+- Added debug/info logs around profile resolution, engine creation, frontend manifest registration, bridge fallback, frontend bridge routing, and frontend bridge results.
+- Updated the CHATOVERLAY-002 task list with the new Glazed/profile-resolution subtasks.
+
+### Why
+- The plain Cobra command only carried local flags and did not initialize Glazed logging, so `--log-level debug --with-caller` did not exist and profile-bootstrap diagnostics were missing.
+- Reusing Pinocchio profile settings avoids a second, partial implementation of profile registry loading.
+- Debugging provider-backed frontend tools requires logs at three boundaries: CLI/profile resolution, Geppetto engine creation, and frontend-tool bridge execution.
+
+### What worked
+- `go test ./...` passed after the CLI conversion and logging instrumentation.
+- `go run ./cmd/chat-overlay --help` now shows Glazed root logging flags including `--log-level` and `--with-caller`.
+- `go run ./cmd/chat-overlay serve --help --long-help` now shows `--profile`, `--profile-registries`, `--config-file`, and `--print-parsed-fields`.
+- `timeout 5s go run ./cmd/chat-overlay serve --real-runtime --profile gpt-5-mini-low --log-level debug --with-caller --serve-port 18080` emitted caller-aware debug/info logs.
+- A real-runtime prompt submission resolved the profile and showed the registry fallback:
+  - command: `go run ./cmd/chat-overlay serve --real-runtime --profile gpt-5-mini-low --log-level debug --with-caller --serve-port 18083`
+  - request: `POST /api/chat/sessions/{id}/messages` with `{"prompt":"Say hello in five words."}`
+  - log: `resolved pinocchio profile for chat overlay runtime profile=gpt-5-mini-low profile_registries=["/home/manuel/.config/pinocchio/profiles.yaml"]`
+  - log: `Responses: built request ... model=gpt-5-mini`
+
+### What didn't work
+- The first direct API smoke used `{"message":"Say hello in five words."}` and returned HTTP 400 because the endpoint expects `{"prompt":"..."}`.
+- The earlier browser smoke with a real model did not reliably produce a visible `cart.add` frontend tool call; the model/runtime path is now wired, but the non-mock browser tool-call smoke still needs a stronger prompt/tool schema or a fake provider/tool-call engine to make it deterministic.
+- `timeout 5s ...` exits with status 124 even though the server handles SIGTERM and logs shutdown; this is expected behavior from GNU `timeout`, not a server failure.
+
+### What I learned
+- Pinocchio's profile bootstrap can be reused cleanly from chat-overlay as long as the Glazed parser includes the profile settings section and uses Pinocchio's app/config prefix.
+- The profile registry fallback is only visible once a real-runtime prompt resolves the profile, not merely at server startup.
+- `--print-parsed-fields` is useful for confirming CLI value sources, but the registry fallback itself appears in the resolved runtime logs after `ResolveCLIEngineSettings(...)`.
+
+### What was tricky to build
+- The command needed to stay a long-running HTTP server while adopting Glazed's command interface. I implemented `Run(ctx, vals)` and kept signal-aware shutdown with `signal.NotifyContext(...)`, `http.Server.Shutdown(...)`, and caller-aware zerolog output.
+- The existing `chunk-delay` flag was a `time.Duration` Cobra flag, but the local Glazed field set does not expose `fields.TypeDuration`; I changed the Glazed field to a string defaulting to `20ms` and parse it with `time.ParseDuration(...)` before constructing `webchat.ServerOptions`.
+- Passing only decoded profile strings would have recreated the old partial path. The important fix was passing the original `*values.Values` into the real-runtime factory so Pinocchio's resolver can consume all command/config/profile layers.
+
+### What warrants a second pair of eyes
+- Review `cmd/chat-overlay/main.go` and confirm `AppName: "pinocchio"` is the desired parser app name for profile/config loading even though the binary itself is `chat-overlay`.
+- Review whether `serve` should expose additional Geppetto observability sections like Pinocchio web-chat does, beyond the root logging flags added in this step.
+- Review whether `profile` should have an explicit default at the Glazed profile-settings layer or remain an explicit flag for real-runtime mode.
+
+### What should be done in the future
+- Make the real-model browser smoke deterministic by either tightening the prompt/tool descriptors or adding a fake provider engine that emits a known `cart.add` tool call through the real Geppetto tool-loop path.
+- Consider documenting the CLI diagnostics in a README once the real-runtime bridge smoke is stable.
+- Add a small command-level test or golden help check if this binary grows more subcommands.
+
+### Code review instructions
+- Start with `cmd/chat-overlay/main.go` to review root logging/help setup and Glazed command construction.
+- Then review `cmd/chat-overlay/cmds/serve.go` for Glazed sections, decoding, signal handling, and `ServerOptions` construction.
+- Then review `internal/webchat/real_runtime.go` for parsed-value profile resolution and real-runtime logs.
+- Finally review `internal/frontendtools/bridge.go` for bridge debug/info logs.
+- Validation commands:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && go test ./...`
+  - `go run ./cmd/chat-overlay serve --help --long-help | rg -n "log-level|with-caller|profile|profile-registries|config-file|print-parsed" -C 1`
+  - `timeout 5s go run ./cmd/chat-overlay serve --real-runtime --profile gpt-5-mini-low --log-level debug --with-caller --serve-port 18080`
+
+### Technical details
+- Root logging now comes from Glazed's logging section.
+- `serve` uses `profilebootstrap.NewProfileSettingsSection()` for Pinocchio profile flags.
+- Real runtime profile resolution calls `profilebootstrap.ResolveCLIEngineSettings(ctx, parsed)` with the Glazed parsed values.
+- Verified profile registry fallback: `/home/manuel/.config/pinocchio/profiles.yaml`.

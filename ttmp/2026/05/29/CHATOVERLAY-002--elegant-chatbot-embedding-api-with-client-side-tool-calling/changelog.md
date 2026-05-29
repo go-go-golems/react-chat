@@ -87,3 +87,14 @@ Added first Geppetto/Pinocchio frontend-tool bridge hooks: Pinocchio runtime reg
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/frontendtools/bridge.go — Bridge executor implementation
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/runtime_inference.go — Pinocchio runtime bridge wiring
 
+
+## 2026-05-29
+
+Converted chat-overlay serve to Glazed command wiring with Pinocchio profile settings and debug/caller logging
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/cmd/chat-overlay/cmds/serve.go — Glazed serve command
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/cmd/chat-overlay/main.go — Glazed root logging setup
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/real_runtime.go — Pinocchio profile resolution
+

@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
 	mockengine "github.com/go-go-golems/chat-overlay/internal/mockengine"
 	"github.com/go-go-golems/chat-overlay/internal/widgets"
+	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	chatapp "github.com/go-go-golems/pinocchio/pkg/chatapp"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
 	storesqlite "github.com/go-go-golems/sessionstream/pkg/sessionstream/hydration/sqlite"
@@ -17,17 +18,24 @@ import (
 
 // ServerOptions configures the chat overlay server.
 type ServerOptions struct {
-	TimelineDB string
-	ChunkDelay time.Duration
+	TimelineDB        string
+	ChunkDelay        time.Duration
+	UseRealRuntime    bool
+	Profile           string
+	ProfileRegistries []string
+	ConfigFile        string
+	ParsedValues      *values.Values
 }
 
 // Server holds the HTTP-facing dependencies for the chat overlay backend.
 type Server struct {
-	hub        *sessionstream.Hub
-	service    *chatapp.Service
-	mockEngine *mockengine.Engine
-	ws         *wstransport.Server
-	closeFn    func() error
+	hub                 *sessionstream.Hub
+	service             *chatapp.Service
+	mockEngine          *mockengine.Engine
+	frontendToolManager *frontendtools.Manager
+	realRuntime         *realRuntimeFactory
+	ws                  *wstransport.Server
+	closeFn             func() error
 }
 
 // NewServer creates a fully wired chat overlay server.
@@ -90,7 +98,16 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 		return nil, nil, fmt.Errorf("create service: %w", err)
 	}
 
-	server := &Server{hub: hub, service: service, mockEngine: mockEngine, ws: ws, closeFn: store.Close}
+	var realRuntime *realRuntimeFactory
+	if opts.UseRealRuntime {
+		realRuntime, err = newRealRuntimeFactory(opts, frontendToolManager)
+		if err != nil {
+			_ = store.Close()
+			return nil, nil, fmt.Errorf("create real runtime factory: %w", err)
+		}
+	}
+
+	server := &Server{hub: hub, service: service, mockEngine: mockEngine, frontendToolManager: frontendToolManager, realRuntime: realRuntime, ws: ws, closeFn: store.Close}
 	return server, store.Close, nil
 }
 

@@ -10,6 +10,7 @@ import (
 	geptools "github.com/go-go-golems/geppetto/pkg/inference/tools"
 	"github.com/go-go-golems/sessionstream/pkg/sessionstream"
 	"github.com/invopop/jsonschema"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -58,8 +59,11 @@ func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.Tool
 	start := time.Now()
 	bridge, ok := BridgeContextFromContext(ctx)
 	if !ok || bridge.SessionID == "" || bridge.Publisher == nil || e == nil || e.Manager == nil || !e.Manager.HasAvailableTool(bridge.SessionID, call.Name) {
+		log.Debug().Str("tool", call.Name).Str("tool_call_id", call.ID).Bool("bridge_context", ok).Msg("delegating tool call to fallback executor")
 		return e.fallback().ExecuteToolCall(ctx, call, registry)
 	}
+
+	log.Info().Str("session_id", string(bridge.SessionID)).Str("message_id", bridge.MessageID).Str("tool", call.Name).Str("tool_call_id", call.ID).Msg("routing tool call to browser frontend tool bridge")
 
 	input := map[string]any{}
 	if len(call.Arguments) > 0 {
@@ -81,6 +85,7 @@ func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.Tool
 		Mode:       mode,
 	})
 	if err != nil {
+		log.Error().Err(err).Str("session_id", string(bridge.SessionID)).Str("tool", call.Name).Str("tool_call_id", call.ID).Msg("frontend tool bridge request failed")
 		return &geptools.ToolResult{ID: call.ID, Error: err.Error(), Duration: time.Since(start)}, nil
 	}
 	out := map[string]any{}
@@ -92,6 +97,7 @@ func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.Tool
 		status = "success"
 	}
 	toolResult := &geptools.ToolResult{ID: call.ID, Result: out, Duration: time.Since(start)}
+	log.Info().Str("session_id", string(bridge.SessionID)).Str("tool", call.Name).Str("tool_call_id", call.ID).Str("status", status).Dur("duration", time.Since(start)).Msg("frontend tool bridge returned result")
 	if status != "success" {
 		if result.GetError() != "" {
 			toolResult.Error = result.GetError()
@@ -132,6 +138,7 @@ func (m *Manager) RegisterManifestTools(sid sessionstream.SessionId, registry ge
 	manifest := m.manifests[sid]
 	m.mu.Unlock()
 	if manifest == nil {
+		log.Debug().Str("session_id", string(sid)).Msg("no frontend manifest available to register")
 		return nil
 	}
 	for _, desc := range manifest.Tools {
@@ -147,6 +154,7 @@ func (m *Manager) RegisterManifestTools(sid sessionstream.SessionId, registry ge
 		if err := registry.RegisterTool(desc.GetName(), def); err != nil {
 			return err
 		}
+		log.Debug().Str("session_id", string(sid)).Str("tool", desc.GetName()).Msg("registered frontend manifest tool in geppetto registry")
 	}
 	return nil
 }
