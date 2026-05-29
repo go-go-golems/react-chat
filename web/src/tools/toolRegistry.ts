@@ -1,4 +1,5 @@
 import type React from 'react';
+import { z, type ZodType } from 'zod';
 
 export type ToolExecutionMode = 'frontend' | 'human' | 'backend';
 
@@ -16,27 +17,36 @@ export type HumanToolRenderProps<TInput = Record<string, unknown>, TResult = Rec
   reject: (error?: string) => void;
 };
 
-export type BaseTool = {
+export type BaseTool<TInput = Record<string, unknown>> = {
   name: string;
   description?: string;
   mode?: ToolExecutionMode;
+  /**
+   * Legacy/direct JSON Schema manifest. Prefer `parameters` for new code so the
+   * browser validates the same shape that it advertises to the backend.
+   */
   inputSchema?: Record<string, unknown>;
+  /** Zod schema used for browser-side validation and JSON Schema manifest export. */
+  parameters?: ZodType<TInput>;
   available?: boolean | (() => boolean);
 };
 
-export type FrontendTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool & {
+export type FrontendTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool<TInput> & {
   mode?: 'frontend';
   execute: (input: TInput, context: ToolExecutionContext) => Promise<TResult> | TResult;
+  resultSchema?: ZodType<TResult>;
 };
 
-export type HumanTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool & {
+export type HumanTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool<TInput> & {
   mode: 'human';
   render: (props: HumanToolRenderProps<TInput, TResult>) => React.ReactNode;
+  resultSchema?: ZodType<TResult>;
 };
 
-export type BackendToolUI<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool & {
+export type BackendToolUI<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool<TInput> & {
   mode: 'backend';
   render?: (props: { input: TInput; result?: TResult; status: string }) => React.ReactNode;
+  resultSchema?: ZodType<TResult>;
 };
 
 export type ToolDefinition = FrontendTool<any, any> | HumanTool<any, any> | BackendToolUI<any, any>;
@@ -85,7 +95,7 @@ class DefaultToolRegistry implements ToolRegistry {
       name: tool.name,
       description: tool.description,
       mode: tool.mode ?? 'frontend',
-      inputSchema: tool.inputSchema ?? { type: 'object' },
+      inputSchema: manifestSchemaForTool(tool),
       available: typeof tool.available === 'function' ? tool.available() : tool.available !== false,
     }));
   }
@@ -97,6 +107,40 @@ class DefaultToolRegistry implements ToolRegistry {
 
 export const defaultToolRegistry: ToolRegistry = new DefaultToolRegistry();
 
-export function defineTool(tool: ToolDefinition): ToolDefinition {
+export function defineTool<T extends ToolDefinition>(tool: T): T {
   return tool;
+}
+
+export function parseToolInput<TInput>(tool: BaseTool<TInput>, value: unknown): TInput {
+  if (tool.parameters) {
+    return tool.parameters.parse(value);
+  }
+  return value as TInput;
+}
+
+export function parseToolResult<TResult>(tool: { resultSchema?: ZodType<TResult> }, value: unknown): TResult {
+  if (tool.resultSchema) {
+    return tool.resultSchema.parse(value);
+  }
+  return value as TResult;
+}
+
+export function formatToolValidationError(err: unknown): string {
+  if (err instanceof z.ZodError) {
+    return err.issues
+      .map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join('.') : '<root>';
+        return `${path}: ${issue.message}`;
+      })
+      .join('; ');
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+function manifestSchemaForTool(tool: ToolDefinition): Record<string, unknown> {
+  if (tool.inputSchema) return tool.inputSchema;
+  if (tool.parameters) {
+    return z.toJSONSchema(tool.parameters) as Record<string, unknown>;
+  }
+  return { type: 'object' };
 }

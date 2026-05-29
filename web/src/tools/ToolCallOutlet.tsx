@@ -1,4 +1,4 @@
-import { defaultToolRegistry, type HumanTool } from './toolRegistry';
+import { defaultToolRegistry, formatToolValidationError, parseToolInput, parseToolResult, type HumanTool } from './toolRegistry';
 import { isPendingHumanTool, respondToHumanTool } from './toolRuntime';
 
 type ToolCallOutletProps = {
@@ -15,6 +15,15 @@ export function ToolCallOutlet({ toolCallId, toolName, status, input, result, er
   const tool = defaultToolRegistry.get(toolName);
   const isHuman = tool?.mode === 'human' && isPendingHumanTool(toolCallId) && !result;
   const humanTool = isHuman ? tool as HumanTool<Record<string, unknown>, Record<string, unknown>> : null;
+  let parsedHumanInput: Record<string, unknown> | null = null;
+  let validationError = '';
+  if (humanTool) {
+    try {
+      parsedHumanInput = parseToolInput(humanTool, input ?? {});
+    } catch (err) {
+      validationError = formatToolValidationError(err);
+    }
+  }
 
   return (
     <div className="border border-mac-black bg-mac-white shadow-mac p-2 text-xs" data-testid="tool-call-card">
@@ -29,13 +38,28 @@ export function ToolCallOutlet({ toolCallId, toolName, status, input, result, er
       ) : null}
       {humanTool ? (
         <div className="mt-2" data-testid="human-tool-ui">
-          {humanTool.render({
+          {validationError ? (
+            <div className="border border-mac-black bg-mac-gray-5 p-2 text-[10px]">
+              Invalid tool input: {validationError}
+            </div>
+          ) : humanTool.render({
             toolCallId,
             toolName,
-            input: input ?? {},
+            input: parsedHumanInput ?? {},
             status: statusText,
             respond: (humanResult) => {
-              void respondToHumanTool({ toolCallId, toolName, status: 'success', result: humanResult });
+              try {
+                const parsedResult = parseToolResult(humanTool, humanResult);
+                void respondToHumanTool({ toolCallId, toolName, status: 'success', result: parsedResult });
+              } catch (err) {
+                void respondToHumanTool({
+                  toolCallId,
+                  toolName,
+                  status: 'failed',
+                  result: {},
+                  error: `invalid human tool result: ${formatToolValidationError(err)}`,
+                });
+              }
             },
             reject: (message) => {
               void respondToHumanTool({ toolCallId, toolName, status: 'denied', result: { approved: false }, error: message });

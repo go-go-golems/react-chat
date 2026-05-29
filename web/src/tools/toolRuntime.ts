@@ -1,4 +1,4 @@
-import { defaultToolRegistry } from './toolRegistry';
+import { defaultToolRegistry, formatToolValidationError, parseToolInput, parseToolResult } from './toolRegistry';
 import type { CanonicalFrame } from '../ws/protocol';
 
 type SubmitToolResult = (result: {
@@ -65,6 +65,19 @@ async function executeFrontendTool(payload: Record<string, unknown>) {
     return;
   }
 
+  let input: unknown;
+  try {
+    input = parseToolInput(tool, normalizeRecord(payload.input));
+  } catch (err) {
+    await submit({
+      toolCallId,
+      toolName,
+      status: 'failed',
+      error: `invalid input for frontend tool ${toolName}: ${formatToolValidationError(err)}`,
+    });
+    return;
+  }
+
   if (tool.mode === 'human') {
     pendingHumanTools.add(toolCallId);
     return;
@@ -83,13 +96,13 @@ async function executeFrontendTool(payload: Record<string, unknown>) {
   const controller = new AbortController();
   activeControllers.set(toolCallId, controller);
   try {
-    const input = normalizeRecord(payload.input);
     const result = await tool.execute(input, { signal: controller.signal, toolCallId });
+    const parsedResult = parseToolResult(tool, result);
     await submit({
       toolCallId,
       toolName,
       status: 'success',
-      result: normalizeRecord(result),
+      result: normalizeRecord(parsedResult),
     });
   } catch (err) {
     await submit({

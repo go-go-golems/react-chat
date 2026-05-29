@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { z } from 'zod';
 import { ChatOverlayProvider, ChatPanel, ChatBubble, useFrontendTool, useHumanTool } from './core/index';
 import './ecommerce'; // register ecommerce widgets
 
@@ -8,23 +9,43 @@ type DemoCartItem = {
   quantity: number;
 };
 
+const CartAddInputSchema = z.object({
+  sku: z.string().min(1),
+  name: z.string().min(1),
+  quantity: z.number().int().positive().default(1),
+  reason: z.string().optional(),
+});
+
+const CartAddResultSchema = z.object({
+  ok: z.boolean(),
+  cartCount: z.number().int().nonnegative(),
+  added: z.object({
+    sku: z.string(),
+    name: z.string(),
+    quantity: z.number().int().positive(),
+  }),
+});
+
+const CheckoutConfirmInputSchema = z.object({
+  subtotal: z.string().min(1),
+  reason: z.string().min(1),
+});
+
+const CheckoutConfirmResultSchema = z.object({
+  approved: z.boolean(),
+  approvalCount: z.number().int().nonnegative().optional(),
+});
+
 function DemoTools() {
   const [items, setItems] = useState<DemoCartItem[]>([]);
   const [checkoutApprovals, setCheckoutApprovals] = useState(0);
   const itemsRef = useRef<DemoCartItem[]>([]);
 
-  useFrontendTool<Record<string, unknown>, Record<string, unknown>>({
+  useFrontendTool<z.infer<typeof CartAddInputSchema>, z.infer<typeof CartAddResultSchema>>({
     name: 'cart.add',
     description: 'Add one product to the local browser demo cart.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        sku: { type: 'string' },
-        name: { type: 'string' },
-        quantity: { type: 'number' },
-      },
-      required: ['sku'],
-    },
+    parameters: CartAddInputSchema,
+    resultSchema: CartAddResultSchema,
     execute: async (input) => {
       const sku = String(input.sku || 'unknown-sku');
       const name = String(input.name || sku);
@@ -37,18 +58,12 @@ function DemoTools() {
     },
   }, []);
 
-  useHumanTool<Record<string, unknown>, Record<string, unknown>>({
+  useHumanTool<z.infer<typeof CheckoutConfirmInputSchema>, z.infer<typeof CheckoutConfirmResultSchema>>({
     name: 'checkout.confirm',
     description: 'Ask the user to confirm before opening checkout.',
     mode: 'human',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        subtotal: { type: 'string' },
-        reason: { type: 'string' },
-      },
-      required: ['subtotal', 'reason'],
-    },
+    parameters: CheckoutConfirmInputSchema,
+    resultSchema: CheckoutConfirmResultSchema,
     render: ({ input, respond, reject }) => (
       <div className="border border-mac-black p-2 bg-mac-gray-5" data-testid="checkout-approval-card">
         <div className="font-bold uppercase mb-1">Approve checkout?</div>
