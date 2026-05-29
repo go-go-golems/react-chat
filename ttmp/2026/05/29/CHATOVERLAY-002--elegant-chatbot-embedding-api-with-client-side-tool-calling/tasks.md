@@ -95,12 +95,12 @@ These tasks are intentionally not required for the lunch smoke test.
 - [x] T6.3: Add `defineToolUI()` for backend-executed tool visualization.
 - [x] T6.4: Add toolkit bundling with `defineToolkit()`.
 - [ ] T6.5: Add WebSocket client command frames or keep HTTP command submission as the documented v1 choice.
-- [ ] T6.6: Move the mock-engine bridge into Pinocchio/Geppetto with a real frontend tool executor.
+- [x] T6.6: Move the mock-engine bridge into Pinocchio/Geppetto with a real frontend tool executor.
   - [x] T6.6a: Add Pinocchio runtime hooks for custom Geppetto registries, tool executors, and run-context decoration.
   - [x] T6.6b: Add chat-overlay `frontendtools.BridgeExecutor` that implements Geppetto `tools.ToolExecutor`.
-  - [ ] T6.6c: Wire a real provider-backed runtime to use the bridge in an end-to-end non-mock smoke.
+  - [x] T6.6c: Wire a real provider-backed runtime to use the bridge in an end-to-end non-mock smoke.
     - [x] T6.6c.1: Convert `chat-overlay serve` to a Glazed command with Pinocchio profile settings and logging flags.
     - [x] T6.6c.2: Resolve `gpt-5-mini-low` through Pinocchio profile bootstrap and verify debug/caller logs show profile registry loading.
-    - [ ] T6.6c.3: Make a real-model browser smoke reliably produce and complete a frontend `cart.add` tool call.
+    - [x] T6.6c.3: Make a real-model browser smoke reliably produce and complete a frontend `cart.add` tool call.
 - [ ] T6.7: Add reconnect tests for pending human/frontend tool calls.
 - [ ] T6.8: Add security policies for mutating tools, result size limits, and trusted/untrusted tool outputs.

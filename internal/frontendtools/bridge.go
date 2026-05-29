@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	toolv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/tools/v1"
@@ -16,6 +18,23 @@ import (
 )
 
 type bridgeContextKey struct{}
+
+var invalidProviderToolNameChars = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
+// ProviderToolName maps browser-facing tool names such as "cart.add" to the
+// provider-safe identifier shape accepted by OpenAI Responses tools.
+func ProviderToolName(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return "frontend_tool"
+	}
+	ret := invalidProviderToolNameChars.ReplaceAllString(trimmed, "_")
+	ret = strings.Trim(ret, "_")
+	if ret == "" {
+		return "frontend_tool"
+	}
+	return ret
+}
 
 // BridgeContext carries the per-run sessionstream handles a Geppetto tool
 // executor needs in order to turn a model tool call into a browser request.
@@ -58,12 +77,16 @@ func NewBridgeExecutor(manager *Manager, fallback geptools.ToolExecutor) *Bridge
 func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.ToolCall, registry geptools.ToolRegistry) (*geptools.ToolResult, error) {
 	start := time.Now()
 	bridge, ok := BridgeContextFromContext(ctx)
-	if !ok || bridge.SessionID == "" || bridge.Publisher == nil || e == nil || e.Manager == nil || !e.Manager.HasAvailableTool(bridge.SessionID, call.Name) {
+	frontendToolName := ""
+	if ok && bridge.SessionID != "" && e != nil && e.Manager != nil {
+		frontendToolName = e.Manager.ResolveProviderToolName(bridge.SessionID, call.Name)
+	}
+	if !ok || bridge.SessionID == "" || bridge.Publisher == nil || e == nil || e.Manager == nil || frontendToolName == "" {
 		log.Debug().Str("tool", call.Name).Str("tool_call_id", call.ID).Bool("bridge_context", ok).Msg("delegating tool call to fallback executor")
 		return e.fallback().ExecuteToolCall(ctx, call, registry)
 	}
 
-	log.Info().Str("session_id", string(bridge.SessionID)).Str("message_id", bridge.MessageID).Str("tool", call.Name).Str("tool_call_id", call.ID).Msg("routing tool call to browser frontend tool bridge")
+	log.Info().Str("session_id", string(bridge.SessionID)).Str("message_id", bridge.MessageID).Str("tool", frontendToolName).Str("provider_tool", call.Name).Str("tool_call_id", call.ID).Msg("routing tool call to browser frontend tool bridge")
 
 	input := map[string]any{}
 	if len(call.Arguments) > 0 {
@@ -72,7 +95,7 @@ func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.Tool
 		}
 	}
 
-	desc, _ := e.Manager.Descriptor(bridge.SessionID, call.Name)
+	desc, _ := e.Manager.Descriptor(bridge.SessionID, frontendToolName)
 	mode := toolv1.ToolExecutionMode_TOOL_EXECUTION_MODE_FRONTEND_AUTO
 	if desc != nil && desc.GetMode() != toolv1.ToolExecutionMode_TOOL_EXECUTION_MODE_UNSPECIFIED {
 		mode = desc.GetMode()
@@ -80,12 +103,12 @@ func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.Tool
 	result, err := e.Manager.Request(ctx, bridge.SessionID, bridge.Publisher, Request{
 		MessageID:  bridge.MessageID,
 		ToolCallID: call.ID,
-		ToolName:   call.Name,
+		ToolName:   frontendToolName,
 		Input:      input,
 		Mode:       mode,
 	})
 	if err != nil {
-		log.Error().Err(err).Str("session_id", string(bridge.SessionID)).Str("tool", call.Name).Str("tool_call_id", call.ID).Msg("frontend tool bridge request failed")
+		log.Error().Err(err).Str("session_id", string(bridge.SessionID)).Str("tool", frontendToolName).Str("provider_tool", call.Name).Str("tool_call_id", call.ID).Msg("frontend tool bridge request failed")
 		return &geptools.ToolResult{ID: call.ID, Error: err.Error(), Duration: time.Since(start)}, nil
 	}
 	out := map[string]any{}
@@ -97,7 +120,7 @@ func (e *BridgeExecutor) ExecuteToolCall(ctx context.Context, call geptools.Tool
 		status = "success"
 	}
 	toolResult := &geptools.ToolResult{ID: call.ID, Result: out, Duration: time.Since(start)}
-	log.Info().Str("session_id", string(bridge.SessionID)).Str("tool", call.Name).Str("tool_call_id", call.ID).Str("status", status).Dur("duration", time.Since(start)).Msg("frontend tool bridge returned result")
+	log.Info().Str("session_id", string(bridge.SessionID)).Str("tool", frontendToolName).Str("provider_tool", call.Name).Str("tool_call_id", call.ID).Str("status", status).Dur("duration", time.Since(start)).Msg("frontend tool bridge returned result")
 	if status != "success" {
 		if result.GetError() != "" {
 			toolResult.Error = result.GetError()
@@ -145,16 +168,17 @@ func (m *Manager) RegisterManifestTools(sid sessionstream.SessionId, registry ge
 		if desc == nil || !desc.GetAvailable() || desc.GetName() == "" {
 			continue
 		}
+		providerName := ProviderToolName(desc.GetName())
 		def := geptools.ToolDefinition{
-			Name:        desc.GetName(),
-			Description: desc.GetDescription(),
+			Name:        providerName,
+			Description: frontendToolDescription(desc),
 			Parameters:  descriptorSchema(desc),
 			Tags:        []string{"frontend"},
 		}
-		if err := registry.RegisterTool(desc.GetName(), def); err != nil {
+		if err := registry.RegisterTool(providerName, def); err != nil {
 			return err
 		}
-		log.Debug().Str("session_id", string(sid)).Str("tool", desc.GetName()).Msg("registered frontend manifest tool in geppetto registry")
+		log.Debug().Str("session_id", string(sid)).Str("tool", desc.GetName()).Str("provider_tool", providerName).Msg("registered frontend manifest tool in geppetto registry")
 	}
 	return nil
 }
@@ -175,6 +199,48 @@ func descriptorSchema(desc *toolv1.FrontendToolDescriptor) *jsonschema.Schema {
 		schema.Type = "object"
 	}
 	return &schema
+}
+
+func frontendToolDescription(desc *toolv1.FrontendToolDescriptor) string {
+	if desc == nil {
+		return ""
+	}
+	name := desc.GetName()
+	description := strings.TrimSpace(desc.GetDescription())
+	if name == "" || ProviderToolName(name) == name {
+		return description
+	}
+	if description == "" {
+		return fmt.Sprintf("Frontend browser tool %s.", name)
+	}
+	return fmt.Sprintf("%s\n\nFrontend browser tool name: %s.", description, name)
+}
+
+// ResolveProviderToolName returns the browser-facing frontend tool name for a
+// provider tool call name. It accepts both raw manifest names and sanitized
+// provider names so unit tests and non-OpenAI providers can still use raw names.
+func (m *Manager) ResolveProviderToolName(sid sessionstream.SessionId, providerName string) string {
+	if m == nil || providerName == "" {
+		return ""
+	}
+	if m.HasAvailableTool(sid, providerName) {
+		return providerName
+	}
+	m.mu.Lock()
+	manifest := m.manifests[sid]
+	m.mu.Unlock()
+	if manifest == nil {
+		return ""
+	}
+	for _, desc := range manifest.Tools {
+		if desc == nil || !desc.GetAvailable() || desc.GetName() == "" {
+			continue
+		}
+		if ProviderToolName(desc.GetName()) == providerName {
+			return desc.GetName()
+		}
+	}
+	return ""
 }
 
 func structFromMap(m map[string]any) *structpb.Struct {

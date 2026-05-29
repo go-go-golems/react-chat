@@ -98,3 +98,12 @@ Converted chat-overlay serve to Glazed command wiring with Pinocchio profile set
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/cmd/chat-overlay/main.go — Glazed root logging setup
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/real_runtime.go — Pinocchio profile resolution
 
+
+## 2026-05-29
+
+Completed real-runtime frontend tool smoke by aliasing dotted frontend tool names to provider-safe names
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/frontendtools/bridge.go — Provider aliasing and reverse mapping
+

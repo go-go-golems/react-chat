@@ -47,13 +47,19 @@ func TestBridgeExecutorRoutesFrontendToolAndReturnsBrowserResult(t *testing.T) {
 	if err := manager.RegisterManifestTools(sid, registry); err != nil {
 		t.Fatalf("RegisterManifestTools: %v", err)
 	}
+	if _, err := registry.GetTool("cart_add"); err != nil {
+		t.Fatalf("expected provider-safe cart_add tool in registry: %v", err)
+	}
+	if _, err := registry.GetTool("cart.add"); err == nil {
+		t.Fatalf("expected raw dotted cart.add name to be provider-aliased")
+	}
 	args, _ := json.Marshal(map[string]any{"sku": "retro-boot", "quantity": 1})
 	bridgeCtx := WithBridgeContext(ctx, BridgeContext{SessionID: sid, MessageID: "msg-1", Publisher: publisher})
 
 	resultCh := make(chan *geptools.ToolResult, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		result, err := executor.ExecuteToolCall(bridgeCtx, geptools.ToolCall{ID: "call-1", Name: "cart.add", Arguments: args}, registry)
+		result, err := executor.ExecuteToolCall(bridgeCtx, geptools.ToolCall{ID: "call-1", Name: "cart_add", Arguments: args}, registry)
 		resultCh <- result
 		errCh <- err
 	}()

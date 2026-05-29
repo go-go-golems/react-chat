@@ -29,8 +29,11 @@ RelatedFiles:
       Note: |-
         Geppetto ToolExecutor bridge for browser frontend tools
         Frontend tool bridge logging instrumentation
+        Provider-safe frontend tool aliasing for OpenAI Responses
     - Path: internal/frontendtools/bridge_test.go
-      Note: Unit test for bridge request/result round trip
+      Note: |-
+        Unit test for bridge request/result round trip
+        Regression coverage for provider-safe frontend tool aliases
     - Path: internal/frontendtools/manager.go
       Note: Manifest/result command handling and pending frontend tool waits
     - Path: internal/frontendtools/plugin.go
@@ -45,6 +48,8 @@ RelatedFiles:
       Note: Defuddle source download script for prior-art docs
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/04-human-tool-browser-smoke.js
       Note: Browser smoke test for human-in-the-loop tools
+    - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/05-real-runtime-client-tool-smoke.js
+      Note: Passing real-provider frontend tool smoke
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/01-copilotkit-use-frontend-tool.md
       Note: Downloaded CopilotKit frontend tool reference
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/05-ai-sdk-chatbot-tool-usage.md
@@ -83,6 +88,8 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
+
 
 
 
@@ -755,3 +762,85 @@ The main behavioral change is observability. Running `chat-overlay serve --real-
 - `serve` uses `profilebootstrap.NewProfileSettingsSection()` for Pinocchio profile flags.
 - Real runtime profile resolution calls `profilebootstrap.ResolveCLIEngineSettings(ctx, parsed)` with the Glazed parsed values.
 - Verified profile registry fallback: `/home/manuel/.config/pinocchio/profiles.yaml`.
+
+## Step 10: Complete the real-runtime browser frontend-tool smoke
+
+This step restarted the tmux backend with full Glazed debug/caller logging and reran the real-provider browser smoke. The additional logs exposed the actual provider failure: OpenAI Responses rejected frontend tool names containing dots, so `cart.add` and `checkout.confirm` could not be sent as raw provider tool names.
+
+The fix keeps browser-facing tool names stable while registering provider-safe aliases in Geppetto. Browser manifests still advertise `cart.add`, sessionstream events still carry `cart.add`, and the frontend runtime still executes `cart.add`; only the provider-visible tool definition name becomes `cart_add`. The bridge maps `cart_add` back to `cart.add` when executing the tool call.
+
+### Prompt Context
+
+**User prompt (verbatim):** "restart backend in the tmux to have full logging, then try again"
+
+**Assistant interpretation:** Restart the long-running backend in the `chat-overlay` tmux session with `--log-level debug --with-caller`, rerun the real-runtime browser smoke, inspect the logs, and fix any issue that blocks the smoke.
+
+**Inferred user intent:** Use full runtime logs to diagnose why the real-model frontend-tool bridge smoke did not show a `cart.add` tool call.
+
+**Commit (code):** pending — not committed yet in this step.
+
+### What I did
+- Restarted tmux pane `chat-overlay:0.0` with:
+  - `go run ./cmd/chat-overlay serve --serve-port 8080 --real-runtime --profile gpt-5-mini-low --log-level debug --with-caller`
+- Restarted the Vite frontend in tmux pane `chat-overlay:0.1`.
+- Reran `scripts/05-real-runtime-client-tool-smoke.js`.
+- Read the backend tmux logs and found OpenAI's validation error for raw dotted tool names.
+- Added `ProviderToolName(...)` to map frontend names like `cart.add` to provider names like `cart_add`.
+- Updated `Manager.RegisterManifestTools(...)` to register sanitized provider names with Geppetto while preserving the browser-facing name in the description and bridge mapping.
+- Added `Manager.ResolveProviderToolName(...)` so `BridgeExecutor` can translate a provider call like `cart_add` back to the browser manifest tool `cart.add`.
+- Reran the real-runtime browser smoke successfully.
+- Updated `internal/frontendtools/bridge_test.go` so the bridge unit test proves `cart.add` is registered as provider-safe `cart_add` and then routed back to browser-facing `cart.add`.
+- Marked T6.6/T6.6c complete in `tasks.md`.
+
+### Why
+- OpenAI Responses requires tool names to match `^[a-zA-Z0-9_-]+$`; our frontend tool names use dotted namespace style (`cart.add`, `checkout.confirm`) for browser/API ergonomics.
+- Renaming browser tools would leak provider constraints into the public frontend API. A bridge-level alias preserves the framework API and satisfies provider validation.
+
+### What worked
+- The first full-log rerun showed the precise provider error:
+  - `Invalid 'tools[0].name': string does not match pattern. Expected a string that matches the pattern '^[a-zA-Z0-9_-]+$'.`
+- After aliasing, `go test ./...` passed.
+- The backend registered provider-safe names:
+  - `tool=cart.add provider_tool=cart_add`
+  - `tool=checkout.confirm provider_tool=checkout_confirm`
+- The real model called `cart_add`, and the bridge routed it back to `cart.add`:
+  - `routing tool call to browser frontend tool bridge ... provider_tool=cart_add ... tool=cart.add`
+  - `frontend tool bridge returned result ... status=success ... provider_tool=cart_add ... tool=cart.add`
+- `node ttmp/.../scripts/05-real-runtime-client-tool-smoke.js` passed with:
+  - `OK: real-runtime frontend tool smoke passed`
+
+### What didn't work
+- The first rerun still timed out waiting for `cart.add` because the provider request failed before a tool call could be streamed.
+- The smoke script still prints Node's `MODULE_TYPELESS_PACKAGE_JSON` warning because the ticket script is ESM-shaped but the nearest package metadata does not declare `type: module`. This warning did not affect the smoke result.
+
+### What I learned
+- Provider-facing tool names need a compatibility layer even if the framework's own tool namespace supports richer names.
+- The bridge should log both names: browser/API tool name and provider alias. Without both, debugging sessionstream/frontend behavior against provider payloads is unnecessarily confusing.
+
+### What was tricky to build
+- The alias had to preserve existing tests and non-OpenAI providers. `ResolveProviderToolName(...)` therefore accepts either the raw frontend name or the sanitized provider name.
+- The manifest registration path and execution path must agree on the aliasing function. `ProviderToolName(...)` is shared by both `RegisterManifestTools(...)` and `ResolveProviderToolName(...)`.
+- Tool descriptions now include the original browser-facing name when aliasing occurs so model instructions and logs remain understandable.
+
+### What warrants a second pair of eyes
+- Review `ProviderToolName(...)` for collision handling. Today `cart.add` and `cart_add` would map to the same provider name; production should detect or disambiguate collisions during manifest registration.
+- Review whether the original frontend tool name should be carried in Geppetto tool metadata instead of only in the description/log mapping.
+
+### What should be done in the future
+- Add collision detection for provider aliases.
+- Suppress or fix the Node module-type warning in ticket smoke scripts.
+
+### Code review instructions
+- Start with `internal/frontendtools/bridge.go` and review:
+  - `ProviderToolName(...)`,
+  - `Manager.RegisterManifestTools(...)`,
+  - `Manager.ResolveProviderToolName(...)`,
+  - `BridgeExecutor.ExecuteToolCall(...)`.
+- Validate with:
+  - `go test ./...`
+  - `node ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/05-real-runtime-client-tool-smoke.js`
+
+### Technical details
+- Provider alias rule: replace every run of non-`[a-zA-Z0-9_-]` characters with `_`, trim surrounding underscores, and fall back to `frontend_tool` for empty names.
+- OpenAI accepted `cart_add` and `checkout_confirm` as tool names.
+- Sessionstream/browser-facing names remain `cart.add` and `checkout.confirm`.
