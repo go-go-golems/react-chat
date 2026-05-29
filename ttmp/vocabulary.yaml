@@ -5,6 +5,22 @@ topics:
       description: Backend services
     - slug: websocket
       description: WebSocket lifecycle & events
+    - slug: chat-overlay
+      description: Chat overlay frontend package
+    - slug: ecommerce
+      description: Ecommerce domain logic and widgets
+    - slug: geppetto
+      description: Geppetto LLM runtime
+    - slug: pinocchio
+      description: Pinocchio webchat and CLI
+    - slug: protobuf
+      description: Protobuf schema definitions
+    - slug: react
+      description: React frontend components
+    - slug: sessionstream
+      description: Sessionstream event framework
+    - slug: widgets
+      description: Typed widget rendering system
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
