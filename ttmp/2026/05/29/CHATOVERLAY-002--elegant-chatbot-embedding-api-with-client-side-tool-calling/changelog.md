@@ -77,3 +77,13 @@ Added toolkit bundling with defineToolkit/installToolkit/useToolkit and overlay.
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/core/createChatOverlay.ts — overlay.use integration
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/core/toolkit.ts — Toolkit API
 
+
+## 2026-05-29
+
+Added first Geppetto/Pinocchio frontend-tool bridge hooks: Pinocchio runtime registry/executor/context support and chat-overlay BridgeExecutor (commits pinocchio 6865784, chat-overlay afda13e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/frontendtools/bridge.go — Bridge executor implementation
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/runtime_inference.go — Pinocchio runtime bridge wiring
+

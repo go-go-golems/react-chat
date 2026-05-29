@@ -15,6 +15,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/runtime_inference.go
+      Note: Runtime inference now wires registry/executor/context into enginebuilder
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/service.go
+      Note: PromptRequest RuntimeContext hook for per-run bridge context
+    - Path: ../../../../../../../pinocchio/pkg/inference/runtime/composer.go
+      Note: ComposedRuntime now carries Registry and ToolExecutor
+    - Path: internal/frontendtools/bridge.go
+      Note: Geppetto ToolExecutor bridge for browser frontend tools
+    - Path: internal/frontendtools/bridge_test.go
+      Note: Unit test for bridge request/result round trip
     - Path: internal/frontendtools/manager.go
       Note: Manifest/result command handling and pending frontend tool waits
     - Path: internal/frontendtools/plugin.go
@@ -65,6 +75,7 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -570,3 +581,86 @@ The implementation is intentionally lightweight. A toolkit can contain tool defi
 ### Technical details
 - Toolkit install returns `() => void` cleanup.
 - Toolkit custom `install(overlay)` may also return cleanup.
+
+## Step 8: Build the first Geppetto/Pinocchio frontend-tool bridge hooks
+
+This step moved the bridge from a concept into reusable code. The mock engine still powers the browser smoke test, but we now have the two pieces needed for a real Geppetto tool-loop integration: Pinocchio can carry a custom tool registry/executor into the runtime builder, and chat-overlay has a `frontendtools.BridgeExecutor` that implements Geppetto's `tools.ToolExecutor` interface.
+
+The bridge executor is the production-shaped adapter. If a model calls a tool that is present in the browser manifest, the executor does not run a Go function. It publishes a frontend tool request through `frontendtools.Manager`, waits for the browser's `ChatFrontendToolResult`, and returns that result to Geppetto as a normal `tools.ToolResult`. Calls for non-frontend tools fall back to Geppetto's normal executor.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, go ahead. continue committing at appropriate intervals, keeping a diary."
+
+**Assistant interpretation:** Start implementing the bridge described in the previous answer, commit in coherent slices, and record the work in the ticket diary.
+
+**Inferred user intent:** Move beyond the mock-engine frontend tool demo toward the real Pinocchio/Geppetto tool-loop path.
+
+**Commit (code):** `6865784122e8ad62128e2af143b9d229d4d79783` in `pinocchio` — "feat: expose runtime tool executor bridge hooks"
+
+**Commit (code):** `afda13e66761e3142288376300311355d0b6d4ab` in `chat-overlay` — "feat: add geppetto frontend tool bridge executor"
+
+### What I did
+- In `pinocchio`, extended `infruntime.ComposedRuntime` with:
+  - `Registry geptools.ToolRegistry`,
+  - `ToolExecutor geptools.ToolExecutor`.
+- In `pinocchio`, extended `chatapp.PromptRequest` with `RuntimeContext`, a callback that can decorate the Geppetto run context once `sessionID`, `messageID`, and `sessionstream.EventPublisher` are known.
+- In `pinocchio`, wired `runtime.Registry` and `runtime.ToolExecutor` into `enginebuilder.Builder` inside `runRuntimeInference()`.
+- In `pinocchio`, applied `pending.RuntimeContext(...)` before `sess.StartInference(...)` so a frontend bridge can inject per-run sessionstream handles into the tool-execution context.
+- In `chat-overlay`, added `internal/frontendtools/bridge.go` with:
+  - `BridgeContext`,
+  - `WithBridgeContext()` / `BridgeContextFromContext()`,
+  - `BridgeExecutor`,
+  - `Manager.RegisterManifestTools()` for adding browser manifest entries to a Geppetto tool registry.
+- Added `internal/frontendtools/bridge_test.go` to prove a Geppetto-style `ToolCall` can be routed to `Manager.Request`, resolved by `HandleResult`, and returned as a `tools.ToolResult`.
+
+### Why
+- Geppetto's tool loop already supports pluggable `tools.ToolExecutor`. The right production bridge is therefore an executor, not a second model loop.
+- Pinocchio previously did not expose enough runtime hooks for an app to install a custom registry/executor pair or inject sessionstream handles into the run context. Without those hooks, a frontend tool executor could not publish browser requests.
+- Keeping the browser bridge in `chat-overlay` avoids making Pinocchio depend on chat-overlay-specific protobufs.
+
+### What worked
+- `cd pinocchio && go test ./pkg/chatapp ./pkg/inference/runtime` passed before commit.
+- Pinocchio pre-commit hooks ran `go generate`, frontend build, `go build ./...`, lint, vet, and `go test ./...` successfully during commit.
+- `cd chat-overlay && go test ./...` passed.
+- `internal/frontendtools` bridge unit test passed.
+
+### What didn't work
+- N/A at the code level. The remaining gap is integration: the bridge exists and Pinocchio can carry it, but no provider-backed chat-overlay smoke has been wired to use it yet.
+
+### What I learned
+- The cleanest low-level extension point is Geppetto's `tools.ToolExecutor`, because it receives `ToolCall` values after the provider has requested tools and before tool results are appended back into the turn.
+- The executor still needs sessionstream context. That context is only known inside `chatapp.runRuntimeInference`, so Pinocchio needs a run-context decorator hook rather than trying to bake browser semantics into `infruntime.ComposedRuntime`.
+
+### What was tricky to build
+- Package boundaries matter. Pinocchio should not import chat-overlay frontend-tool protobufs. The bridge therefore lives in chat-overlay and uses generic Pinocchio/Geppetto hooks.
+- The executor must know when to intercept and when to delegate. It uses `Manager.HasAvailableTool(sessionID, call.Name)` so backend tools continue through the fallback executor.
+- The provider-facing tool definitions need to come from the browser manifest. `RegisterManifestTools()` converts the manifest's `google.protobuf.Struct` JSON Schema into Geppetto `tools.ToolDefinition` values so providers can see the tools.
+
+### What warrants a second pair of eyes
+- Review the `RuntimeContext` callback shape in `pinocchio/pkg/chatapp/service.go`. It is flexible, but it exposes `sessionstream.EventPublisher` in a request callback and should be checked against Pinocchio API boundaries.
+- Review `BridgeExecutor.ExecuteToolCalls()`. It currently executes sequentially to keep browser interactions ordered; this is safer for human tools but may be slower for independent automatic tools.
+- Review `Manager.RegisterManifestTools()` schema conversion from protobuf `Struct` to `jsonschema.Schema`.
+
+### What should be done in the future
+- Wire a provider-backed runtime path that constructs a registry from the browser manifest and uses `frontendtools.BridgeExecutor` as `ComposedRuntime.ToolExecutor`.
+- Add an integration test with a fake Geppetto engine that emits a pending tool call and verifies the browser-result turn continuation without using the mock engine.
+- Decide whether browser frontend tools should be merged with backend tools by union or override policy.
+
+### Code review instructions
+- Pinocchio review order:
+  1. `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/inference/runtime/composer.go`
+  2. `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/service.go`
+  3. `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/runtime_inference.go`
+- Chat-overlay review order:
+  1. `internal/frontendtools/bridge.go`
+  2. `internal/frontendtools/manager.go`
+  3. `internal/frontendtools/bridge_test.go`
+- Validation commands:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./pkg/chatapp ./pkg/inference/runtime`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && go test ./...`
+
+### Technical details
+- Bridge context carries `SessionID`, `MessageID`, and `Publisher`.
+- `BridgeExecutor` intercepts calls only when the current session has an available frontend descriptor for `call.Name`.
+- Non-frontend calls delegate to `Fallback`, defaulting to Geppetto's `NewDefaultToolExecutor`.
