@@ -14,7 +14,7 @@
 - [x] T7: Create sessionstream Hub, schema registry, hydration store, and WebSocket transport.
 - [x] T8: Register Pinocchio chatapp schemas and install chatapp projections.
 - [ ] T9: Decide whether `--timeline-db` is in scope; either wire a file-backed SQLite hydration store or remove/document the flag as in-memory-only.
-- [ ] T10: Split `internal/webchat/server.go` into server wiring, handlers, helpers, and mock engine packages.
+- [x] T10: Split `internal/webchat/server.go` into server wiring, handlers, helpers, and mock engine packages.
 
 ## Phase 2: Widget schemas and projections
 
@@ -22,27 +22,27 @@
 - [x] T12: Generate Go protobuf types under `internal/pb`.
 - [x] T13: Implement widget `ChatPlugin` schema registration.
 - [x] T14: Implement widget UI projection for live WebSocket delivery.
-- [ ] T15: Fix widget timeline projection patch semantics so durable snapshots match live streamed widget state.
+- [x] T15: Fix widget timeline projection patch semantics so durable snapshots match live streamed widget state.
 - [ ] T16: Add projection tests for started, patched, completed, and removed widget events.
 
 ## Phase 3: Mock engine command path
 
-- [ ] T17: Create `internal/mockengine` package with `Engine`, `Run`, active run map, response catalog, and event publisher helpers.
-- [ ] T18: Register custom mock start and stop commands with both the schema registry and Hub command registry.
-- [ ] T19: Use `context.WithoutCancel` for asynchronous event publishing so runs outlive the HTTP request context.
-- [ ] T20: Implement active run replacement and cancellation semantics equivalent to Pinocchio's `chatapp.Engine`.
-- [ ] T21: Add `WaitIdle(ctx, sid)` to the mock engine for tests and smoke scripts.
-- [ ] T22: Log asynchronous publish failures with session id, message id, event name, and prompt.
+- [x] T17: Create `internal/mockengine` package with `Engine`, `Run`, active run map, response catalog, and event publisher helpers.
+- [x] T18: Register custom mock start and stop commands with both the schema registry and Hub command registry.
+- [x] T19: Use `context.WithoutCancel` for asynchronous event publishing so runs outlive the HTTP request context.
+- [x] T20: Implement active run replacement and cancellation semantics equivalent to Pinocchio's `chatapp.Engine`.
+- [x] T21: Add `WaitIdle(ctx, sid)` to the mock engine for tests and smoke scripts.
+- [x] T22: Log asynchronous publish failures with session id, message id, event name, and prompt.
 
 ## Phase 4: Mock response coverage
 
-- [ ] T23: Implement plain text mock response.
-- [ ] T24: Implement single widget mock response (`show me boots` -> `ProductCarousel`).
-- [ ] T25: Implement cart review mock response (`review my cart` -> `CartReview`).
-- [ ] T26: Implement checkout nudge mock response (`checkout` -> `CheckoutNudge`).
-- [ ] T27: Implement streaming widget response where product cards appear incrementally and hydrate correctly.
-- [ ] T28: Implement error scenario (`error test`) that publishes `ChatRunFailed`.
-- [ ] T29: Implement cancellation scenario (`long response` + stop) that publishes `ChatRunStopped`.
+- [x] T23: Implement plain text mock response.
+- [x] T24: Implement single widget mock response (`show me boots` -> `ProductCarousel`).
+- [x] T25: Implement cart review mock response (`review my cart` -> `CartReview`).
+- [x] T26: Implement checkout nudge mock response (`checkout` -> `CheckoutNudge`).
+- [x] T27: Implement streaming widget response where product cards appear incrementally and hydrate correctly.
+- [x] T28: Implement error scenario (`error test`) that publishes `ChatRunFailed`.
+- [x] T29: Implement cancellation scenario (`long response` + stop) that publishes `ChatRunStopped`.
 
 ## Phase 5: Backend tests and validation
 

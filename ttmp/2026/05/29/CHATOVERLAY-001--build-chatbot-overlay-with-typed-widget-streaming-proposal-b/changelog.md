@@ -43,3 +43,14 @@ Completed backend hygiene tasks T4-T5: added web/go.mod module boundary and expl
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.gitignore — Explicit frontend dependency/build ignores
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/go.mod — Nested module boundary for frontend dependencies
 
+
+## 2026-05-29
+
+Recovered backend mock engine path: split mock engine from webchat server, added custom start/stop commands with active run tracking and context.WithoutCancel publishing, and verified show-me-boots snapshot includes assistant text plus ChatWidgetInstance.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/mockengine/engine.go — Dedicated mock run lifecycle and event publishing
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/handlers.go — HTTP submit/stop now target mockengine commands
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/server.go — Server wiring now installs mock engine separately
+

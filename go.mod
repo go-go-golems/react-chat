@@ -3,11 +3,13 @@ module github.com/go-go-golems/chat-overlay
 go 1.26.3
 
 require (
+	github.com/go-go-golems/geppetto v0.12.2
 	github.com/go-go-golems/pinocchio v0.11.0
 	github.com/go-go-golems/sessionstream v0.0.5
 	github.com/google/uuid v1.6.0
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -23,7 +25,6 @@ require (
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-go-golems/geppetto v0.12.2 // indirect
 	github.com/go-go-golems/glazed v1.3.5 // indirect
 	github.com/go-go-golems/logcopter v0.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -64,7 +65,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260427160629-7cedc36a6bc4 // indirect
 	google.golang.org/grpc v1.80.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

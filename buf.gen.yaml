@@ -1,0 +1,10 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/go-go-golems/chat-overlay/internal/pb
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: internal/pb
+    opt: paths=source_relative

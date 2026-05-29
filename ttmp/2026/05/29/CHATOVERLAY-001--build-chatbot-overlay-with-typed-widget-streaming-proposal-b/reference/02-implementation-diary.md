@@ -1,3 +1,34 @@
+---
+Title: Implementation diary
+Ticket: CHATOVERLAY-001
+Status: active
+Topics:
+    - chat-overlay
+    - sessionstream
+    - pinocchio
+    - protobuf
+    - widgets
+    - backend
+DocType: reference
+Intent: long-term
+Owners: []
+RelatedFiles:
+    - Path: internal/mockengine/engine.go
+      Note: Mock engine run lifecycle and event publishing added in Step 4
+    - Path: internal/mockengine/responses.go
+      Note: Canned response catalog added in Step 4
+    - Path: internal/webchat/handlers.go
+      Note: HTTP command submission refactored in Step 4
+    - Path: internal/webchat/server.go
+      Note: Server wiring refactored in Step 4
+ExternalSources: []
+Summary: Chronological implementation diary for the chat overlay backend and frontend work.
+LastUpdated: 2026-05-29T13:55:00-04:00
+WhatFor: Record implementation decisions, commands, failures, fixes, and validation steps.
+WhenToUse: Read before resuming CHATOVERLAY-001 implementation or reviewing backend recovery work.
+---
+
+
 # Implementation Diary
 
 ## Goal
@@ -180,3 +211,71 @@ Go recursively discovers packages below the module root. Since the frontend live
 ### Technical details
 - Before: `go test ./...` listed `github.com/go-go-golems/chat-overlay/web/node_modules/flatted/golang/pkg/flatted`.
 - After: only backend module packages are listed.
+
+---
+
+## Step 4: Replace the confused custom command path with a dedicated mock engine
+
+I moved the mock inference responsibilities out of `internal/webchat/server.go` and into a dedicated `internal/mockengine` package. The new engine owns start, stop, active run tracking, prompt matching, event publishing, widget publishing, and idle waiting. This fixes the main implementation confusion identified in the review: the backend now has one explicit owner for mock runs instead of mixing Pinocchio's service submit/stop path with an overlay-specific submit command.
+
+The key behavioral fix is that asynchronous publishing no longer uses the HTTP request context directly. The start handler publishes the user message synchronously, then creates a run context with `context.WithoutCancel(ctx)` plus its own cancellation function. The run can therefore continue after the HTTP request returns, but it can still be stopped by the overlay stop command.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue the backend recovery task list by fixing the command path and mock engine lifecycle.
+
+**Inferred user intent:** Make the backend produce durable assistant and widget state so the React overlay can render real streamed results.
+
+**Commit (code):** pending — backend mock engine refactor commit.
+
+### What I did
+- Added `internal/mockengine/engine.go` with `Engine`, active run tracking, `HandleStart`, `HandleStop`, and `WaitIdle`.
+- Added `internal/mockengine/responses.go` with canned responses for plain text, boots/product carousel, cart review, checkout nudge, error, and long cancellation scenarios.
+- Rewrote `internal/webchat/server.go` so it only wires schema registration, stores, WebSocket transport, chatapp projections, and the mock engine.
+- Added `internal/webchat/handlers.go` so HTTP handlers are separate from server construction.
+- Removed the old `internal/webchat/overlay_handler.go` path.
+- Changed `/api/chat/sessions/{id}/messages` to submit `mockengine.CommandStart`.
+- Changed `/api/chat/sessions/{id}/stop` to submit `mockengine.CommandStop`, so stop now targets the same active mock run that submit creates.
+- Ran `go test ./...` successfully.
+- Ran a smoke test with `show me boots`; the snapshot now contains a user message, assistant message, and `ChatWidgetInstance`.
+
+### Why
+The previous backend accepted prompts but did not publish assistant/widget state after the handler returned. The root cause was run ownership: the custom run used the request context and did not have a matching custom stop path. A dedicated mock engine makes those responsibilities explicit and testable.
+
+### What worked
+- `go test ./...` passes for backend packages.
+- Manual smoke test now shows:
+  - `ChatMessage` user entity with status `accepted`
+  - `ChatMessage` assistant entity with status `finished`
+  - `ChatWidgetInstance` entity with status `WIDGET_STATUS_READY`/numeric enum value in the HTTP JSON helper
+
+### What didn't work
+- The HTTP snapshot helper still uses Go's default JSON encoding for protobuf payloads, so protobuf fields appear as `snake_case` and enum values appear as numbers. WebSocket transport uses sessionstream's protocol path, but the HTTP helper should be updated for consistency.
+- There are not yet automated tests proving the smoke path.
+
+### What I learned
+- Keeping the mock engine separate from the HTTP layer makes the ownership model much easier to review.
+- The stop command must cancel the same run map that start populates. Reusing `chatapp.Service.Stop` after introducing a custom start command is not correct.
+
+### What was tricky to build
+- The run context needs two different cancellation behaviors. It must ignore HTTP request cancellation after submit returns, but it must honor explicit user stop. The implementation uses `context.WithoutCancel(ctx)` as the base and then adds `context.WithCancel` for explicit run cancellation.
+- Widget streaming needed a durable snapshot-safe patch contract. The mock engine now sends full accumulated arrays on each widget patch, so the timeline projection's field replacement semantics produce a correct final snapshot.
+
+### What warrants a second pair of eyes
+- Review whether the project should keep the custom overlay commands or eventually fold this mock engine into Pinocchio's `ChatStartInference` runtime path.
+- Review HTTP snapshot encoding before declaring backend/frontend integration complete.
+
+### What should be done in the future
+- Add tests for the mock engine command path before further backend expansion.
+- Add a widget action command after the start/stop/test foundation is stable.
+
+### Code review instructions
+- Start with `internal/mockengine/engine.go` and check `HandleStart`, `HandleStop`, `run`, and `publishWidget`.
+- Then review `internal/webchat/server.go` to verify registration order: chat schemas, mock command schemas, Hub, mock engine install, chatapp install.
+- Validate with `go test ./...` and a `show me boots` smoke test.
+
+### Technical details
+- Successful smoke result included `ChatWidgetInstance` after `show me boots`.
+- Remaining known issue: HTTP JSON helper emits protobuf field names as `snake_case` and enum numbers.
