@@ -46,3 +46,13 @@ Added human-in-the-loop frontend tools with checkout.confirm approval UI and bro
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/ToolCallOutlet.tsx — Approval UI rendering and respond/reject callbacks
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/useHumanTool.ts — Human tool registration API
 
+
+## 2026-05-29
+
+Added Zod validation for frontend tool inputs/results and JSON Schema manifest export (commit f00368c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRegistry.ts — Schema API and manifest export
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRuntime.ts — Runtime input/result validation
+

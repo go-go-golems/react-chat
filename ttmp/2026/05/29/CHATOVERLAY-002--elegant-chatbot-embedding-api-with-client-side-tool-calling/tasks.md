@@ -90,7 +90,7 @@ Acceptance criteria:
 
 These tasks are intentionally not required for the lunch smoke test.
 
-- [ ] T6.1: Add Zod or equivalent schema validation for frontend tool input/output in the public API.
+- [x] T6.1: Add Zod or equivalent schema validation for frontend tool input/output in the public API.
 - [x] T6.2: Add `useHumanTool()` with approval-card rendering and `respond()`.
 - [ ] T6.3: Add `defineToolUI()` for backend-executed tool visualization.
 - [ ] T6.4: Add toolkit bundling with `defineToolkit()`.

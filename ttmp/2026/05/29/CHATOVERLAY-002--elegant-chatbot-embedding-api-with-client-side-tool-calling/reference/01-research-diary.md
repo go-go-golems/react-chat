@@ -34,13 +34,21 @@ RelatedFiles:
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/08-assistant-ui-tools.md
       Note: Downloaded assistant-ui toolkit/tool typing reference
     - Path: web/src/App.tsx
-      Note: Smoke demo cart.add tool registration and visible cart state
+      Note: |-
+        Smoke demo cart.add tool registration and visible cart state
+        Demo tools now use Zod schemas
     - Path: web/src/core/createChatOverlay.ts
       Note: Overlay API now exposes tools namespace and manifest/result calls
     - Path: web/src/tools/ToolCallOutlet.tsx
-      Note: Timeline renderer now hosts human approval UI
+      Note: |-
+        Timeline renderer now hosts human approval UI
+        Validated human tool responses
+    - Path: web/src/tools/toolRegistry.ts
+      Note: Zod schema validation and JSON Schema manifest export
     - Path: web/src/tools/toolRuntime.ts
-      Note: Browser-side frontend tool execution and result submission
+      Note: |-
+        Browser-side frontend tool execution and result submission
+        Validated automatic frontend tool execution
     - Path: web/src/tools/useHumanTool.ts
       Note: Scoped registration hook for human approval tools
 ExternalSources: []
@@ -49,6 +57,7 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -358,3 +367,80 @@ The checkout smoke path now exercises that mode. A prompt of `approve checkout` 
 - Human tool name: `checkout.confirm`.
 - Smoke prompt: `approve checkout`.
 - Backend final text: `Checkout approval returned approved=true; approval count is now 1.`
+
+## Step 5: Add Zod validation to frontend tool definitions
+
+This step hardened the TypeScript tool API by making tool schemas executable in the browser. The earlier manifest used JSON-schema-shaped objects, which was enough to describe tools to the backend but not enough to validate model-provided input before executing browser code. The new API accepts Zod schemas through `parameters` and optional `resultSchema`, exports JSON Schema for the backend manifest, and validates both automatic and human tool paths before submitting results.
+
+The important architectural point is that the browser should validate the same contract it advertises. If the backend or model requests `cart.add` with malformed input, the browser runtime should reject the call and submit a failed tool result instead of letting arbitrary handler code coerce unknown shapes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright continue, keep a detailed diary as you go."
+
+**Assistant interpretation:** Continue implementing follow-up production tasks and keep chronological diary entries for each slice.
+
+**Inferred user intent:** Keep improving the frontend tool-calling framework beyond the smoke demo while preserving reviewable documentation.
+
+**Commit (code):** `f00368cd387564017a700e37bf5c1fa60bb09546` — "feat: validate frontend tool schemas with zod"
+
+### What I did
+- Added `zod` to `web/package.json` and `web/package-lock.json`.
+- Extended `web/src/tools/toolRegistry.ts` with:
+  - `parameters?: ZodType<TInput>` for input validation,
+  - `resultSchema?: ZodType<TResult>` for output validation,
+  - `parseToolInput()` and `parseToolResult()`,
+  - `formatToolValidationError()`,
+  - JSON Schema manifest export via `z.toJSONSchema()`.
+- Updated `web/src/tools/toolRuntime.ts` to validate tool input before auto-execution or human pending state.
+- Updated automatic tool result submission to validate output before sending `ChatFrontendToolResult`.
+- Updated `web/src/tools/ToolCallOutlet.tsx` to validate human tool inputs/results around the `respond()` path.
+- Updated `web/src/App.tsx` demo tools to use Zod schemas for `cart.add` and `checkout.confirm`.
+
+### Why
+- Tool calls originate from model/tool-loop decisions and should be treated as untrusted input at the browser boundary.
+- The manifest should not drift from browser validation. Defining a Zod schema once and exporting JSON Schema from it reduces that drift.
+- Human tools need validation too because approval UIs should render typed inputs and submit typed results.
+
+### What worked
+- `cd web && npm run build` passed.
+- `go test ./...` passed.
+- Automatic browser smoke passed with `OK: client-side tool browser smoke passed`.
+- Human approval browser smoke passed with `OK: human-in-the-loop browser smoke passed`.
+
+### What didn't work
+- N/A. The Zod v4 `z.toJSONSchema()` path worked with the installed `zod@4.4.3`.
+
+### What I learned
+- The public API can keep TypeScript generics at the hook boundary while the registry stores heterogeneous tools as a broad union.
+- Validation belongs in the runtime before dispatching to `execute()` and before submitting `respond()` results, not only in demo tool handlers.
+
+### What was tricky to build
+- The registry has to support three heterogeneous definitions: automatic frontend tools, human tools, and backend tool UIs. The implementation keeps stored definitions broad but preserves typed authoring through `FrontendTool<TInput, TResult>` and `HumanTool<TInput, TResult>`.
+- Human tool validation has two phases: initial input validation in `toolRuntime.ts` and result validation in `ToolCallOutlet.tsx` when the user responds.
+
+### What warrants a second pair of eyes
+- Review the exact JSON Schema generated by `z.toJSONSchema()` and confirm it is acceptable for future backend/model tool descriptors.
+- Review whether failed validation should always submit a failed tool result or sometimes publish a local-only error.
+
+### What should be done in the future
+- Add tests for invalid tool input and invalid tool output.
+- Add schema examples to Storybook and the design docs.
+- Consider a small schema adapter interface if we want to support non-Zod validators later.
+
+### Code review instructions
+- Start with `web/src/tools/toolRegistry.ts` to review the schema API.
+- Then read `web/src/tools/toolRuntime.ts` to see where validation gates execution.
+- Then read `web/src/tools/ToolCallOutlet.tsx` for human tool result validation.
+- Validate with:
+  - `go test ./...`
+  - `cd web && npm run build`
+  - `cd web && node ../ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/03-client-tool-browser-smoke.js`
+  - `cd web && node ../ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/04-human-tool-browser-smoke.js`
+
+### Technical details
+- Zod package: `zod@4.4.3`.
+- Demo automatic input schema: `CartAddInputSchema`.
+- Demo automatic result schema: `CartAddResultSchema`.
+- Demo human input schema: `CheckoutConfirmInputSchema`.
+- Demo human result schema: `CheckoutConfirmResultSchema`.
