@@ -4,6 +4,7 @@ import { timelineSlice } from '../store/timelineSlice';
 import { wsManager } from '../ws/wsManager';
 import { defaultToolRegistry, type ToolRegistry } from '../tools/toolRegistry';
 import { cancelActiveFrontendTools, configureToolRuntime } from '../tools/toolRuntime';
+import { installToolkit, type ChatOverlayToolkit } from './toolkit';
 
 export type ChatOverlayConfig = {
   basePrefix?: string;
@@ -32,6 +33,7 @@ export type ChatOverlay = {
   reset: () => void;
   getStore: () => typeof store;
   tools: ChatOverlayTools;
+  use: (toolkit: ChatOverlayToolkit) => () => void;
 };
 
 export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
@@ -167,5 +169,8 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
 
     getStore: () => store,
     tools,
+    use(toolkit: ChatOverlayToolkit) {
+      return installToolkit(this, toolkit);
+    },
   };
 }

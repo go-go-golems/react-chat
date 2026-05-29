@@ -1,5 +1,8 @@
 export type { ChatOverlay, ChatOverlayConfig } from './createChatOverlay';
 export { createChatOverlay } from './createChatOverlay';
+export { defineToolkit, installToolkit } from './toolkit';
+export type { ChatOverlayToolkit } from './toolkit';
+export { useToolkit } from './useToolkit';
 export { ChatOverlayProvider } from '../overlay/ChatOverlayProvider';
 export { ChatPanel } from '../overlay/ChatPanel';
 export { ChatBubble } from '../overlay/ChatBubble';
