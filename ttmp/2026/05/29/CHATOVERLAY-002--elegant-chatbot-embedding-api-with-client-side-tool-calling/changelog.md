@@ -67,3 +67,13 @@ Added backend tool UI registration with defineToolUI/useToolUI and ToolCallOutle
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/toolRegistry.ts — defineToolUI API
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/tools/useToolUI.ts — React registration hook
 
+
+## 2026-05-29
+
+Added toolkit bundling with defineToolkit/installToolkit/useToolkit and overlay.use (commit cb3470a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/core/createChatOverlay.ts — overlay.use integration
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/core/toolkit.ts — Toolkit API
+

@@ -93,7 +93,7 @@ These tasks are intentionally not required for the lunch smoke test.
 - [x] T6.1: Add Zod or equivalent schema validation for frontend tool input/output in the public API.
 - [x] T6.2: Add `useHumanTool()` with approval-card rendering and `respond()`.
 - [x] T6.3: Add `defineToolUI()` for backend-executed tool visualization.
-- [ ] T6.4: Add toolkit bundling with `defineToolkit()`.
+- [x] T6.4: Add toolkit bundling with `defineToolkit()`.
 - [ ] T6.5: Add WebSocket client command frames or keep HTTP command submission as the documented v1 choice.
 - [ ] T6.6: Move the mock-engine bridge into Pinocchio/Geppetto with a real frontend tool executor.
 - [ ] T6.7: Add reconnect tests for pending human/frontend tool calls.

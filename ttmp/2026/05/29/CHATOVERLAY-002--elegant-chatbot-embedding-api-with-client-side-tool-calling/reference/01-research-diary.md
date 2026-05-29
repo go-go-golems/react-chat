@@ -39,6 +39,10 @@ RelatedFiles:
         Demo tools now use Zod schemas
     - Path: web/src/core/createChatOverlay.ts
       Note: Overlay API now exposes tools namespace and manifest/result calls
+    - Path: web/src/core/toolkit.ts
+      Note: Toolkit definition and install/cleanup helper
+    - Path: web/src/core/useToolkit.ts
+      Note: React-scoped toolkit install hook
     - Path: web/src/stories/ToolCallOutlet.stories.tsx
       Note: Storybook examples for frontend/backend/failed tool cards
     - Path: web/src/tools/ToolCallOutlet.tsx
@@ -61,6 +65,7 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -508,3 +513,60 @@ The implementation is intentionally small. A backend tool UI is registered in th
 ### Technical details
 - Story file: `web/src/stories/ToolCallOutlet.stories.tsx`.
 - Example backend tool UI name: `catalog.search`.
+
+## Step 7: Add toolkit bundling
+
+This step added the first toolkit abstraction. Individual hooks are appropriate for component-scoped tools, but larger applications need a way to bundle related tools, widget definitions, and setup code under one named unit. The new `defineToolkit()`, `installToolkit()`, and `useToolkit()` functions provide that shape.
+
+The implementation is intentionally lightweight. A toolkit can contain tool definitions and an optional custom `install(overlay)` function. Installing a toolkit registers all tools, runs custom setup, syncs the tool manifest, and returns a cleanup function that unregisters tools in reverse order.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 5)
+
+**Assistant interpretation:** Continue turning the design's API primitives into implementation, after schema validation and backend tool UI support.
+
+**Inferred user intent:** Make the framework easier to package into reusable presets such as ecommerce tools/widgets.
+
+**Commit (code):** `cb3470a20ce809c3fc55916443ff2624cc0414e6` — "feat: add chat overlay toolkit registration"
+
+### What I did
+- Added `web/src/core/toolkit.ts` with `ChatOverlayToolkit`, `defineToolkit()`, and `installToolkit()`.
+- Added `web/src/core/useToolkit.ts` for React-scoped toolkit installation.
+- Added `overlay.use(toolkit)` to `createChatOverlay()`.
+- Exported toolkit APIs from `web/src/core/index.ts`.
+
+### Why
+- Ecommerce, documentation assistants, and editor assistants should be able to ship capability bundles instead of requiring host pages to register every tool manually.
+- Toolkits provide a future home for optional presets without making the core runtime product-specific.
+
+### What worked
+- `cd web && npm run build` passed.
+- `go test ./...` passed.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- The toolkit abstraction can stay small if it delegates actual tool registration to the existing `overlay.tools` namespace.
+- Cleanup is as important as install because scoped React usage needs unmount behavior to update the manifest.
+
+### What was tricky to build
+- The first implementation intentionally does not re-register widgets because current widget definitions are global and registered by `defineWidget()`. Toolkits include a `widgets` field for API shape, but richer widget scoping should wait until the widget registry is also overlay-instance scoped.
+
+### What warrants a second pair of eyes
+- Review whether `widgets` should be active now or documented as reserved until widget registries are instance-scoped.
+- Review whether `installToolkit()` should await `syncManifest()` or keep the current fire-and-forget behavior used by hooks.
+
+### What should be done in the future
+- Add an ecommerce toolkit that bundles `cart.add`, `checkout.confirm`, product widgets, and default styling.
+- Move widget registration into overlay-scoped registries so toolkit cleanup can unregister widgets too.
+
+### Code review instructions
+- Read `web/src/core/toolkit.ts` first.
+- Then review `web/src/core/createChatOverlay.ts` for `overlay.use(toolkit)`.
+- Validate with `cd web && npm run build`.
+
+### Technical details
+- Toolkit install returns `() => void` cleanup.
+- Toolkit custom `install(overlay)` may also return cleanup.
