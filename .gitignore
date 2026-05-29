@@ -1,5 +1,13 @@
 var/
 *.db
-node_modules/
-dist/
 .env
+
+# Frontend dependencies and generated assets
+node_modules/
+web/node_modules/
+dist/
+web/dist/
+web/debug-storybook.log
+
+# Local tool output
+.playwright-mcp/

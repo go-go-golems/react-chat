@@ -33,3 +33,13 @@ Added backend implementation review and recovery plan; identified custom command
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-001--build-chatbot-overlay-with-typed-widget-streaming-proposal-b/analysis/01-backend-implementation-review-and-recovery-plan.md — Detailed backend review and recovery plan
 
+
+## 2026-05-29
+
+Completed backend hygiene tasks T4-T5: added web/go.mod module boundary and explicit frontend ignores so go test ./... no longer scans web/node_modules.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.gitignore — Explicit frontend dependency/build ignores
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/go.mod — Nested module boundary for frontend dependencies
+

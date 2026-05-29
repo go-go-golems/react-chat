@@ -5,8 +5,8 @@
 - [x] T1: Create Go module and wire into `go.work`.
 - [x] T2: Create backend implementation review and recovery plan.
 - [x] T3: Upload backend implementation review and recovery plan to reMarkable.
-- [ ] T4: Add a `web/go.mod` nested module or equivalent guard so `go test ./...` does not scan `web/node_modules`.
-- [ ] T5: Ensure `.gitignore` excludes frontend build artifacts and dependency directories (`web/node_modules/`, `web/dist/`, debug logs).
+- [x] T4: Add a `web/go.mod` nested module or equivalent guard so `go test ./...` does not scan `web/node_modules`.
+- [x] T5: Ensure `.gitignore` excludes frontend build artifacts and dependency directories (`web/node_modules/`, `web/dist/`, debug logs).
 
 ## Phase 1: Backend skeleton and canonical wiring
 

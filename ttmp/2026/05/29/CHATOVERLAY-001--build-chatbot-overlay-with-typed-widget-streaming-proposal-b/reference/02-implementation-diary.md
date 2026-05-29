@@ -128,3 +128,55 @@ The backend was failing for architectural reasons. Continuing to patch frontend 
 - Report path: `ttmp/2026/05/29/CHATOVERLAY-001--build-chatbot-overlay-with-typed-widget-streaming-proposal-b/analysis/01-backend-implementation-review-and-recovery-plan.md`
 - reMarkable path: `/ai/2026/05/29/CHATOVERLAY-001/CHATOVERLAY-001 Backend Review and Recovery Plan`
 - Key failure evidence: snapshot after submit contains only `ChatMessage` with status `accepted`.
+
+---
+
+## Step 3: Isolate frontend dependencies from Go package discovery
+
+The backend validation command `go test ./...` was scanning a Go package inside `web/node_modules`. I fixed this before continuing backend implementation because backend tests must not depend on the shape of installed JavaScript dependencies.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Start executing the recovery task list after writing the backend review report.
+
+**Inferred user intent:** Make backend validation reliable before changing the mock engine.
+
+**Commit (code):** pending — hygiene commit for `web/go.mod`, `.gitignore`, tasks, and diary.
+
+### What I did
+- Added `web/go.mod` with module path `github.com/go-go-golems/chat-overlay/web`.
+- Expanded `.gitignore` to explicitly ignore `web/node_modules/`, `web/dist/`, and `web/debug-storybook.log`.
+- Reran `go test ./...` from the project root.
+- Marked T4 and T5 complete in `tasks.md`.
+
+### Why
+Go recursively discovers packages below the module root. Since the frontend lives inside the Go module, `web/node_modules` can accidentally contribute Go packages. A nested `web/go.mod` creates a module boundary so the root backend module ignores frontend internals.
+
+### What worked
+- `go test ./...` no longer lists `web/node_modules/flatted/golang/pkg/flatted`.
+- The backend packages still build and test from the project root.
+
+### What didn't work
+- N/A
+
+### What I learned
+- `.gitignore` is not enough for Go package discovery. Ignored files can still be scanned by the Go command if they are present on disk.
+
+### What was tricky to build
+- The subtle point is that Git ignore rules and Go module boundaries are unrelated. A directory can be ignored by Git but still visible to `go test ./...`.
+
+### What warrants a second pair of eyes
+- Confirm that adding `web/go.mod` is acceptable for the release/build workflow. It is the least invasive local-development fix, but CI and embed scripts should treat `web/` as a frontend project, not a Go package.
+
+### What should be done in the future
+- Add a Makefile target that runs backend tests and frontend tests separately.
+
+### Code review instructions
+- Review `.gitignore` and `web/go.mod`.
+- Validate with `go test ./...` from the project root.
+
+### Technical details
+- Before: `go test ./...` listed `github.com/go-go-golems/chat-overlay/web/node_modules/flatted/golang/pkg/flatted`.
+- After: only backend module packages are listed.
