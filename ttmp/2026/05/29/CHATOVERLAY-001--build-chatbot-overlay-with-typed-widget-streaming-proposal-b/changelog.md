@@ -63,3 +63,13 @@ Added backend tests for create+submit+snapshot, boots widget projection, and sto
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/server_test.go — Backend integration tests for mock engine and snapshot behavior
 
+
+## 2026-05-29
+
+Committed frontend overlay and Storybook implementation separately from backend recovery (commit 4a71eb3); frontend build passes, live integration remains T45.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/core/createChatOverlay.ts — Overlay API implementation
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/stories/ChatPanel.stories.tsx — Storybook overlay state coverage
+

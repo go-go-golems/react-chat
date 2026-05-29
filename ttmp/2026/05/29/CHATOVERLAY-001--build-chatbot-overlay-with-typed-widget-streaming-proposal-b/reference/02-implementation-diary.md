@@ -343,3 +343,57 @@ The prior implementation returned HTTP 200 while failing to produce assistant or
 ### Technical details
 - Main validation command: `go test ./...`
 - Tests added: `TestSubmitBootsProducesAssistantMessageAndWidgetSnapshot`, `TestStopCancelsCustomMockRun`.
+
+---
+
+## Step 6: Commit the frontend overlay and Storybook work
+
+The React overlay and Storybook work had been implemented during the frontend-focused pass but had not yet been committed. I validated the frontend build and committed that work separately from the backend recovery commits so the history has a clear boundary between backend fixes and frontend UI implementation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Preserve completed frontend work while continuing backend recovery with clean commit boundaries.
+
+**Inferred user intent:** Keep the repository reviewable and avoid mixing backend engine recovery with the React/Storybook implementation.
+
+**Commit (code):** `4a71eb3` — "feat: add retro chat overlay frontend and storybook"
+
+### What I did
+- Ran `npm run build` in `web/` successfully.
+- Committed the React/Vite frontend, Tailwind retro Mac theme, RTK store, WebSocket protocol layer, overlay components, widget registry, ecommerce widgets, and Storybook stories.
+
+### Why
+The frontend work is substantial and useful, but it is separate from the backend run-lifecycle recovery. A separate commit makes review easier.
+
+### What worked
+- TypeScript and Vite production build completed successfully.
+- Storybook stories were added for overlay and widget states.
+
+### What didn't work
+- Live browser integration still does not show messages after submit. Backend now produces snapshot state, so the remaining live UI issue is likely in the frontend WebSocket/proxy/state path and remains task T45.
+
+### What I learned
+- The retro Mac OS 1 monochrome styling is visually coherent in the browser and Storybook stories.
+- The backend can now be validated independently while frontend live integration remains a separate task.
+
+### What was tricky to build
+- The frontend was developed while backend behavior was still unstable, so Storybook became the reliable validation surface for visual components.
+
+### What warrants a second pair of eyes
+- Review whether committed frontend assets like `web/src/assets/hero.png` and `web/src/assets/vite.svg` should be removed as boilerplate.
+- Review the Vite WebSocket proxy settings before live integration testing.
+
+### What should be done in the future
+- Fix frontend live integration after backend WebSocket behavior is tested.
+- Add Storybook interaction tests if desired.
+
+### Code review instructions
+- Start with `web/src/core/createChatOverlay.ts`, `web/src/ws/wsManager.ts`, and `web/src/store/timelineSlice.ts`.
+- Then review `web/src/overlay/*` and `web/src/ecommerce/*` for UI/API shape.
+- Validate with `cd web && npm run build`.
+
+### Technical details
+- Frontend build command: `npm run build`.
+- Build result: Vite production build succeeded.
