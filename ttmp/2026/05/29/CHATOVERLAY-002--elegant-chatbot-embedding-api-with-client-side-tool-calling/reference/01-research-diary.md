@@ -777,7 +777,7 @@ The fix keeps browser-facing tool names stable while registering provider-safe a
 
 **Inferred user intent:** Use full runtime logs to diagnose why the real-model frontend-tool bridge smoke did not show a `cart.add` tool call.
 
-**Commit (code):** pending — not committed yet in this step.
+**Commit (code):** `4744f73` — "fix: alias frontend tool names for providers"
 
 ### What I did
 - Restarted tmux pane `chat-overlay:0.0` with:
