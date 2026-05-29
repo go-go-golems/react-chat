@@ -105,3 +105,53 @@ Client-side tool calling touches API design, transport design, backend run contr
 - Script: `scripts/01-fetch-research-sources.sh`
 - Sources directory: `sources/`
 - Main design doc: `design-doc/01-elegant-chatbot-embedding-api-and-client-side-tool-calling-design.md`
+
+## Step 2: Expand implementation phases for the browser smoke test
+
+This step converted the broad design into an implementation checklist aimed at a visible local smoke test. The key decision was to implement a minimal real frontend-tool round trip through sessionstream and the mock engine first, before attempting the larger Geppetto/Pinocchio production integration.
+
+The lunch-smoke milestone is intentionally concrete: prompt the demo with `add boots to cart`, have the backend request browser tool `cart.add`, let the frontend execute it, show the tool card in the timeline, submit a result, and let the backend publish a final assistant confirmation.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright, add detailed phases and for each phase deatiled task list for implementing these features, and then work on them step by step, committing at appropriate intervals, and keeping a detailed diary. I'm going out for lunch and i want to be able to see a proper running smoke test  in the browser when i come back."
+
+**Assistant interpretation:** Break the client-side tool-calling design into detailed implementation phases, then start implementing toward a working browser smoke test with commits and diary updates.
+
+**Inferred user intent:** Return from lunch to a live local app demonstrating browser-executed tool calling rather than only a design document.
+
+**Commit (code):** pending — planning/docs step before implementation.
+
+### What I did
+- Rewrote `tasks.md` with phased implementation tasks and acceptance criteria.
+- Scoped the first implementation to a mock-engine-backed frontend tool request/result flow.
+- Chose `cart.add` and prompt `add boots to cart` as the browser smoke scenario.
+
+### Why
+- The full production design requires Geppetto/Pinocchio changes, but a browser smoke test needs a deterministic no-API-key path today.
+- The mock engine can exercise the future protocol shape while keeping the implementation small and testable.
+
+### What worked
+- The phase breakdown now separates protocol/backend foundation, mock-engine round trip, frontend registry/runtime, demo smoke scripts, and production follow-ups.
+
+### What didn't work
+- N/A in this planning step.
+
+### What I learned
+- The lowest-risk first slice is not the React hook alone; it is the backend/frontend round trip with durable sessionstream events.
+
+### What was tricky to build
+- The planning had to avoid overcommitting to the full Geppetto pause/resume architecture before the smoke test. The chosen compromise is a real sessionstream protocol exercised by the mock engine, with a later task to move the bridge into Pinocchio/Geppetto.
+
+### What warrants a second pair of eyes
+- Confirm that using HTTP command endpoints for frontend tool manifests/results is acceptable for v1 while WebSocket client frames remain subscribe-only.
+
+### What should be done in the future
+- Replace the mock-engine-specific bridge with a Pinocchio/Geppetto frontend tool executor.
+
+### Code review instructions
+- Start with `tasks.md` to understand the implementation sequence.
+- Validate that the first slice remains smoke-test focused and does not prematurely introduce the full production tool-loop abstraction.
+
+### Technical details
+- Ticket task file: `ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/tasks.md`
