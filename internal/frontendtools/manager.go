@@ -181,19 +181,24 @@ func (m *Manager) Request(ctx context.Context, sid sessionstream.SessionId, pub 
 	}
 }
 
-func (m *Manager) HasAvailableTool(sid sessionstream.SessionId, name string) bool {
+func (m *Manager) Descriptor(sid sessionstream.SessionId, name string) (*toolv1.FrontendToolDescriptor, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	manifest := m.manifests[sid]
 	if manifest == nil {
-		return false
+		return nil, false
 	}
 	for _, tool := range manifest.Tools {
-		if tool.GetName() == name && tool.GetAvailable() {
-			return true
+		if tool.GetName() == name {
+			return proto.Clone(tool).(*toolv1.FrontendToolDescriptor), true
 		}
 	}
-	return false
+	return nil, false
+}
+
+func (m *Manager) HasAvailableTool(sid sessionstream.SessionId, name string) bool {
+	descriptor, ok := m.Descriptor(sid, name)
+	return ok && descriptor.GetAvailable()
 }
 
 func cloneDescriptors(in []*toolv1.FrontendToolDescriptor) []*toolv1.FrontendToolDescriptor {
