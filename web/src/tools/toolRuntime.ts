@@ -11,6 +11,7 @@ type SubmitToolResult = (result: {
 
 let submitToolResult: SubmitToolResult | null = null;
 const activeControllers = new Map<string, AbortController>();
+const pendingHumanTools = new Set<string>();
 
 export function configureToolRuntime(args: { submitToolResult: SubmitToolResult }) {
   submitToolResult = args.submitToolResult;
@@ -21,6 +22,7 @@ export function cancelActiveFrontendTools() {
     controller.abort();
   }
   activeControllers.clear();
+  pendingHumanTools.clear();
 }
 
 export function handleFrontendToolUIEvent(frame: CanonicalFrame) {
@@ -63,6 +65,21 @@ async function executeFrontendTool(payload: Record<string, unknown>) {
     return;
   }
 
+  if (tool.mode === 'human') {
+    pendingHumanTools.add(toolCallId);
+    return;
+  }
+
+  if (tool.mode === 'backend' || !('execute' in tool)) {
+    await submit({
+      toolCallId,
+      toolName,
+      status: 'failed',
+      error: `frontend tool ${toolName} is registered as ${tool.mode ?? 'unknown'} and cannot execute in the browser`,
+    });
+    return;
+  }
+
   const controller = new AbortController();
   activeControllers.set(toolCallId, controller);
   try {
@@ -84,6 +101,30 @@ async function executeFrontendTool(payload: Record<string, unknown>) {
   } finally {
     activeControllers.delete(toolCallId);
   }
+}
+
+export function isPendingHumanTool(toolCallId: string): boolean {
+  return pendingHumanTools.has(toolCallId);
+}
+
+export async function respondToHumanTool(args: {
+  toolCallId: string;
+  toolName: string;
+  result?: Record<string, unknown>;
+  status?: 'success' | 'denied' | 'failed' | 'cancelled';
+  error?: string;
+}) {
+  if (!submitToolResult) {
+    throw new Error('frontend tool runtime is not configured');
+  }
+  pendingHumanTools.delete(args.toolCallId);
+  await submitToolResult({
+    toolCallId: args.toolCallId,
+    toolName: args.toolName,
+    status: args.status ?? 'success',
+    result: args.result ?? {},
+    error: args.error,
+  });
 }
 
 function normalizeRecord(value: unknown): Record<string, unknown> {

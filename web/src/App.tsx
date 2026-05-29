@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChatOverlayProvider, ChatPanel, ChatBubble, useFrontendTool } from './core/index';
+import { ChatOverlayProvider, ChatPanel, ChatBubble, useFrontendTool, useHumanTool } from './core/index';
 import './ecommerce'; // register ecommerce widgets
 
 type DemoCartItem = {
@@ -8,8 +8,9 @@ type DemoCartItem = {
   quantity: number;
 };
 
-function DemoCartTool() {
+function DemoTools() {
   const [items, setItems] = useState<DemoCartItem[]>([]);
+  const [checkoutApprovals, setCheckoutApprovals] = useState(0);
   const itemsRef = useRef<DemoCartItem[]>([]);
 
   useFrontendTool<Record<string, unknown>, Record<string, unknown>>({
@@ -36,17 +37,57 @@ function DemoCartTool() {
     },
   }, []);
 
+  useHumanTool<Record<string, unknown>, Record<string, unknown>>({
+    name: 'checkout.confirm',
+    description: 'Ask the user to confirm before opening checkout.',
+    mode: 'human',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        subtotal: { type: 'string' },
+        reason: { type: 'string' },
+      },
+      required: ['subtotal', 'reason'],
+    },
+    render: ({ input, respond, reject }) => (
+      <div className="border border-mac-black p-2 bg-mac-gray-5" data-testid="checkout-approval-card">
+        <div className="font-bold uppercase mb-1">Approve checkout?</div>
+        <p className="mb-2">{String(input.reason || 'The assistant wants to open checkout.')}</p>
+        <p className="mb-2 font-mono">Subtotal: {String(input.subtotal || '$149.99')}</p>
+        <div className="flex gap-2">
+          <button
+            className="border border-mac-black px-2 py-1 bg-mac-white hover:bg-mac-black hover:text-mac-white"
+            data-testid="approve-checkout"
+            onClick={() => {
+              setCheckoutApprovals((count) => count + 1);
+              respond({ approved: true, approvalCount: checkoutApprovals + 1 });
+            }}
+          >
+            APPROVE
+          </button>
+          <button
+            className="border border-mac-black px-2 py-1 bg-mac-white hover:bg-mac-black hover:text-mac-white"
+            data-testid="deny-checkout"
+            onClick={() => reject('User denied checkout approval')}
+          >
+            DENY
+          </button>
+        </div>
+      </div>
+    ),
+  }, [checkoutApprovals]);
+
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="border-2 border-mac-black bg-mac-white p-3 text-xs shadow-mac" data-testid="demo-cart">
       <div className="flex items-center justify-between border-b border-mac-gray-3 pb-1 mb-2">
         <span className="font-bold uppercase">Browser demo cart</span>
-        <span data-testid="demo-cart-count">{count} item{count === 1 ? '' : 's'}</span>
+        <span data-testid="demo-cart-count">{count} item{count === 1 ? '' : 's'} · {checkoutApprovals} approval{checkoutApprovals === 1 ? '' : 's'}</span>
       </div>
       <p className="text-mac-gray-2 mb-2">
         The page registers a client-side tool named <code className="font-mono">cart.add</code>.
-        Ask the chat to <strong>add boots to cart</strong> to run it in the browser.
+        Ask the chat to <strong>add boots to cart</strong> to run it in the browser, or <strong>approve checkout</strong> to test a human approval tool.
       </p>
       {items.length === 0 ? (
         <p className="text-mac-gray-3 italic">No browser-side cart items yet.</p>
@@ -71,13 +112,13 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold mb-2 font-mono">Chat Overlay</h1>
             <p className="text-sm text-mac-gray-2 mb-2">
-              Type a message to start a conversation. Try: "show me boots", "review my cart", "checkout", or "add boots to cart".
+              Type a message to start a conversation. Try: "show me boots", "review my cart", "checkout", "add boots to cart", or "approve checkout".
             </p>
             <p className="text-xs text-mac-gray-3">
               Smoke test: open the chat bubble and send <span className="font-mono">add boots to cart</span>. The backend will request browser tool <span className="font-mono">cart.add</span>, the page will execute it, and the assistant will continue after the result returns.
             </p>
           </div>
-          <DemoCartTool />
+          <DemoTools />
         </div>
       </div>
       <ChatPanel />

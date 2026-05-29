@@ -103,6 +103,52 @@ func TestFrontendToolRoundTripResumesMockRun(t *testing.T) {
 	}
 }
 
+func TestHumanToolRoundTripResumesMockRun(t *testing.T) {
+	server, cleanup, err := NewServer(ServerOptions{ChunkDelay: time.Millisecond})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	defer cleanup()
+
+	sessionID := createSession(t, server)
+	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
+		"name":        "checkout.confirm",
+		"description": "Ask for checkout approval",
+		"mode":        "human",
+		"available":   true,
+		"inputSchema": map[string]any{"type": "object"},
+	}})
+	submitPrompt(t, server, sessionID, "approve checkout")
+	waitForNamedToolCall(t, server, sessionID, "checkout.confirm", "requested")
+	postNamedToolResult(t, server, sessionID, "overlay-msg-1:tool:checkout-confirm", "checkout.confirm", map[string]any{"approved": true, "approvalCount": float64(1)})
+	waitIdle(t, server, sessionID)
+
+	snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+
+	var sawTool, sawFinal bool
+	for _, entity := range snap.Entities {
+		switch payload := entity.Payload.(type) {
+		case *toolv1.FrontendToolCallEntity:
+			if payload.GetToolName() == "checkout.confirm" && payload.GetStatus() == "success" {
+				sawTool = true
+			}
+		case *chatappv1.ChatMessageEntity:
+			if payload.GetRole() == "assistant" && payload.GetContent() == "Checkout approval returned approved=true; approval count is now 1." {
+				sawFinal = true
+			}
+		}
+	}
+	if !sawTool {
+		t.Fatalf("snapshot did not contain completed human tool call: %#v", snap.Entities)
+	}
+	if !sawFinal {
+		t.Fatalf("snapshot did not contain checkout approval confirmation: %#v", snap.Entities)
+	}
+}
+
 func TestStopCancelsCustomMockRun(t *testing.T) {
 	server, cleanup, err := NewServer(ServerOptions{ChunkDelay: 5 * time.Millisecond})
 	if err != nil {
@@ -163,16 +209,21 @@ func submitPrompt(t *testing.T, server *Server, sessionID, prompt string) {
 
 func postToolManifest(t *testing.T, server *Server, sessionID string) {
 	t.Helper()
+	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
+		"name":        "cart.add",
+		"description": "Add an item to the browser cart",
+		"mode":        "frontend",
+		"available":   true,
+		"inputSchema": map[string]any{"type": "object"},
+	}})
+}
+
+func postToolManifestWithTools(t *testing.T, server *Server, sessionID string, tools []map[string]any) {
+	t.Helper()
 	rec := httptest.NewRecorder()
 	body, _ := json.Marshal(map[string]any{
 		"revision": 1,
-		"tools": []map[string]any{{
-			"name":        "cart.add",
-			"description": "Add an item to the browser cart",
-			"mode":        "frontend",
-			"available":   true,
-			"inputSchema": map[string]any{"type": "object"},
-		}},
+		"tools":    tools,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/"+sessionID+"/tools/manifest", bytes.NewReader(body))
 	server.Mux().ServeHTTP(rec, req)
@@ -183,15 +234,17 @@ func postToolManifest(t *testing.T, server *Server, sessionID string) {
 
 func postToolResult(t *testing.T, server *Server, sessionID, toolCallID string) {
 	t.Helper()
+	postNamedToolResult(t, server, sessionID, toolCallID, "cart.add", map[string]any{"ok": true, "cartCount": float64(1)})
+}
+
+func postNamedToolResult(t *testing.T, server *Server, sessionID, toolCallID, toolName string, result map[string]any) {
+	t.Helper()
 	rec := httptest.NewRecorder()
 	body, _ := json.Marshal(map[string]any{
 		"toolCallId": toolCallID,
-		"toolName":   "cart.add",
+		"toolName":   toolName,
 		"status":     "success",
-		"result": map[string]any{
-			"ok":        true,
-			"cartCount": float64(1),
-		},
+		"result":     result,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/"+sessionID+"/tools/results", bytes.NewReader(body))
 	server.Mux().ServeHTTP(rec, req)
@@ -202,6 +255,11 @@ func postToolResult(t *testing.T, server *Server, sessionID, toolCallID string) 
 
 func waitForToolCall(t *testing.T, server *Server, sessionID string) {
 	t.Helper()
+	waitForNamedToolCall(t, server, sessionID, "cart.add", "requested")
+}
+
+func waitForNamedToolCall(t *testing.T, server *Server, sessionID, toolName, status string) {
+	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
@@ -210,13 +268,13 @@ func waitForToolCall(t *testing.T, server *Server, sessionID string) {
 		}
 		for _, entity := range snap.Entities {
 			payload, ok := entity.Payload.(*toolv1.FrontendToolCallEntity)
-			if ok && payload.GetToolName() == "cart.add" && payload.GetStatus() == "requested" {
+			if ok && payload.GetToolName() == toolName && payload.GetStatus() == status {
 				return
 			}
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	t.Fatalf("timed out waiting for frontend tool call")
+	t.Fatalf("timed out waiting for %s tool call with status %s", toolName, status)
 }
 
 func stopSession(t *testing.T, server *Server, sessionID string) {

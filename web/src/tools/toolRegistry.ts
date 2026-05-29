@@ -1,3 +1,5 @@
+import type React from 'react';
+
 export type ToolExecutionMode = 'frontend' | 'human' | 'backend';
 
 export type ToolExecutionContext = {
@@ -5,14 +7,39 @@ export type ToolExecutionContext = {
   toolCallId: string;
 };
 
-export type FrontendTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = {
+export type HumanToolRenderProps<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = {
+  toolCallId: string;
+  toolName: string;
+  input: TInput;
+  status: string;
+  respond: (result: TResult) => void;
+  reject: (error?: string) => void;
+};
+
+export type BaseTool = {
   name: string;
   description?: string;
   mode?: ToolExecutionMode;
   inputSchema?: Record<string, unknown>;
   available?: boolean | (() => boolean);
+};
+
+export type FrontendTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool & {
+  mode?: 'frontend';
   execute: (input: TInput, context: ToolExecutionContext) => Promise<TResult> | TResult;
 };
+
+export type HumanTool<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool & {
+  mode: 'human';
+  render: (props: HumanToolRenderProps<TInput, TResult>) => React.ReactNode;
+};
+
+export type BackendToolUI<TInput = Record<string, unknown>, TResult = Record<string, unknown>> = BaseTool & {
+  mode: 'backend';
+  render?: (props: { input: TInput; result?: TResult; status: string }) => React.ReactNode;
+};
+
+export type ToolDefinition = FrontendTool<any, any> | HumanTool<any, any> | BackendToolUI<any, any>;
 
 export type FrontendToolManifestEntry = {
   name: string;
@@ -23,21 +50,21 @@ export type FrontendToolManifestEntry = {
 };
 
 export type ToolRegistry = {
-  register: <TInput, TResult>(tool: FrontendTool<TInput, TResult>) => () => void;
-  get: (name: string) => FrontendTool | undefined;
+  register: (tool: ToolDefinition) => () => void;
+  get: (name: string) => ToolDefinition | undefined;
   manifest: () => FrontendToolManifestEntry[];
   revision: () => number;
 };
 
 class DefaultToolRegistry implements ToolRegistry {
-  private tools = new Map<string, FrontendTool>();
+  private tools = new Map<string, ToolDefinition>();
   private manifestRevision = 0;
 
-  register<TInput, TResult>(tool: FrontendTool<TInput, TResult>): () => void {
+  register(tool: ToolDefinition): () => void {
     if (!tool.name.trim()) {
       throw new Error('frontend tool requires a name');
     }
-    const normalized = { ...tool, mode: tool.mode ?? 'frontend' } as FrontendTool;
+    const normalized = { ...tool, mode: tool.mode ?? 'frontend' } as ToolDefinition;
     this.tools.set(tool.name, normalized);
     this.manifestRevision++;
     return () => {
@@ -49,7 +76,7 @@ class DefaultToolRegistry implements ToolRegistry {
     };
   }
 
-  get(name: string): FrontendTool | undefined {
+  get(name: string): ToolDefinition | undefined {
     return this.tools.get(name);
   }
 
@@ -70,6 +97,6 @@ class DefaultToolRegistry implements ToolRegistry {
 
 export const defaultToolRegistry: ToolRegistry = new DefaultToolRegistry();
 
-export function defineTool<TInput, TResult>(tool: FrontendTool<TInput, TResult>): FrontendTool<TInput, TResult> {
+export function defineTool(tool: ToolDefinition): ToolDefinition {
   return tool;
 }

@@ -7,6 +7,7 @@ export { defineWidget } from '../widgets/widgetRegistry';
 export type { WidgetProps, WidgetDefinition } from '../widgets/widgetRegistry';
 export { WidgetOutlet } from '../widgets/WidgetOutlet';
 export { defineTool } from '../tools/toolRegistry';
-export type { FrontendTool, ToolRegistry, ToolExecutionMode } from '../tools/toolRegistry';
+export type { FrontendTool, HumanTool, BackendToolUI, ToolRegistry, ToolExecutionMode } from '../tools/toolRegistry';
 export { useFrontendTool } from '../tools/useFrontendTool';
+export { useHumanTool } from '../tools/useHumanTool';
 export { ToolCallOutlet } from '../tools/ToolCallOutlet';

@@ -223,6 +223,16 @@ func (e *Engine) run(ctx context.Context, sid sessionstream.SessionId, messageID
 		}
 	}
 
+	if e.shouldUseCheckoutApprovalTool(prompt) {
+		if err := e.runCheckoutApprovalTool(ctx, publishCtx, sid, messageID, prompt, pub); err != nil {
+			if ctx.Err() != nil {
+				e.publishRunStoppedOnly(publishCtx, sid, pub, messageID)
+				return
+			}
+			e.publishToolFailureText(publishCtx, sid, pub, messageID, err)
+		}
+	}
+
 	if err := publish(publishCtx, sid, pub, chatapp.EventChatRunFinished, &chatappv1.ChatRunFinished{MessageId: messageID, Status: "finished"}); err != nil {
 		e.logPublishError(err, sid, messageID, chatapp.EventChatRunFinished, prompt)
 	}
@@ -231,6 +241,11 @@ func (e *Engine) run(ctx context.Context, sid sessionstream.SessionId, messageID
 func (e *Engine) shouldUseCartTool(prompt string) bool {
 	lower := strings.ToLower(prompt)
 	return strings.Contains(lower, "client tool") || strings.Contains(lower, "cart.add") || (strings.Contains(lower, "add") && strings.Contains(lower, "cart"))
+}
+
+func (e *Engine) shouldUseCheckoutApprovalTool(prompt string) bool {
+	lower := strings.ToLower(prompt)
+	return strings.Contains(lower, "approve checkout") || strings.Contains(lower, "human tool") || strings.Contains(lower, "checkout.confirm")
 }
 
 func (e *Engine) runCartTool(runCtx, publishCtx context.Context, sid sessionstream.SessionId, messageID, prompt string, pub sessionstream.EventPublisher) error {
@@ -267,6 +282,42 @@ func (e *Engine) runCartTool(runCtx, publishCtx context.Context, sid sessionstre
 		}
 	}
 	return e.publishAssistantText(publishCtx, sid, pub, messageID+":text:2", prompt, summary)
+}
+
+func (e *Engine) runCheckoutApprovalTool(runCtx, publishCtx context.Context, sid sessionstream.SessionId, messageID, prompt string, pub sessionstream.EventPublisher) error {
+	if e.frontendTools == nil {
+		return fmt.Errorf("frontend tools manager is not installed")
+	}
+	result, err := e.frontendTools.Request(runCtx, sid, pub, frontendtools.Request{
+		MessageID:  messageID,
+		ToolCallID: messageID + ":tool:checkout-confirm",
+		ToolName:   "checkout.confirm",
+		Mode:       toolv1.ToolExecutionMode_TOOL_EXECUTION_MODE_FRONTEND_HUMAN,
+		Input: map[string]any{
+			"subtotal": "$149.99",
+			"reason":   "The assistant wants to open checkout for the selected boots.",
+		},
+	})
+	if err != nil {
+		return err
+	}
+	approved := false
+	approvalCount := any(nil)
+	if result.GetResult() != nil {
+		m := result.GetResult().AsMap()
+		if value, ok := m["approved"].(bool); ok {
+			approved = value
+		}
+		approvalCount = m["approvalCount"]
+	}
+	if result.GetStatus() == "denied" || !approved {
+		return e.publishAssistantText(publishCtx, sid, pub, messageID+":text:checkout-denied", prompt, "Checkout was not approved, so I did not open it.")
+	}
+	summary := "Checkout approval returned approved=true."
+	if approvalCount != nil {
+		summary = fmt.Sprintf("Checkout approval returned approved=true; approval count is now %v.", approvalCount)
+	}
+	return e.publishAssistantText(publishCtx, sid, pub, messageID+":text:checkout-approved", prompt, summary)
 }
 
 func (e *Engine) publishAssistantText(ctx context.Context, sid sessionstream.SessionId, pub sessionstream.EventPublisher, textSegmentID, prompt, text string) error {
