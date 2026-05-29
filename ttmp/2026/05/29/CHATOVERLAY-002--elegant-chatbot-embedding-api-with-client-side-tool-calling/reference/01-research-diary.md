@@ -15,20 +15,35 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: internal/frontendtools/manager.go
+      Note: Manifest/result command handling and pending frontend tool waits
+    - Path: internal/frontendtools/plugin.go
+      Note: Sessionstream UI and timeline projections for frontend tools
+    - Path: internal/mockengine/engine.go
+      Note: Mock engine requests cart.add and resumes after browser result
+    - Path: proto/chatoverlay/tools/v1/frontend_tool.proto
+      Note: Frontend tool protocol implemented in smoke slice
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/01-fetch-research-sources.sh
       Note: Defuddle source download script for prior-art docs
+    - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/01-copilotkit-use-frontend-tool.md
+      Note: Downloaded CopilotKit frontend tool reference
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/05-ai-sdk-chatbot-tool-usage.md
       Note: Downloaded Vercel AI SDK client-side tool round-trip reference
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/08-assistant-ui-tools.md
       Note: Downloaded assistant-ui toolkit/tool typing reference
-    - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/01-copilotkit-use-frontend-tool.md
-      Note: Downloaded CopilotKit frontend tool reference
+    - Path: web/src/App.tsx
+      Note: Smoke demo cart.add tool registration and visible cart state
+    - Path: web/src/core/createChatOverlay.ts
+      Note: Overlay API now exposes tools namespace and manifest/result calls
+    - Path: web/src/tools/toolRuntime.ts
+      Note: Browser-side frontend tool execution and result submission
 ExternalSources: []
 Summary: Chronological research diary for CHATOVERLAY-002.
 LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 # Research Diary
@@ -155,3 +170,116 @@ The lunch-smoke milestone is intentionally concrete: prompt the demo with `add b
 
 ### Technical details
 - Ticket task file: `ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/tasks.md`
+
+## Step 3: Implement sessionstream-native frontend tool smoke path
+
+This step built the first working end-to-end slice of browser-side tool calling. The implementation does not yet change Geppetto's production tool loop; instead, it adds the same protocol shape to chat-overlay and has the deterministic mock engine request `cart.add`, wait for the browser result, and then continue the assistant response.
+
+The visible browser smoke now demonstrates the important invariant: tool calls are not a Redux-only side channel. The backend publishes a typed sessionstream UI event, the frontend renders a durable timeline card, the browser executes a registered tool, the result goes back through a backend command endpoint, and the mock run resumes.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Implement the planned frontend-tool slices, validate them in Go tests, TypeScript build, automated Playwright smoke, and a live browser session.
+
+**Inferred user intent:** Have a real local browser demo running after lunch, not only implementation notes.
+
+**Commit (code):** `80af9646e36a7dcd8c1e5b6216a19ae2242899b6` — "feat: add frontend tool sessionstream backend"
+
+**Commit (code):** `8803c2d694b2d3730aaf1f1aeb3d76a6f9749649` — "feat: add frontend tool registry smoke runtime"
+
+### What I did
+- Added `proto/chatoverlay/tools/v1/frontend_tool.proto` and generated Go bindings.
+- Added `internal/frontendtools.Manager` and `internal/frontendtools.Plugin`.
+- Registered frontend tool manifest/result commands and frontend tool call/result events with sessionstream.
+- Wired the frontend tool plugin into `internal/webchat/server.go`.
+- Added HTTP endpoints:
+  - `POST /api/chat/sessions/{id}/tools/manifest`
+  - `POST /api/chat/sessions/{id}/tools/results`
+- Extended the mock engine to request `cart.add` for prompts like `add boots to cart`, wait for the browser result, and publish a final assistant confirmation.
+- Added backend test `TestFrontendToolRoundTripResumesMockRun`.
+- Added frontend registry/runtime files:
+  - `web/src/tools/toolRegistry.ts`
+  - `web/src/tools/useFrontendTool.ts`
+  - `web/src/tools/toolRuntime.ts`
+  - `web/src/tools/ToolCallOutlet.tsx`
+- Extended `createChatOverlay()` with `tools.register`, `tools.syncManifest`, and `tools.submitResult`.
+- Extended timeline event/snapshot normalization for `ChatFrontendToolCallRequested` and `ChatFrontendToolResultReceived`.
+- Added a demo `cart.add` browser tool and visible demo cart to `web/src/App.tsx`.
+- Added scripts:
+  - `scripts/02-restart-dev-servers.sh`
+  - `scripts/03-client-tool-browser-smoke.js`
+- Started backend/frontend in tmux session `chat-overlay`.
+- Ran an automated Playwright smoke test and manually left the browser showing the successful smoke scenario.
+
+### Why
+- A mock-engine-backed tool round trip provides a deterministic smoke test without API keys.
+- Using sessionstream commands/events now preserves the architecture needed for the later Geppetto/Pinocchio bridge.
+- The frontend API begins to look like the researched designs: component-scoped registration plus explicit result submission.
+
+### What worked
+- `go test ./...` passed.
+- `cd web && npm run build` passed.
+- `node ../ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/03-client-tool-browser-smoke.js` passed with:
+  - `OK: client-side tool browser smoke passed`
+- The live browser at `http://127.0.0.1:5173` shows:
+  - demo cart count updated to `1 item`,
+  - chat prompt `add boots to cart`,
+  - ProductCarousel widget,
+  - `browser tool` card for `cart.add` with `success`,
+  - final assistant text: `The browser ran cart.add and the demo cart now contains 1 item(s).`
+
+### What didn't work
+- First smoke-script run failed because the script lives under `ttmp/.../scripts`, outside `web/`, so Node's ESM package resolution could not find `playwright`:
+  - Command: `cd web && node ../ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/03-client-tool-browser-smoke.js`
+  - Error: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from .../scripts/03-client-tool-browser-smoke.js`
+- Fixed by using `createRequire('/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/package.json')` inside the smoke script so it resolves Playwright from the web package.
+
+### What I learned
+- The sessionstream plugin pattern used for widgets maps cleanly to frontend tool calls.
+- The first browser smoke does not need WebSocket client command frames; HTTP commands can submit manifests/results while WebSocket remains the live event stream.
+- The visible timeline card is important because it proves the tool call is part of the conversation state, not hidden application plumbing.
+
+### What was tricky to build
+- The backend result command needs to both publish `ChatFrontendToolResultReceived` and unblock the waiting mock run. Publishing before unblocking preserves visible event order so the tool result appears before the final assistant continuation.
+- The frontend runtime must be configured by the overlay because it needs the active session id and API base to submit results. The current implementation uses a singleton runtime, which is acceptable for this smoke but should be revisited for multiple overlays.
+- The smoke prompt also matches the existing `boots` response, so the demo shows both the ProductCarousel widget and the `cart.add` tool card. This is useful visually, but production flows may want separate intent routing.
+
+### What warrants a second pair of eyes
+- Review `internal/frontendtools.Manager.Request` and `HandleResult` for concurrency and cancellation edge cases.
+- Review whether failed/missing frontend tools should produce a model-visible tool error result or fail the run.
+- Review the singleton frontend tool registry/runtime before supporting multiple independent overlay instances.
+
+### What should be done in the future
+- Move the bridge from mock engine into Pinocchio/Geppetto's real tool execution path.
+- Add first-class `useHumanTool()` with pending approval UI.
+- Add schema validation for frontend tool input/output.
+- Add reconnect tests for pending frontend tool calls.
+
+### Code review instructions
+- Backend review order:
+  1. `proto/chatoverlay/tools/v1/frontend_tool.proto`
+  2. `internal/frontendtools/manager.go`
+  3. `internal/frontendtools/plugin.go`
+  4. `internal/mockengine/engine.go`
+  5. `internal/webchat/handlers.go`
+  6. `internal/webchat/server_test.go`
+- Frontend review order:
+  1. `web/src/tools/toolRegistry.ts`
+  2. `web/src/tools/toolRuntime.ts`
+  3. `web/src/core/createChatOverlay.ts`
+  4. `web/src/ws/timelineEvents.ts`
+  5. `web/src/tools/ToolCallOutlet.tsx`
+  6. `web/src/App.tsx`
+- Validation commands:
+  - `go test ./...`
+  - `cd web && npm run build`
+  - `./ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/02-restart-dev-servers.sh`
+  - `cd web && node ../ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/03-client-tool-browser-smoke.js`
+
+### Technical details
+- Running backend: tmux session `chat-overlay`, pane `0.0`, `go run ./cmd/chat-overlay serve --serve-port 8080`.
+- Running frontend: tmux session `chat-overlay`, pane `0.1`, `npx vite --host 127.0.0.1 --port 5173`.
+- Browser URL: `http://127.0.0.1:5173`.
+- Smoke prompt: `add boots to cart`.

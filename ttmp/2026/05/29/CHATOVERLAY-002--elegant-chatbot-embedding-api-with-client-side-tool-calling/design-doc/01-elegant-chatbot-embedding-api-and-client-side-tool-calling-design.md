@@ -25,10 +25,16 @@ RelatedFiles:
       Note: Current backend command/event publisher used as reference for future tool pause/resume path
     - Path: internal/widgets/plugin.go
       Note: Current sessionstream projection plugin pattern to reuse for frontend tools
+    - Path: proto/chatoverlay/tools/v1/frontend_tool.proto
+      Note: Implemented first protocol slice from the design
     - Path: proto/chatoverlay/widgets/v1/widget.proto
       Note: Current typed widget lifecycle schema and action command boundary
+    - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/03-client-tool-browser-smoke.js
+      Note: Automated browser smoke test for the design
     - Path: web/src/core/createChatOverlay.ts
       Note: Current public overlay API assessed for embedding and extension points
+    - Path: web/src/tools/toolRegistry.ts
+      Note: Implemented first frontend tool registry slice
     - Path: web/src/widgets/widgetRegistry.ts
       Note: Current widget registration API assessed for schema and lifecycle gaps
     - Path: web/src/ws/timelineEvents.ts
@@ -47,6 +53,7 @@ LastUpdated: 2026-05-29T14:40:31.080906183-04:00
 WhatFor: Guide a new intern through the current system, prior art, proposed API, protocol changes, and implementation plan for client-side tool calling.
 WhenToUse: Use before implementing frontend tools, human-in-the-loop workflows, or deeper Geppetto/Pinocchio/sessionstream changes.
 ---
+
 
 
 # Elegant Chatbot Embedding API and Client-Side Tool Calling Design
