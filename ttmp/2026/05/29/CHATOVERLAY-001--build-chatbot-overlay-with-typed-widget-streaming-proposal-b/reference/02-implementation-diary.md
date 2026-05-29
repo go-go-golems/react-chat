@@ -21,12 +21,15 @@ RelatedFiles:
       Note: HTTP command submission refactored in Step 4
     - Path: internal/webchat/server.go
       Note: Server wiring refactored in Step 4
+    - Path: internal/webchat/server_test.go
+      Note: Backend integration tests added in Step 5
 ExternalSources: []
 Summary: Chronological implementation diary for the chat overlay backend and frontend work.
 LastUpdated: 2026-05-29T13:55:00-04:00
 WhatFor: Record implementation decisions, commands, failures, fixes, and validation steps.
 WhenToUse: Read before resuming CHATOVERLAY-001 implementation or reviewing backend recovery work.
 ---
+
 
 
 # Implementation Diary
@@ -279,3 +282,64 @@ The previous backend accepted prompts but did not publish assistant/widget state
 ### Technical details
 - Successful smoke result included `ChatWidgetInstance` after `show me boots`.
 - Remaining known issue: HTTP JSON helper emits protobuf field names as `snake_case` and enum numbers.
+
+---
+
+## Step 5: Add backend tests for submit, widget snapshot, and stop
+
+After the mock engine refactor, I added tests that exercise the backend through the HTTP mux and then inspect the sessionstream snapshot. This is the first automated proof that the custom mock command path produces durable state, not only a successful HTTP response.
+
+The tests cover the main failure that triggered the recovery work: submitting `show me boots` must produce more than the user message. It must also produce a finished assistant message and a `ChatWidgetInstance` with a complete product list. A second test confirms that the stop route cancels the custom mock engine run rather than Pinocchio's default engine run.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue task-by-task backend recovery by adding validation before further features.
+
+**Inferred user intent:** Prevent the backend from regressing into the previous accepted-but-empty state.
+
+**Commit (code):** pending — backend test commit.
+
+### What I did
+- Added `internal/webchat/server_test.go`.
+- Tested create session + submit `show me boots` through `http.ServeMux`.
+- Waited for the mock engine to become idle via `MockEngine().WaitIdle`.
+- Asserted the snapshot contains user message, assistant message, and `ProductCarousel` widget with three products.
+- Tested `/stop` against a `long response` prompt and asserted a stopped assistant message appears in the snapshot.
+- Ran `go test ./...` successfully.
+
+### Why
+The prior implementation returned HTTP 200 while failing to produce assistant or widget state. The tests verify state after projection and hydration, which is the behavior the frontend actually depends on.
+
+### What worked
+- `go test ./...` passes.
+- The tests use the public HTTP routes for submit/stop, so they validate routing and command submission as well as engine behavior.
+
+### What didn't work
+- WebSocket subscribe/live-event tests are still missing.
+- HTTP snapshot JSON encoding still needs cleanup for camelCase protobuf field names.
+
+### What I learned
+- Snapshot-based tests are the fastest way to validate sessionstream projection correctness.
+- Exposing `Server.MockEngine()` for tests is useful because it allows deterministic `WaitIdle` without sleeping arbitrary durations.
+
+### What was tricky to build
+- The stop test needed a deliberately long response and a small chunk delay so the test can interrupt the run reliably.
+- The widget assertion must inspect the typed protobuf timeline entity, not the JSON encoding. This avoids coupling the test to the current HTTP helper's snake_case JSON behavior.
+
+### What warrants a second pair of eyes
+- Confirm that testing from package `webchat` instead of `webchat_test` is acceptable. It gives direct access to the service snapshot and avoids over-testing HTTP JSON response shape.
+
+### What should be done in the future
+- Add WebSocket tests for snapshot-before-live behavior.
+- Add tests for widget patch projection directly in `internal/widgets`.
+
+### Code review instructions
+- Review `internal/webchat/server_test.go`.
+- Run `go test ./...`.
+- Temporarily break `mockengine.CommandStart` or remove widget publishing to see that the tests fail for the right reason.
+
+### Technical details
+- Main validation command: `go test ./...`
+- Tests added: `TestSubmitBootsProducesAssistantMessageAndWidgetSnapshot`, `TestStopCancelsCustomMockRun`.

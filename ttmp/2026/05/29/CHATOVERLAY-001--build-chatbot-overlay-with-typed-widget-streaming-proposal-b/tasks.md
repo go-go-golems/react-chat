@@ -46,12 +46,12 @@
 
 ## Phase 5: Backend tests and validation
 
-- [ ] T30: Add server or Hub-level tests for create session + submit prompt + snapshot.
-- [ ] T31: Add test that `show me boots` produces user message, assistant message, and `ChatWidgetInstance` snapshot entity.
+- [x] T30: Add server or Hub-level tests for create session + submit prompt + snapshot.
+- [x] T31: Add test that `show me boots` produces user message, assistant message, and `ChatWidgetInstance` snapshot entity.
 - [ ] T32: Add test that WebSocket subscribe receives snapshot first and live events after submit.
-- [ ] T33: Add test that stop cancels the custom mock run, not only Pinocchio's default engine run.
+- [x] T33: Add test that stop cancels the custom mock run, not only Pinocchio's default engine run.
 - [ ] T34: Add smoke script or Makefile target for backend validation.
-- [ ] T35: Run `go test ./...` cleanly from the project root.
+- [x] T35: Run `go test ./...` cleanly from the project root.
 
 ## Phase 6: Frontend foundation already created, backend integration pending
 

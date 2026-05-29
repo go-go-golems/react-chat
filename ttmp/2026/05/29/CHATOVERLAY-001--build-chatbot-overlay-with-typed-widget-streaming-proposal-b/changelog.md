@@ -54,3 +54,12 @@ Recovered backend mock engine path: split mock engine from webchat server, added
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/handlers.go — HTTP submit/stop now target mockengine commands
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/server.go — Server wiring now installs mock engine separately
 
+
+## 2026-05-29
+
+Added backend tests for create+submit+snapshot, boots widget projection, and stop cancellation; go test ./... passes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/server_test.go — Backend integration tests for mock engine and snapshot behavior
+
