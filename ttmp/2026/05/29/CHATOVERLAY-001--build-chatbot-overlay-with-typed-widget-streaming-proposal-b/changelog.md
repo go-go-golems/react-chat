@@ -24,3 +24,12 @@ v2: Switched frontend basis from os-chat to pinocchio/cmd/web-chat/web/. Added c
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/ws/protocol.ts — Sessionstream-native frame parsing
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/ws/wsManager.ts — WebSocket lifecycle with in-band snapshot
 
+
+## 2026-05-29
+
+Added backend implementation review and recovery plan; identified custom command registration, request-context goroutine cancellation, widget patch semantics, and Go/node_modules test isolation issues.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/29/CHATOVERLAY-001--build-chatbot-overlay-with-typed-widget-streaming-proposal-b/analysis/01-backend-implementation-review-and-recovery-plan.md — Detailed backend review and recovery plan
+
