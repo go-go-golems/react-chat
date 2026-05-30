@@ -11,22 +11,31 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_contracts.go
+      Note: CoinVault aliases shared HTTP contracts (commit 3fd0372)
     - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_store.go
       Note: CoinVault wrapper migration to serverkit hydration store (commit 2c399ed)
     - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/turn_store.go
       Note: CoinVault wrapper migration to serverkit turn store (commit 2c399ed)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/app/contracts.go
+      Note: web-chat aliases shared HTTP contracts (commit 7ab73f1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
       Note: web-chat migration to serverkit turn store (commit ee42217)
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/contracts.go
+      Note: Shared HTTP API contract structs (commit 7ab73f1)
     - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/stores.go
       Note: New shared store helpers and memory turn store (commit 7235bd8)
+    - Path: internal/webchat/helpers.go
+      Note: chat-overlay aliases shared HTTP contracts (commit 993fd6d)
     - Path: internal/webchat/server.go
       Note: chat-overlay store cleanup and interface migration (commit ea01179)
 ExternalSources: []
 Summary: Chronological diary for common backend extraction design.
-LastUpdated: 2026-05-30T19:45:00-04:00
+LastUpdated: 2026-05-30T19:52:00-04:00
 WhatFor: Record design-package creation and future implementation steps.
 WhenToUse: Read before continuing CHATOVERLAY-003 work.
 ---
+
 
 
 # Investigation Diary
@@ -235,3 +244,71 @@ The migrations intentionally kept each application's route structure and CLI fla
 - Chat-overlay uses `serverkit.StoreOptions{TurnsDSN: opts.TurnsDSN, TurnsDB: opts.TurnsDB, EmptyTurnStore: serverkit.EmptyTurnStoreMemory}`.
 - Pinocchio web-chat uses `serverkit.StoreOptions{TurnsDSN: s.TurnsDSN, TurnsDB: s.TurnsDB}`.
 - CoinVault keeps app-local wrapper functions so call sites do not change, but the implementation now delegates to Pinocchio.
+
+## Step 4: Share common HTTP contract structs
+
+This step extracted the next low-risk shared seam: the JSON request/response structs used by the chat HTTP API. Instead of moving handlers yet, each app now aliases the common contracts where the wire shape is already shared.
+
+The extraction intentionally supports the superset required by Pinocchio web-chat, CoinVault, and chat-overlay. Fields such as `application_profile`, `registry`, and `profile` remain optional, so simpler apps can ignore them without changing their public API.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue the first ticket by centralizing common HTTP API surface without prematurely moving app-specific handlers.
+
+**Inferred user intent:** Reduce duplicate backend API structs while keeping app-specific runtime resolution, export, and frontend-tool routes separate.
+
+**Commit (code):** 7ab73f1 — "feat: share chatapp HTTP contracts"
+
+**Commit (code):** 993fd6d — "refactor: use shared chatapp HTTP contracts"
+
+**Commit (code):** 3fd0372 — "refactor: use shared chatapp HTTP contracts"
+
+### What I did
+- Added `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/contracts.go`.
+- Replaced Pinocchio web-chat's local contract definitions in `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/contracts.go` with type aliases to `serverkit` contracts.
+- Replaced common chat-overlay request/response definitions in `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/helpers.go` with aliases to `serverkit` contracts.
+- Replaced CoinVault sessionstream contract definitions in `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_contracts.go` with aliases to `serverkit` contracts.
+
+### Why
+- The create/submit/stop/snapshot JSON contracts are shared enough to centralize now.
+- Handler extraction is riskier because web-chat, chat-overlay, and CoinVault still differ in runtime resolution, frontend-tool endpoints, export routes, and app-specific request fields.
+
+### What worked
+- Pinocchio focused tests passed: `go test ./pkg/chatapp/serverkit ./cmd/web-chat ./cmd/web-chat/app`.
+- Pinocchio pre-commit passed for commit `7ab73f1`.
+- Chat-overlay tests passed: `go test ./...`.
+- CoinVault focused tests passed: `go test ./internal/webchat/...`.
+- CoinVault pre-commit passed for commit `3fd0372`.
+
+### What didn't work
+- N/A for this step. The contract migration compiled and tested cleanly once the common struct included the CoinVault-specific optional `application_profile` field.
+
+### What I learned
+- The API surface is close but not identical. CoinVault needs `application_profile`; web-chat needs `registry` and `profile`; chat-overlay currently only needs `prompt` and `sessionId` for the common routes.
+- Type aliases let each app keep its local exported/unexported names while moving the actual wire-shape definition into Pinocchio.
+
+### What was tricky to build
+- The tricky part was choosing a contract shape that avoids accidental API breakage. I used a superset with `omitempty` on optional fields so adding shared fields does not force extra JSON output in simpler apps.
+- I did not alias chat-overlay's snapshot response yet because it has a smaller historical shape than web-chat/CoinVault; changing it would add fields such as `snapshotOrdinal` and `tombstone` to that endpoint. That should be reviewed separately if snapshot unification becomes necessary.
+
+### What warrants a second pair of eyes
+- Review whether `application_profile` should be in the generic contract or whether CoinVault should keep an app-specific wrapper that embeds the generic request.
+- Review whether snapshot response unification should happen in this ticket or remain a follow-up.
+
+### What should be done in the future
+- Decide route-handler extraction boundaries after comparing remaining duplicate logic in create/submit/snapshot/stop handlers.
+- If the full handler extraction proceeds, prefer small helper functions over a large generic server type.
+
+### Code review instructions
+- Start with `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/contracts.go`.
+- Check each app's contract alias file/helper to verify local names still map to the intended JSON shape.
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./pkg/chatapp/serverkit ./cmd/web-chat ./cmd/web-chat/app`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && go test ./...`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag && go test ./cmd/... ./internal/...`
+
+### Technical details
+- `serverkit.CreateSessionRequest` and `serverkit.SubmitMessageRequest` include optional `ApplicationProfile`, `Profile`, and `Registry` fields.
+- `serverkit.SessionSnapshotResponse` includes the web-chat/CoinVault snapshot shape; chat-overlay has not switched to it yet.

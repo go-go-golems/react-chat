@@ -41,7 +41,7 @@
 
 ## Phase 5: Shared contracts and future route extraction
 
-- [ ] T6.1 Add `serverkit` HTTP contract structs for create/submit/snapshot/stop.
+- [x] T6.1 Add `serverkit` HTTP contract structs for create/submit/snapshot/stop.
 - [ ] T6.2 Add a route-handler extraction plan based on the results of store migration.
 - [ ] T6.3 Decide whether full core route extraction should happen in this ticket or a follow-up.
 
