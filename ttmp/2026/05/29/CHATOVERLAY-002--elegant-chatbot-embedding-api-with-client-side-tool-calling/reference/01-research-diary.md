@@ -976,7 +976,7 @@ The tmux real-runtime restart script now starts the backend with both durable st
 
 **Inferred user intent:** Preserve real-runtime conversation history across backend restarts, not only across messages in the same process.
 
-**Commit (code):** pending — not committed yet in this step.
+**Commit (code):** `e17db56` — "feat: add durable chat overlay stores"
 
 ### What I did
 - Added `internal/webchat/turn_store_options.go` with `openTurnStore(...)`:
