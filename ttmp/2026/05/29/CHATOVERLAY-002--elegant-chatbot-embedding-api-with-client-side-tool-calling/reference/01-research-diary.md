@@ -876,7 +876,7 @@ The backend now wires an in-memory `chatstore.TurnStore` into the Pinocchio chat
 
 **Inferred user intent:** Make the overlay behave like a normal multi-turn chat rather than isolated one-shot prompts, and keep streamed output visible in the overlay panel.
 
-**Commit (code):** pending — not committed yet in this step.
+**Commit (code):** `6bcda58` — "fix: preserve chat overlay turns and scroll follow"
 
 ### What I did
 - Added `internal/webchat/turn_store.go`, a small in-memory implementation of Pinocchio `chatstore.TurnStore`.
