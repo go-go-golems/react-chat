@@ -1,15 +1,23 @@
+import { useMemo } from 'react';
 import { useChatOverlay } from '../core/context';
-import { useAppSelector, selectOverlay } from '../store/store';
+import { useAppSelector, selectOverlay, selectTimelineEntities } from '../store/store';
 import { ChatMessages } from './ChatMessages';
 import { ChatComposer } from './ChatComposer';
+import { useStickyScrollFollow } from './useStickyScrollFollow';
 
 export function ChatPanel() {
   const overlay = useChatOverlay();
-  const { isOpen, runStatus, wsStatus, error } = useAppSelector(selectOverlay);
+  const { isOpen, runStatus, wsStatus, error, sessionId } = useAppSelector(selectOverlay);
+  const entities = useAppSelector(selectTimelineEntities);
+  const contentVersion = useMemo(() => entities.map((entity) => `${entity.id}:${entity.kind}:${entity.props.status ?? ''}:${String(entity.props.content ?? '').length}`).join('|'), [entities]);
+  const isStreaming = runStatus === 'streaming';
+  const scroll = useStickyScrollFollow({
+    enabled: isOpen,
+    contentVersion,
+    resetKey: sessionId,
+  });
 
   if (!isOpen) return null;
-
-  const isStreaming = runStatus === 'streaming';
 
   return (
     <div className={[
@@ -34,9 +42,24 @@ export function ChatPanel() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        <ChatMessages />
+      <div
+        ref={scroll.containerRef}
+        onScroll={scroll.onScroll}
+        onWheel={scroll.onWheel}
+        className="flex-1 overflow-y-auto p-3 space-y-2"
+      >
+        <ChatMessages bottomRef={scroll.tailRef} />
       </div>
+
+      {scroll.mode === 'detached' && (
+        <button
+          type="button"
+          onClick={scroll.jumpToLatest}
+          className="mx-3 mb-2 border border-mac-black bg-mac-white px-2 py-1 text-[10px] uppercase hover:bg-mac-black hover:text-mac-white"
+        >
+          Jump to latest
+        </button>
+      )}
 
       {/* Error bar */}
       {error && (

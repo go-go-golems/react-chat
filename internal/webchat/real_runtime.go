@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
 	geptools "github.com/go-go-golems/geppetto/pkg/inference/tools"
+	"github.com/go-go-golems/geppetto/pkg/turns"
+	"github.com/go-go-golems/geppetto/pkg/turns/serde"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/pinocchio/pkg/chatapp"
 	"github.com/go-go-golems/pinocchio/pkg/cmds/profilebootstrap"
 	infruntime "github.com/go-go-golems/pinocchio/pkg/inference/runtime"
+	"github.com/go-go-golems/pinocchio/pkg/persistence/chatstore"
 	"github.com/go-go-golems/sessionstream/pkg/sessionstream"
 	"github.com/rs/zerolog/log"
 )
@@ -21,9 +25,10 @@ type realRuntimeFactory struct {
 	configFile        string
 	parsedValues      *values.Values
 	frontendTools     *frontendtools.Manager
+	turnStore         chatstore.TurnStore
 }
 
-func newRealRuntimeFactory(opts ServerOptions, frontendTools *frontendtools.Manager) (*realRuntimeFactory, error) {
+func newRealRuntimeFactory(opts ServerOptions, frontendTools *frontendtools.Manager, turnStore chatstore.TurnStore) (*realRuntimeFactory, error) {
 	profile := strings.TrimSpace(opts.Profile)
 	if profile == "" {
 		profile = "gpt-5-mini-low"
@@ -34,6 +39,7 @@ func newRealRuntimeFactory(opts ServerOptions, frontendTools *frontendtools.Mana
 		configFile:        strings.TrimSpace(opts.ConfigFile),
 		parsedValues:      opts.ParsedValues,
 		frontendTools:     frontendTools,
+		turnStore:         turnStore,
 	}, nil
 }
 
@@ -81,7 +87,8 @@ func (f *realRuntimeFactory) promptRequest(ctx context.Context, sid sessionstrea
 	bridgeExecutor := frontendtools.NewBridgeExecutor(f.frontendTools, nil)
 
 	return chatapp.PromptRequest{
-		Prompt: prompt,
+		Prompt:      prompt,
+		OnFinalTurn: f.persistFinalTurn(sid, messageRuntimeKey(f.profile, resolved)),
 		Runtime: &infruntime.ComposedRuntime{
 			Engine:       engine,
 			Registry:     registry,
@@ -92,4 +99,35 @@ func (f *realRuntimeFactory) promptRequest(ctx context.Context, sid sessionstrea
 			return frontendtools.WithBridgeContext(ctx, frontendtools.BridgeContext{SessionID: sid, MessageID: messageID, Publisher: pub})
 		},
 	}, nil
+}
+
+func messageRuntimeKey(fallback string, resolved *profilebootstrap.ResolvedCLIEngineSettings) string {
+	if resolved != nil && resolved.ProfileRuntime != nil {
+		if profile := strings.TrimSpace(resolved.ProfileRuntime.ProfileSettings.Profile); profile != "" {
+			return profile
+		}
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func (f *realRuntimeFactory) persistFinalTurn(sid sessionstream.SessionId, runtimeKey string) func(*turns.Turn) {
+	return func(t *turns.Turn) {
+		if f == nil || f.turnStore == nil || t == nil {
+			return
+		}
+		payload, err := serde.ToYAML(t, serde.Options{})
+		if err != nil {
+			log.Error().Err(err).Str("session_id", string(sid)).Msg("serialize final turn for chat overlay history")
+			return
+		}
+		turnID := strings.TrimSpace(t.ID)
+		if turnID == "" {
+			turnID = fmt.Sprintf("turn-%d", time.Now().UnixNano())
+		}
+		if err := f.turnStore.Save(context.Background(), string(sid), string(sid), turnID, "final", time.Now().UnixMilli(), string(payload), chatstore.TurnSaveOptions{RuntimeKey: runtimeKey}); err != nil {
+			log.Error().Err(err).Str("session_id", string(sid)).Str("turn_id", turnID).Msg("persist final turn for chat overlay history")
+			return
+		}
+		log.Debug().Str("session_id", string(sid)).Str("turn_id", turnID).Str("runtime_key", runtimeKey).Msg("persisted final turn for chat overlay history")
+	}
 }

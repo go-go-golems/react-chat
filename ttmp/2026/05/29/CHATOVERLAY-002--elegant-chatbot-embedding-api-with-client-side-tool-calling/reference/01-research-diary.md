@@ -41,7 +41,15 @@ RelatedFiles:
     - Path: internal/mockengine/engine.go
       Note: Mock engine requests cart.add and resumes after browser result
     - Path: internal/webchat/real_runtime.go
-      Note: Parsed-value Pinocchio profile resolution for real runtime
+      Note: |-
+        Parsed-value Pinocchio profile resolution for real runtime
+        Persists final Geppetto turns through PromptRequest.OnFinalTurn
+    - Path: internal/webchat/server.go
+      Note: Wires turn store into Pinocchio chat engine
+    - Path: internal/webchat/turn_store.go
+      Note: In-memory final-turn history store for real-runtime conversations
+    - Path: internal/webchat/turn_store_test.go
+      Note: Regression coverage for latest final turn loading
     - Path: proto/chatoverlay/tools/v1/frontend_tool.proto
       Note: Frontend tool protocol implemented in smoke slice
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/01-fetch-research-sources.sh
@@ -61,11 +69,19 @@ RelatedFiles:
         Smoke demo cart.add tool registration and visible cart state
         Demo tools now use Zod schemas
     - Path: web/src/core/createChatOverlay.ts
-      Note: Overlay API now exposes tools namespace and manifest/result calls
+      Note: |-
+        Overlay API now exposes tools namespace and manifest/result calls
+        Frontend session id persistence and recovery
     - Path: web/src/core/toolkit.ts
       Note: Toolkit definition and install/cleanup helper
     - Path: web/src/core/useToolkit.ts
       Note: React-scoped toolkit install hook
+    - Path: web/src/overlay/ChatMessages.tsx
+      Note: Bottom sentinel for scroll-follow
+    - Path: web/src/overlay/ChatPanel.tsx
+      Note: Uses sticky bottom-follow scrolling
+    - Path: web/src/overlay/useStickyScrollFollow.ts
+      Note: Sticky scroll-follow hook for streamed chat output
     - Path: web/src/stories/ToolCallOutlet.stories.tsx
       Note: Storybook examples for frontend/backend/failed tool cards
     - Path: web/src/tools/ToolCallOutlet.tsx
@@ -88,6 +104,7 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -844,3 +861,94 @@ The fix keeps browser-facing tool names stable while registering provider-safe a
 - Provider alias rule: replace every run of non-`[a-zA-Z0-9_-]` characters with `_`, trim surrounding underscores, and fall back to `frontend_tool` for empty names.
 - OpenAI accepted `cart_add` and `checkout_confirm` as tool names.
 - Sessionstream/browser-facing names remain `cart.add` and `checkout.confirm`.
+
+## Step 11: Preserve real-runtime conversation history and follow streaming output
+
+This step fixed two UI/runtime continuity problems that showed up once the overlay used the real Pinocchio/Geppetto runtime. Consecutive messages in the same chat session were not giving the model the previous turn because chat-overlay constructed a fresh provider engine for each prompt without any turn-store persistence. The frontend also did not keep the message list pinned to the latest streamed content, so new assistant output could appear below the visible scroll position.
+
+The backend now wires an in-memory `chatstore.TurnStore` into the Pinocchio chat engine and saves each successful real-runtime final turn through `PromptRequest.OnFinalTurn`. On the next message, Pinocchio's existing `runRuntimeInference` history path loads the latest final turn, clones it, appends the new user prompt, and sends the accumulated conversation to the model. The frontend now has a sticky bottom-follow hook modeled after Pinocchio web-chat: it follows new content while the user is near the bottom, detaches if the user scrolls upward, and exposes a “Jump to latest” control.
+
+### Prompt Context
+
+**User prompt (verbatim):** "i don't think we properly keep history of the conversation (reuse the previous turn). Also we should scroll to the bottom (i think we have something like useScroll or so in @pinocchio/cmd/web-chat/ or @2026-03-16--gec-rag/ ). We definitely had the history of the conversation issue before. Here it looks like each message post creates a new session, or doesn't reuse the right Turn."
+
+**Assistant interpretation:** Investigate and fix conversation history reuse for real-runtime prompts, prevent accidental session churn, add bottom-follow scrolling similar to Pinocchio web-chat, restart Vite correctly, and validate the behavior.
+
+**Inferred user intent:** Make the overlay behave like a normal multi-turn chat rather than isolated one-shot prompts, and keep streamed output visible in the overlay panel.
+
+**Commit (code):** pending — not committed yet in this step.
+
+### What I did
+- Added `internal/webchat/turn_store.go`, a small in-memory implementation of Pinocchio `chatstore.TurnStore`.
+- Wired the turn store into `chatapp.NewEngine(...)` with `chatapp.WithTurnStore(...)`.
+- Extended `realRuntimeFactory` so `PromptRequest.OnFinalTurn` serializes successful final Geppetto turns to YAML and saves them as `phase=final` snapshots keyed by session id.
+- Added `internal/webchat/turn_store_test.go` to cover latest-final-turn loading semantics.
+- Added persisted frontend session-id reuse in `createChatOverlay()` using `chat-overlay.sessionId` in `localStorage` plus optional `?chatSessionId=` URL recovery.
+- Made the demo `ChatOverlayProvider` config stable by moving `{ basePrefix: '' }` out of the render path.
+- Added `web/src/overlay/useStickyScrollFollow.ts` and integrated it into `ChatPanel`.
+- Added a bottom sentinel to `ChatMessages` and a `Jump to latest` button when the user has detached from bottom-follow mode.
+- Restarted the tmux backend and Vite frontend, killing a stray listener on port `5173` first.
+
+### Why
+- Pinocchio already knows how to load the latest final turn and append the next user prompt, but chat-overlay had not provided a turn store or persisted final turns.
+- The real-runtime factory creates a new provider engine per request, so the persisted turn is the stable continuity mechanism between requests.
+- The overlay is fixed-height; without sticky scroll-follow, streaming output can continue below the visible viewport.
+- Inline config objects can recreate the overlay API object on React rerenders. Keeping the config stable removes one avoidable source of lifecycle churn.
+
+### What worked
+- `go test ./...` passed.
+- `cd web && npm run build` passed.
+- Vite was restarted after killing the stray `127.0.0.1:5173` listener.
+- A live two-turn API validation passed on the real `gpt-5-mini-low` runtime:
+  - first prompt: `Remember this exact token for the next turn: chatoverlayhistory42. Reply OK only.`
+  - second prompt: `What exact token did I ask you to remember in the previous turn? Reply with only the token.`
+  - snapshot showed assistant response: `chatoverlayhistory42`.
+- Backend logs showed the first final turn being persisted and the second request using expanded history (`input_items=4`) instead of a single isolated input item.
+
+### What didn't work
+- Before the fix, the real-runtime path had no persisted turn store; each request constructed a fresh runtime and only the current prompt reached the model.
+- The first attempt to inspect the snapshot piped `curl` into `python3 - <<'PY'`, but the here-doc consumed stdin and produced `JSONDecodeError`; writing the response to `/tmp/chat-snap.json` fixed the inspection.
+- A stray Vite process was already bound to `5173`; it was killed before restarting the intended tmux Vite pane.
+
+### What I learned
+- Pinocchio's history fix is already in `chatapp.runRuntimeInference`: the app just needs to provide a `TurnStore` and persist final turns.
+- The decisive validation signal is not only the model answer, but also the OpenAI Responses request summary moving from `input_items=1` on the first turn to `input_items=4` on the follow-up.
+- For embedded overlays, session continuity needs both backend turn continuity and frontend session-id continuity.
+
+### What was tricky to build
+- `OnFinalTurn` has no error return, so persistence failures must be logged instead of propagated to the HTTP request. The implementation logs serialization/save failures and keeps the chat run from crashing after the model already produced output.
+- The turn store must behave like Pinocchio's persistent store for `LoadLatestTurn(convID, "final")`; otherwise `runRuntimeInference` will not find the prior accumulator turn.
+- Sticky scrolling must not fight the user. The hook follows while in `following` mode, detaches on upward wheel input, and reattaches when the user scrolls near the bottom or clicks `Jump to latest`.
+
+### What warrants a second pair of eyes
+- Review whether the in-memory turn store should become an optional SQLite turn store flag before this becomes production-facing.
+- Review session-id persistence policy: `localStorage` is convenient for the demo, but embedders may need explicit instance-scoped storage keys or opt-out behavior.
+- Review whether the scroll hook should be replaced by a shared package copy of Pinocchio's fuller `useStickyScrollFollow` implementation to avoid drift.
+
+### What should be done in the future
+- Add a deterministic fake-engine integration test that asserts the second real-runtime request receives prior turn blocks without calling OpenAI.
+- Add a configurable durable turn store (`--turns-db` / `--turns-dsn`) if chat-overlay should preserve history across backend restarts.
+- Add URL/session recovery behavior to public docs once the embedding API is finalized.
+
+### Code review instructions
+- Backend review order:
+  1. `internal/webchat/turn_store.go`
+  2. `internal/webchat/server.go`
+  3. `internal/webchat/real_runtime.go`
+  4. `internal/webchat/turn_store_test.go`
+- Frontend review order:
+  1. `web/src/core/createChatOverlay.ts`
+  2. `web/src/App.tsx`
+  3. `web/src/overlay/useStickyScrollFollow.ts`
+  4. `web/src/overlay/ChatPanel.tsx`
+  5. `web/src/overlay/ChatMessages.tsx`
+- Validation commands:
+  - `go test ./...`
+  - `cd web && npm run build`
+  - live history check with the `chatoverlayhistory42` two-turn prompt sequence.
+
+### Technical details
+- Final turn persistence uses `serde.ToYAML(t, serde.Options{})`.
+- Turn snapshots are saved with `convID=sessionID`, `sessionID=sessionID`, `phase=final`, and `runtimeKey=gpt-5-mini-low`.
+- Frontend persisted session key: `chat-overlay.sessionId`.
+- Optional URL recovery parameter: `chatSessionId`.

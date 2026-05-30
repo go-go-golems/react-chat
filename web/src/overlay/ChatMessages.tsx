@@ -1,8 +1,9 @@
+import type { RefObject } from 'react';
 import { useAppSelector, selectTimelineEntities } from '../store/store';
 import { WidgetOutlet } from '../widgets/WidgetOutlet';
 import { ToolCallOutlet } from '../tools/ToolCallOutlet';
 
-export function ChatMessages() {
+export function ChatMessages({ bottomRef }: { bottomRef?: RefObject<HTMLDivElement | null> } = {}) {
   const entities = useAppSelector(selectTimelineEntities);
 
   // Filter to user-visible timeline entities only
@@ -14,6 +15,7 @@ export function ChatMessages() {
     return (
       <div className="text-mac-gray-3 text-xs italic">
         No messages yet. Type something below.
+        <div ref={bottomRef} />
       </div>
     );
   }
@@ -80,6 +82,7 @@ export function ChatMessages() {
           </div>
         );
       })}
+      <div ref={bottomRef} />
     </div>
   );
 }

@@ -107,3 +107,13 @@ Completed real-runtime frontend tool smoke by aliasing dotted frontend tool name
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/frontendtools/bridge.go — Provider aliasing and reverse mapping
 
+
+## 2026-05-29
+
+Preserved real-runtime conversation history across turns and added sticky bottom-follow scrolling
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/turn_store.go — Conversation history storage
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/overlay/useStickyScrollFollow.ts — Scroll-follow behavior
+

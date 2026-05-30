@@ -62,9 +62,11 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 		return nil, nil, fmt.Errorf("create websocket transport: %w", err)
 	}
 
+	turnStore := newMemoryTurnStore()
 	chatEngine := chatapp.NewEngine(
 		chatapp.WithChunkDelay(opts.effectiveChunkDelay()),
 		chatapp.WithPlugins(widgetPlugin, frontendToolPlugin),
+		chatapp.WithTurnStore(turnStore),
 	)
 	mockEngine := mockengine.New(
 		mockengine.WithChunkDelay(opts.effectiveChunkDelay()),
@@ -100,7 +102,7 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 
 	var realRuntime *realRuntimeFactory
 	if opts.UseRealRuntime {
-		realRuntime, err = newRealRuntimeFactory(opts, frontendToolManager)
+		realRuntime, err = newRealRuntimeFactory(opts, frontendToolManager, turnStore)
 		if err != nil {
 			_ = store.Close()
 			return nil, nil, fmt.Errorf("create real runtime factory: %w", err)

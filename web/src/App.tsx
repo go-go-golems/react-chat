@@ -36,6 +36,8 @@ const CheckoutConfirmResultSchema = z.object({
   approvalCount: z.number().int().nonnegative().optional(),
 });
 
+const CHAT_OVERLAY_CONFIG = { basePrefix: '' };
+
 function DemoTools() {
   const [items, setItems] = useState<DemoCartItem[]>([]);
   const [checkoutApprovals, setCheckoutApprovals] = useState(0);
@@ -121,7 +123,7 @@ function DemoTools() {
 
 export default function App() {
   return (
-    <ChatOverlayProvider config={{ basePrefix: '' }}>
+    <ChatOverlayProvider config={CHAT_OVERLAY_CONFIG}>
       <div className="min-h-screen bg-mac-gray-5 p-8">
         <div className="max-w-2xl mx-auto space-y-4">
           <div>

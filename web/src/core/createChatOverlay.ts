@@ -36,6 +36,32 @@ export type ChatOverlay = {
   use: (toolkit: ChatOverlayToolkit) => () => void;
 };
 
+const SESSION_STORAGE_KEY = 'chat-overlay.sessionId';
+
+function persistedSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const fromURL = new URL(window.location.href).searchParams.get('chatSessionId') || '';
+    if (fromURL.trim()) return fromURL.trim();
+    return window.localStorage.getItem(SESSION_STORAGE_KEY)?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
+function persistSessionId(sessionId: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (sessionId) {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+    } else {
+      window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage failures in embedded contexts/private windows.
+  }
+}
+
 export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
   const basePrefix = config.basePrefix ?? '';
   const apiBase = config.apiBase ?? basePrefix;
@@ -43,6 +69,12 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
   async function ensureSession(dispatch: AppDispatch): Promise<string> {
     let sessionId = store.getState().overlay.sessionId;
     if (sessionId) return sessionId;
+
+    sessionId = persistedSessionId();
+    if (sessionId) {
+      dispatch(overlaySlice.actions.setSessionId(sessionId));
+      return sessionId;
+    }
 
     const res = await fetch(`${apiBase}/api/chat/sessions`, {
       method: 'POST',
@@ -53,6 +85,7 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
     const data = await res.json() as { sessionId: string };
     sessionId = data.sessionId;
     dispatch(overlaySlice.actions.setSessionId(sessionId));
+    persistSessionId(sessionId);
     return sessionId;
   }
 
@@ -163,6 +196,7 @@ export function createChatOverlay(config: ChatOverlayConfig = {}): ChatOverlay {
     reset() {
       cancelActiveFrontendTools();
       wsManager.disconnect();
+      persistSessionId(null);
       store.dispatch(overlaySlice.actions.reset());
       store.dispatch(timelineSlice.actions.clear());
     },

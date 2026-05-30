@@ -102,5 +102,7 @@ These tasks are intentionally not required for the lunch smoke test.
     - [x] T6.6c.1: Convert `chat-overlay serve` to a Glazed command with Pinocchio profile settings and logging flags.
     - [x] T6.6c.2: Resolve `gpt-5-mini-low` through Pinocchio profile bootstrap and verify debug/caller logs show profile registry loading.
     - [x] T6.6c.3: Make a real-model browser smoke reliably produce and complete a frontend `cart.add` tool call.
-- [ ] T6.7: Add reconnect tests for pending human/frontend tool calls.
-- [ ] T6.8: Add security policies for mutating tools, result size limits, and trusted/untrusted tool outputs.
+- [x] T6.7: Preserve real-runtime conversation history across consecutive messages in the same overlay session.
+- [x] T6.8: Add sticky bottom-follow scrolling for streamed chat output.
+- [ ] T6.9: Add reconnect tests for pending human/frontend tool calls.
+- [ ] T6.10: Add security policies for mutating tools, result size limits, and trusted/untrusted tool outputs.
