@@ -52,16 +52,16 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 		return nil, nil, fmt.Errorf("register mock engine schemas: %w", err)
 	}
 
-	store, err := openHydrationStore(opts.TimelineDB, reg)
+	store, closeHydrationStore, err := openHydrationStore(opts.TimelineDB, reg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create hydration store: %w", err)
 	}
 	turnStore, closeTurnStore, err := openTurnStore(opts)
 	if err != nil {
-		_ = store.Close()
+		_ = closeHydrationStore()
 		return nil, nil, err
 	}
-	cleanup := func() error { return closeAll(closeTurnStore, store.Close) }
+	cleanup := func() error { return closeAll(closeTurnStore, closeHydrationStore) }
 
 	ws, err := wstransport.NewServer(snapshotProvider{store: store})
 	if err != nil {

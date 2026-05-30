@@ -7,11 +7,12 @@ import (
 
 	"github.com/go-go-golems/geppetto/pkg/turns"
 	"github.com/go-go-golems/geppetto/pkg/turns/serde"
+	"github.com/go-go-golems/pinocchio/pkg/chatapp/serverkit"
 	"github.com/go-go-golems/pinocchio/pkg/persistence/chatstore"
 )
 
 func TestMemoryTurnStoreLoadLatestFinalTurn(t *testing.T) {
-	store := newMemoryTurnStore()
+	store := serverkit.NewMemoryTurnStore()
 	ctx := context.Background()
 	if err := store.Save(ctx, "sess-1", "sess-1", "turn-1", "final", 100, "first", chatstore.TurnSaveOptions{RuntimeKey: "gpt-5-mini-low"}); err != nil {
 		t.Fatalf("save first: %v", err)
