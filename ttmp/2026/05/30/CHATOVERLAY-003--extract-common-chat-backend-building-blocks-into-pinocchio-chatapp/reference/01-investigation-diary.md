@@ -10,13 +10,24 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_store.go
+      Note: CoinVault wrapper migration to serverkit hydration store (commit 2c399ed)
+    - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/turn_store.go
+      Note: CoinVault wrapper migration to serverkit turn store (commit 2c399ed)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
+      Note: web-chat migration to serverkit turn store (commit ee42217)
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/stores.go
+      Note: New shared store helpers and memory turn store (commit 7235bd8)
+    - Path: internal/webchat/server.go
+      Note: chat-overlay store cleanup and interface migration (commit ea01179)
 ExternalSources: []
-Summary: "Chronological diary for common backend extraction design."
-LastUpdated: 2026-05-30T16:25:00-04:00
-WhatFor: "Record design-package creation and future implementation steps."
-WhenToUse: "Read before continuing CHATOVERLAY-003 work."
+Summary: Chronological diary for common backend extraction design.
+LastUpdated: 2026-05-30T19:45:00-04:00
+WhatFor: Record design-package creation and future implementation steps.
+WhenToUse: Read before continuing CHATOVERLAY-003 work.
 ---
+
 
 # Investigation Diary
 
@@ -81,3 +92,146 @@ Create  a detailed analysis / design / implementation guide that is for a new in
 
 ### Technical details
 - No code changed in this step.
+
+## Step 2: Add shared serverkit store primitives in Pinocchio
+
+This step started the implementation by extracting the lowest-risk common backend seam: timeline hydration store opening, turn store opening, cleanup ordering, and process-local turn history. The new package lives in Pinocchio because both chat-overlay and CoinVault/web-chat can depend on Pinocchio, while Pinocchio must not depend on either application.
+
+The result is a small `pkg/chatapp/serverkit` package that keeps the existing app behaviors explicit. Apps that previously wanted no turn store can keep that default; chat-overlay can opt into an in-memory turn store when no SQLite turn database is configured.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the requested task-by-task implementation of the first migration ticket, starting with reusable Pinocchio backend pieces and then migrating the apps.
+
+**Inferred user intent:** Move from planning to working code, with commits, tests, and diary updates after coherent implementation slices.
+
+**Commit (code):** 7235bd8 — "feat: add chatapp serverkit stores"
+
+### What I did
+- Added `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/stores.go`.
+- Added `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/stores_test.go`.
+- `go generate ./...` created `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/logcopter.go` during the pre-commit hook.
+- Implemented `StoreOptions`, `OpenHydrationStore`, `OpenTurnStore`, `OpenStores`, `CloseAll`, and `MemoryTurnStore`.
+- Added tests for in-memory latest final turn loading, SQLite turn persistence across reopen, and SQLite hydration store parent-directory creation.
+
+### Why
+- The duplicated store helpers were the safest first extraction: they have narrow inputs/outputs, are already used by multiple applications, and do not require changing HTTP route semantics.
+- Keeping `EmptyTurnStore` explicit avoids forcing chat-overlay's in-memory history behavior onto web-chat or CoinVault.
+
+### What worked
+- `go test ./pkg/chatapp/serverkit` passed.
+- Pinocchio pre-commit eventually passed, including `go generate ./...`, frontend build, `go build ./...`, lint, vet, and `go test ./...`.
+
+### What didn't work
+- The first commit attempt failed during lint because a local variable shadowed the predeclared `copy` identifier:
+  - Command: `git commit -m "feat: add chatapp serverkit stores"`
+  - Error: `pkg/chatapp/serverkit/stores.go:221:4: variable copy has same name as predeclared identifier (predeclared)`
+- I fixed this by renaming the local variable to `snapCopy` and rerunning the focused test and commit.
+
+### What I learned
+- The Pinocchio pre-commit hook runs a broad validation set, including generated logcopter package files. New packages should be expected to receive a generated `logcopter.go` file even when the initial code does not call the logger directly.
+- Chat-overlay and CoinVault need two different empty-turn-store behaviors, so the shared helper needs a policy knob rather than a single implicit default.
+
+### What was tricky to build
+- The tricky part was preserving existing behavior while still eliminating duplicate code. A shared `OpenTurnStore` that always returned an in-memory store would have changed web-chat/CoinVault semantics; one that always returned `nil` would have broken chat-overlay's no-DB real-runtime history. The `EmptyTurnStoreMode` option makes that decision local to each app.
+- Cleanup ordering also mattered: store opening can partially succeed. `OpenStores` and `CloseAll` close resources in reverse order and preserve the first error so callers can use one cleanup path.
+
+### What warrants a second pair of eyes
+- Review whether `serverkit` is the right package name before more HTTP/server abstractions move into it.
+- Review whether `MemoryTurnStore` belongs in `serverkit` long term or should move closer to `pkg/persistence/chatstore`.
+
+### What should be done in the future
+- Add shared HTTP route contracts only after all store migrations are complete and the remaining duplication is clearer.
+
+### Code review instructions
+- Start with `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/stores.go`.
+- Check `OpenTurnStore` empty-store behavior and SQLite DSN generation.
+- Validate with `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./pkg/chatapp/serverkit`.
+
+### Technical details
+- `OpenHydrationStore("", "", reg)` returns an in-memory sessionstream SQLite hydration store.
+- `OpenTurnStore(StoreOptions{})` returns no turn store and a no-op close function.
+- `OpenTurnStore(StoreOptions{EmptyTurnStore: EmptyTurnStoreMemory})` returns `MemoryTurnStore`.
+
+## Step 3: Migrate web-chat, chat-overlay, and CoinVault store helpers
+
+This step wired the new Pinocchio store primitives into the three requested consumers. Pinocchio `web-chat` now opens turn stores through `serverkit`, chat-overlay delegates both hydration and turn-store opening to `serverkit`, and CoinVault's local web-chat wrappers delegate to the same helpers.
+
+The migrations intentionally kept each application's route structure and CLI flags unchanged. This slice is about sharing durable-store construction and cleanup semantics, not yet extracting HTTP handlers or route contracts.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue by updating the requested applications to consume the new Pinocchio functionality.
+
+**Inferred user intent:** Prove the shared package is useful by removing duplicated store code from `web-chat`, `2026-03-16--gec-rag/`, and `chatoverlay`.
+
+**Commit (code):** ee42217 — "refactor: use serverkit turn store in web chat"
+
+**Commit (code):** ea01179 — "refactor: use pinocchio serverkit stores"
+
+**Commit (code):** 2c399ed — "refactor: use pinocchio serverkit webchat stores"
+
+### What I did
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go` to replace `openWebChatTurnStore(...)` with `serverkit.OpenTurnStore(...)`.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/hydration_store_options.go` to call `serverkit.OpenHydrationStore(...)`.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/turn_store_options.go` to call `serverkit.OpenTurnStore(...)` with `EmptyTurnStoreMemory`.
+- Removed duplicated chat-overlay memory turn store code from `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/turn_store.go`.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/turn_store_test.go` to use `serverkit.NewMemoryTurnStore()`.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_store.go` to wrap `serverkit.OpenHydrationStore(...)`.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/turn_store.go` to wrap `serverkit.OpenTurnStore(...)`.
+- Added a temporary local module replacement in CoinVault's `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/go.mod` so `GOWORK=off` hooks can resolve the newly-created local Pinocchio package before it is released upstream.
+
+### Why
+- The first ticket specifically asks for shared Go backend pieces to move into `pkg/chatapp` and for `web-chat`, `2026-03-16--gec-rag/`, and `chatoverlay` to leverage the new functionality.
+- Store construction was duplicated in all three places and had already accumulated subtle behavior differences.
+
+### What worked
+- Pinocchio focused tests passed: `go test ./cmd/web-chat ./cmd/web-chat/app`.
+- Pinocchio pre-commit passed for commit `ee42217`.
+- Chat-overlay tests passed: `go test ./internal/webchat` and `go test ./...`.
+- CoinVault focused tests passed: `go test ./internal/webchat/...`.
+- CoinVault pre-commit passed after adding the local `replace github.com/go-go-golems/pinocchio => ../pinocchio` line.
+
+### What didn't work
+- A full CoinVault `go test ./...` failed because unrelated historical ticket scripts under `ttmp/` contain multiple `main` functions in the same package:
+  - Command: `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag && go test ./...`
+  - Error excerpts:
+    - `ttmp/2026/05/05/CV-PROFILES-K3S-WAFER--update-coinvault-k3s-deployment-profiles-with-wafer-ai-models-in-new-pinocchio-config-layout/scripts/02-list-profile-models.go:11:6: main redeclared in this block`
+    - `ttmp/2026/03/16/COINVAULT-007--coinvault-safe-postgresql-tooling-with-pg-query-go-v6/scripts/02-limit-node-shape-probe.go:9:6: main redeclared in this block`
+- The first CoinVault commit attempt failed because its pre-commit lint runs with `GOWORK=off`, so it could not resolve the unreleased local `serverkit` package from `pinocchio v0.11.0`:
+  - Error: `could not import github.com/go-go-golems/pinocchio/pkg/chatapp/serverkit ... no required module provides package github.com/go-go-golems/pinocchio/pkg/chatapp/serverkit`
+- I fixed that local-hook failure by adding the explicit `replace github.com/go-go-golems/pinocchio => ../pinocchio` line and rerunning the commit.
+
+### What I learned
+- Workspace builds can hide module-resolution problems that pre-commit hooks expose with `GOWORK=off`.
+- CoinVault's existing repository-wide `go test ./...` is not a reliable validation command while historical `ttmp/.../scripts` packages are included; focused `./cmd/... ./internal/...` tests match the pre-commit hook and passed.
+
+### What was tricky to build
+- The biggest sharp edge was module resolution across multiple local repositories. The local `go.work` makes the new Pinocchio package visible, but CoinVault's lint intentionally disables workspace mode. Until Pinocchio is released with `serverkit`, CoinVault needs a local replace or the hook cannot typecheck the import.
+- Chat-overlay's timeline helper previously returned the concrete SQLite store, while the shared helper returns the `sessionstream.HydrationStore` interface plus a close function. I updated `server.go` cleanup to use the returned close function instead of calling `store.Close()` directly.
+
+### What warrants a second pair of eyes
+- Review the temporary CoinVault `replace` directive. It is correct for this local multi-repo branch but should be removed when a Pinocchio version containing `serverkit` is tagged and consumed.
+- Review that chat-overlay still gets in-memory turn history by default, while web-chat and CoinVault still get no turn store when no turn DB/DSN is configured.
+
+### What should be done in the future
+- Release or pseudo-version Pinocchio with `pkg/chatapp/serverkit`, then update CoinVault's `go.mod` to depend on that version and remove the local replace.
+- Continue with route-contract extraction only after deciding which handler duplication remains worth centralizing.
+
+### Code review instructions
+- For web-chat, start at `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go` near turn-store startup.
+- For chat-overlay, start at `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/server.go` and the two `*_store_options.go` files.
+- For CoinVault, start at `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/turn_store.go` and `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_store.go`.
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat ./cmd/web-chat/app ./pkg/chatapp/serverkit`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && go test ./...`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag && go test ./cmd/... ./internal/...`
+
+### Technical details
+- Chat-overlay uses `serverkit.StoreOptions{TurnsDSN: opts.TurnsDSN, TurnsDB: opts.TurnsDB, EmptyTurnStore: serverkit.EmptyTurnStoreMemory}`.
+- Pinocchio web-chat uses `serverkit.StoreOptions{TurnsDSN: s.TurnsDSN, TurnsDB: s.TurnsDB}`.
+- CoinVault keeps app-local wrapper functions so call sites do not change, but the implementation now delegates to Pinocchio.
