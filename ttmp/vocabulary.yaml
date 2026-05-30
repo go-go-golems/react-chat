@@ -21,6 +21,8 @@ topics:
       description: Sessionstream event framework
     - slug: widgets
       description: Typed widget rendering system
+    - slug: frontend-tools
+      description: Browser-advertised tools executed by frontend clients through the Pinocchio/Geppetto tool loop
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
