@@ -22,7 +22,9 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/pkg/inference/runtime/composer.go
       Note: ComposedRuntime now carries Registry and ToolExecutor
     - Path: cmd/chat-overlay/cmds/serve.go
-      Note: Glazed serve command with Pinocchio profile settings
+      Note: |-
+        Glazed serve command with Pinocchio profile settings
+        Glazed turns-db and turns-dsn flags
     - Path: cmd/chat-overlay/main.go
       Note: Glazed root command and logging setup
     - Path: internal/frontendtools/bridge.go
@@ -40,6 +42,8 @@ RelatedFiles:
       Note: Sessionstream UI and timeline projections for frontend tools
     - Path: internal/mockengine/engine.go
       Note: Mock engine requests cart.add and resumes after browser result
+    - Path: internal/webchat/hydration_store_options.go
+      Note: Durable timeline-db sessionstream hydration store opening
     - Path: internal/webchat/real_runtime.go
       Note: |-
         Parsed-value Pinocchio profile resolution for real runtime
@@ -48,6 +52,8 @@ RelatedFiles:
       Note: Wires turn store into Pinocchio chat engine
     - Path: internal/webchat/turn_store.go
       Note: In-memory final-turn history store for real-runtime conversations
+    - Path: internal/webchat/turn_store_options.go
+      Note: Durable turns-db/turns-dsn store opening
     - Path: internal/webchat/turn_store_test.go
       Note: Regression coverage for latest final turn loading
     - Path: proto/chatoverlay/tools/v1/frontend_tool.proto
@@ -58,6 +64,8 @@ RelatedFiles:
       Note: Browser smoke test for human-in-the-loop tools
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/05-real-runtime-client-tool-smoke.js
       Note: Passing real-provider frontend tool smoke
+    - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/scripts/06-restart-real-runtime-dev-servers.sh
+      Note: Starts durable timeline and turns stores in tmux
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/01-copilotkit-use-frontend-tool.md
       Note: Downloaded CopilotKit frontend tool reference
     - Path: ttmp/2026/05/29/CHATOVERLAY-002--elegant-chatbot-embedding-api-with-client-side-tool-calling/sources/05-ai-sdk-chatbot-tool-usage.md
@@ -104,6 +112,7 @@ LastUpdated: 2026-05-29T14:40:31.095706533-04:00
 WhatFor: Record research commands, source downloads, design decisions, and validation steps for client-side tool calling design.
 WhenToUse: Read before implementing the client-side tool calling API or updating the CHATOVERLAY-002 design.
 ---
+
 
 
 
@@ -952,3 +961,86 @@ The backend now wires an in-memory `chatstore.TurnStore` into the Pinocchio chat
 - Turn snapshots are saved with `convID=sessionID`, `sessionID=sessionID`, `phase=final`, and `runtimeKey=gpt-5-mini-low`.
 - Frontend persisted session key: `chat-overlay.sessionId`.
 - Optional URL recovery parameter: `chatSessionId`.
+
+## Step 12: Add durable turn and timeline stores for backend restarts
+
+This step made the history fix durable across backend restarts instead of only preserving turns inside the current process. The `serve` command now exposes `--turns-dsn` and `--turns-db` for final-turn history storage, and the existing `--timeline-db` flag now actually opens a durable sessionstream SQLite hydration store instead of always using an in-memory timeline.
+
+The tmux real-runtime restart script now starts the backend with both durable stores under `var/`: `chat-overlay-turns.db` for model conversation history and `chat-overlay-timeline.db` for UI/sessionstream timeline recovery. This separates the two persistence concerns: the turn store feeds prior blocks back to Geppetto, while the timeline store hydrates visible chat entities after reconnect/restart.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, please."
+
+**Assistant interpretation:** Implement the previously suggested durable `--turns-db` / `--turns-dsn` backend persistence, and keep the local tmux dev setup using it.
+
+**Inferred user intent:** Preserve real-runtime conversation history across backend restarts, not only across messages in the same process.
+
+**Commit (code):** pending — not committed yet in this step.
+
+### What I did
+- Added `internal/webchat/turn_store_options.go` with `openTurnStore(...)`:
+  - defaults to in-memory when no turns option is provided,
+  - opens `chatstore.NewSQLiteTurnStore(...)` from `--turns-dsn`,
+  - derives a SQLite DSN from `--turns-db`, creating parent directories as needed.
+- Added `internal/webchat/hydration_store_options.go` with `openHydrationStore(...)`:
+  - defaults to in-memory when `--timeline-db` is empty,
+  - opens the sessionstream SQLite hydration store when `--timeline-db` is set.
+- Extended `webchat.ServerOptions` and `chat-overlay serve` settings with `TurnsDSN` and `TurnsDB`.
+- Updated cleanup so hydration and turn stores are both closed.
+- Updated `scripts/06-restart-real-runtime-dev-servers.sh` to pass:
+  - `--timeline-db $ROOT/var/chat-overlay-timeline.db`,
+  - `--turns-db $ROOT/var/chat-overlay-turns.db`,
+  - `--log-level debug --with-caller`.
+- Extended `internal/webchat/turn_store_test.go` with a SQLite reopen test proving a saved turn is still loadable after closing and reopening the store.
+
+### Why
+- In-memory history fixed multi-turn behavior only until the backend exited.
+- Real embedded chat sessions need model context and visible timeline hydration to survive dev-server restarts and, eventually, production process restarts.
+- The existing `--timeline-db` flag was misleading if it did not actually select the SQLite hydration store.
+
+### What worked
+- `go test ./...` passed.
+- `cd web && npm run build` passed.
+- `chat-overlay serve --help --long-help` shows `--turns-db` and `--turns-dsn`.
+- The tmux restart script now starts the backend with durable timeline and turn DBs.
+- Backend logs confirm both durable stores are active:
+  - `using sqlite chat overlay timeline store ... chat-overlay-timeline.db`,
+  - `using sqlite chat overlay turn store ... chat-overlay-turns.db`.
+- Live restart validation passed: a session remembered `durablehistory9279` after the backend was restarted and answered with that token on the follow-up prompt.
+
+### What didn't work
+- The snapshot after backend restart only showed the post-restart visible request/response before `--timeline-db` was wired to a durable hydration store. This clarified that model turn history and UI timeline hydration are separate persistence layers.
+
+### What I learned
+- The turn DB is necessary for model context; the sessionstream timeline DB is necessary for visible UI history after backend restart.
+- The sessionstream SQLite store already exposes `FileDSN(...)`, so chat-overlay should reuse it instead of inventing DSN formatting.
+
+### What was tricky to build
+- Cleanup ordering matters because `NewServer` can fail after opening one or both stores. I added a small `closeAll(...)` helper and use it in every failure path after store opening.
+- Durable timeline storage and durable turn storage use different packages and schemas, so they need separate flags and open helpers.
+
+### What warrants a second pair of eyes
+- Review whether durable stores should become default paths instead of opt-in flags.
+- Review whether the demo `var/*.db` files should remain ignored and whether docs should recommend clearing them when testing a fresh session.
+
+### What should be done in the future
+- Add an automated end-to-end restart test that starts the server with temp `--timeline-db` and `--turns-db`, submits a prompt, restarts, and verifies both model recall and timeline hydration.
+- Add export/debug UI routes for durable turn snapshots if this grows beyond the demo.
+
+### Code review instructions
+- Review `internal/webchat/turn_store_options.go` and `internal/webchat/hydration_store_options.go` first.
+- Then review `internal/webchat/server.go` for store wiring and cleanup behavior.
+- Review `cmd/chat-overlay/cmds/serve.go` for new Glazed flags.
+- Review `scripts/06-restart-real-runtime-dev-servers.sh` for tmux defaults.
+- Validate with:
+  - `go test ./...`
+  - `cd web && npm run build`
+  - `chat-overlay serve --help --long-help | rg "turns-db|turns-dsn|timeline-db"`
+
+### Technical details
+- Default remains in-memory for both stores when flags are omitted.
+- Durable dev defaults in the restart script:
+  - `var/chat-overlay-timeline.db`,
+  - `var/chat-overlay-turns.db`.
+- SQLite DSNs use WAL, busy timeout, and foreign keys through the existing helper functions.

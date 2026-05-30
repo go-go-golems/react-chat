@@ -27,6 +27,8 @@ var _ cmds.BareCommand = (*ServeCommand)(nil)
 type ServeSettings struct {
 	ServePort      string `glazed:"serve-port"`
 	TimelineDB     string `glazed:"timeline-db"`
+	TurnsDSN       string `glazed:"turns-dsn"`
+	TurnsDB        string `glazed:"turns-db"`
 	ChunkDelay     string `glazed:"chunk-delay"`
 	UseRealRuntime bool   `glazed:"real-runtime"`
 }
@@ -71,6 +73,18 @@ Useful diagnostics:
 				fields.WithHelp("SQLite timeline database path (empty = in-memory)"),
 			),
 			fields.New(
+				"turns-dsn",
+				fields.TypeString,
+				fields.WithDefault(""),
+				fields.WithHelp("SQLite DSN for durable final-turn conversation history; preferred over turns-db"),
+			),
+			fields.New(
+				"turns-db",
+				fields.TypeString,
+				fields.WithDefault(""),
+				fields.WithHelp("SQLite database file for durable final-turn conversation history (empty = in-memory)"),
+			),
+			fields.New(
 				"chunk-delay",
 				fields.TypeString,
 				fields.WithDefault("20ms"),
@@ -105,6 +119,8 @@ func (c *ServeCommand) Run(ctx context.Context, vals *values.Values) error {
 
 	opts := webchat.ServerOptions{
 		TimelineDB:        settings.TimelineDB,
+		TurnsDSN:          settings.TurnsDSN,
+		TurnsDB:           settings.TurnsDB,
 		ChunkDelay:        chunkDelay,
 		UseRealRuntime:    settings.UseRealRuntime,
 		Profile:           profileSettings.Profile,

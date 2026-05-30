@@ -117,3 +117,13 @@ Preserved real-runtime conversation history across turns and added sticky bottom
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/turn_store.go — Conversation history storage
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/overlay/useStickyScrollFollow.ts — Scroll-follow behavior
 
+
+## 2026-05-29
+
+Added durable turns-db/turns-dsn conversation history and wired timeline-db to SQLite hydration
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/hydration_store_options.go — Durable timeline store
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/turn_store_options.go — Durable turn store
+

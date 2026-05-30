@@ -104,5 +104,7 @@ These tasks are intentionally not required for the lunch smoke test.
     - [x] T6.6c.3: Make a real-model browser smoke reliably produce and complete a frontend `cart.add` tool call.
 - [x] T6.7: Preserve real-runtime conversation history across consecutive messages in the same overlay session.
 - [x] T6.8: Add sticky bottom-follow scrolling for streamed chat output.
-- [ ] T6.9: Add reconnect tests for pending human/frontend tool calls.
-- [ ] T6.10: Add security policies for mutating tools, result size limits, and trusted/untrusted tool outputs.
+- [x] T6.9: Add durable `--turns-db` / `--turns-dsn` final-turn history storage and wire the real-runtime restart script to use it.
+- [x] T6.10: Make `--timeline-db` use a durable sessionstream SQLite hydration store for UI timeline recovery.
+- [ ] T6.11: Add reconnect tests for pending human/frontend tool calls.
+- [ ] T6.12: Add security policies for mutating tools, result size limits, and trusted/untrusted tool outputs.

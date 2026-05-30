@@ -12,13 +12,14 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	chatapp "github.com/go-go-golems/pinocchio/pkg/chatapp"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
-	storesqlite "github.com/go-go-golems/sessionstream/pkg/sessionstream/hydration/sqlite"
 	wstransport "github.com/go-go-golems/sessionstream/pkg/sessionstream/transport/ws"
 )
 
 // ServerOptions configures the chat overlay server.
 type ServerOptions struct {
 	TimelineDB        string
+	TurnsDSN          string
+	TurnsDB           string
 	ChunkDelay        time.Duration
 	UseRealRuntime    bool
 	Profile           string
@@ -51,18 +52,23 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 		return nil, nil, fmt.Errorf("register mock engine schemas: %w", err)
 	}
 
-	store, err := storesqlite.NewInMemory(reg)
+	store, err := openHydrationStore(opts.TimelineDB, reg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create hydration store: %w", err)
 	}
+	turnStore, closeTurnStore, err := openTurnStore(opts)
+	if err != nil {
+		_ = store.Close()
+		return nil, nil, err
+	}
+	cleanup := func() error { return closeAll(closeTurnStore, store.Close) }
 
 	ws, err := wstransport.NewServer(snapshotProvider{store: store})
 	if err != nil {
-		_ = store.Close()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("create websocket transport: %w", err)
 	}
 
-	turnStore := newMemoryTurnStore()
 	chatEngine := chatapp.NewEngine(
 		chatapp.WithChunkDelay(opts.effectiveChunkDelay()),
 		chatapp.WithPlugins(widgetPlugin, frontendToolPlugin),
@@ -79,24 +85,24 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 		sessionstream.WithUIFanout(ws),
 	)
 	if err != nil {
-		_ = store.Close()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("create hub: %w", err)
 	}
 	if err := frontendToolManager.Install(hub); err != nil {
-		_ = store.Close()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("install frontend tools: %w", err)
 	}
 	if err := mockEngine.Install(hub); err != nil {
-		_ = store.Close()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("install mock engine: %w", err)
 	}
 	if err := chatapp.Install(hub, chatEngine); err != nil {
-		_ = store.Close()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("install chatapp projections: %w", err)
 	}
 	service, err := chatapp.NewService(hub, chatEngine)
 	if err != nil {
-		_ = store.Close()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("create service: %w", err)
 	}
 
@@ -104,13 +110,13 @@ func NewServer(opts ServerOptions) (*Server, func() error, error) {
 	if opts.UseRealRuntime {
 		realRuntime, err = newRealRuntimeFactory(opts, frontendToolManager, turnStore)
 		if err != nil {
-			_ = store.Close()
+			_ = cleanup()
 			return nil, nil, fmt.Errorf("create real runtime factory: %w", err)
 		}
 	}
 
-	server := &Server{hub: hub, service: service, mockEngine: mockEngine, frontendToolManager: frontendToolManager, realRuntime: realRuntime, ws: ws, closeFn: store.Close}
-	return server, store.Close, nil
+	server := &Server{hub: hub, service: service, mockEngine: mockEngine, frontendToolManager: frontendToolManager, realRuntime: realRuntime, ws: ws, closeFn: cleanup}
+	return server, cleanup, nil
 }
 
 func (opts ServerOptions) effectiveChunkDelay() time.Duration {
