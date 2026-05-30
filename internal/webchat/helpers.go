@@ -4,34 +4,21 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-go-golems/pinocchio/pkg/chatapp/serverkit"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
 )
 
 // --- Request/Response types ---
 
-type createSessionRequest struct {
-	Profile string `json:"profile,omitempty"`
-}
+type createSessionRequest = serverkit.CreateSessionRequest
 
-type createSessionResponse struct {
-	SessionID string `json:"sessionId"`
-}
+type createSessionResponse = serverkit.CreateSessionResponse
 
-type submitMessageRequest struct {
-	Prompt string `json:"prompt"`
-}
+type submitMessageRequest = serverkit.SubmitMessageRequest
 
-type submitMessageResponse struct {
-	SessionID string `json:"sessionId"`
-	Accepted  bool   `json:"accepted"`
-	Status    string `json:"status"`
-}
+type submitMessageResponse = serverkit.SubmitMessageResponse
 
-type stopSessionResponse struct {
-	SessionID string `json:"sessionId"`
-	Accepted  bool   `json:"accepted"`
-	Status    string `json:"status"`
-}
+type stopSessionResponse = serverkit.StopSessionResponse
 
 type toolDescriptorRequest struct {
 	Name        string         `json:"name"`
@@ -60,9 +47,7 @@ type toolCommandResponse struct {
 	Status    string `json:"status"`
 }
 
-type errorResponse struct {
-	Error string `json:"error"`
-}
+type errorResponse = serverkit.ErrorResponse
 
 type snapshotResponse struct {
 	SessionID string                   `json:"sessionId"`
