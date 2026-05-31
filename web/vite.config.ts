@@ -8,13 +8,14 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 
 const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+const backendOrigin = process.env.VITE_BACKEND_ORIGIN || 'http://localhost:8080';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: backendOrigin,
         ws: true,
       },
     },

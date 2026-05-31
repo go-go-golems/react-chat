@@ -129,6 +129,7 @@ func (opts ServerOptions) effectiveChunkDelay() time.Duration {
 // Mux returns a fully configured HTTP mux with all routes.
 func (s *Server) Mux() *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/chat/health", s.HandleHealth)
 	mux.HandleFunc("POST /api/chat/sessions", s.HandleCreateSession)
 	mux.HandleFunc("POST /api/chat/sessions/{id}/messages", s.HandleSubmitMessage)
 	mux.HandleFunc("GET /api/chat/sessions/{id}", s.HandleSessionSnapshot)

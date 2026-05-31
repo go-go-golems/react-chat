@@ -14,6 +14,10 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+func (s *Server) HandleHealth(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func (s *Server) HandleCreateSession(w http.ResponseWriter, r *http.Request) {
 	var in createSessionRequest
 	if err := decodeJSON(r, &in); err != nil {

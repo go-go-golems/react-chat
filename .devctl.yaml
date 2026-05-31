@@ -1,0 +1,25 @@
+profile:
+  active: mock
+
+profiles:
+  mock:
+    display_name: Chat Overlay Mock Runtime
+    description: Launch deterministic chat-overlay backend and Vite frontend for browser smoke tests.
+    plugins:
+      - chat-overlay
+
+  real:
+    display_name: Chat Overlay Real Runtime
+    description: Launch chat-overlay with Pinocchio/Geppetto profile-backed inference.
+    plugins:
+      - chat-overlay
+    env:
+      CHAT_OVERLAY_REAL_RUNTIME: "true"
+      CHAT_OVERLAY_PROFILE: "gpt-5-mini-low"
+
+plugins:
+  - id: chat-overlay
+    path: python3
+    args:
+      - ./plugins/devctl_chatoverlay.py
+    priority: 10
