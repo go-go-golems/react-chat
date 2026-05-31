@@ -86,17 +86,17 @@ Goal: split large card/rendering code into typed, story-backed card components.
 
 Goal: remove provider-demo/capability showcase code rather than preserving it as production architecture.
 
-- [ ] Remove `WebChatProviderCapabilities` from the production provider-backed widget path.
-- [ ] Delete `webChatProviderCapabilitiesExtension` once no production code imports it.
-- [ ] Delete frontend demo widget `demo.capability_card` and its `CapabilityCard` component unless replaced by a real product widget.
-- [ ] Delete frontend demo tools `browser.get_page_context` and `browser.confirm_action` from web-chat demo code unless replaced by real app-owned tools.
-- [ ] Remove `?providerDemo=1` route after parity smokes have replacement coverage.
-- [ ] Remove `?providerMultiDemo=1` route or move it to a test-only harness outside production app routing.
-- [ ] Delete or archive Playwright smokes that depend on `run the capabilities demo`.
-- [ ] Replace deleted demo smokes with production-relevant tests: main chat connect/send, typed widget rendering, real frontend tool path if still supported, and provider isolation unit tests.
-- [ ] Check backend showcase endpoints/tooling for dead code after frontend demo deletion.
-- [ ] Update docs so users no longer see `run the capabilities demo` as a supported prompt.
-- [ ] Validate with main web-chat smoke and new production-focused replacement smokes.
+- [x] Remove `WebChatProviderCapabilities` from the production provider-backed widget path.
+- [x] Delete `webChatProviderCapabilitiesExtension` once no production code imports it.
+- [x] Delete frontend demo widget `demo.capability_card` and its `CapabilityCard` component unless replaced by a real product widget.
+- [x] Delete frontend demo tools `browser.get_page_context` and `browser.confirm_action` from web-chat demo code unless replaced by real app-owned tools.
+- [x] Remove `?providerDemo=1` route after parity smokes have replacement coverage.
+- [x] Remove `?providerMultiDemo=1` route or move it to a test-only harness outside production app routing.
+- [x] Delete or archive Playwright smokes that depend on `run the capabilities demo`.
+- [x] Replace deleted demo smokes with production-relevant tests: main chat connect/send, typed widget rendering, real frontend tool path if still supported, and provider isolation unit tests.
+- [x] Check backend showcase endpoints/tooling for dead code after frontend demo deletion.
+- [x] Update docs so users no longer see `run the capabilities demo` as a supported prompt.
+- [x] Validate with main web-chat smoke and new production-focused replacement smokes.
 
 ## Phase 6 — Parity gate for legacy deletion
 

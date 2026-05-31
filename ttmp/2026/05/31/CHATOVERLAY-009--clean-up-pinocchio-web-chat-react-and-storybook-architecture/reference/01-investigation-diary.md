@@ -7,6 +7,8 @@ DocType: ""
 Intent: ""
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server.go
+      Note: Removed special capabilities prompt branch (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/.storybook/main.ts
       Note: Storybook discovery evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
@@ -20,7 +22,9 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/App.tsx
       Note: Phase 1 app route switch (commit bf3a98b)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/routeMode.ts
-      Note: Phase 1 typed route-mode parser (commit bf3a98b)
+      Note: |-
+        Phase 1 typed route-mode parser (commit bf3a98b)
+        Provider demo flags now fall back to production chat (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/index.ts
       Note: Temporary compatibility export for old provider path (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatComposer/ChatComposer.tsx
@@ -36,7 +40,9 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/README.md
       Note: Phase 2 feature boundary README (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx
-      Note: Provider-backed web-chat chrome moved to feature folder (commit 833fa7c)
+      Note: |-
+        Provider-backed web-chat chrome moved to feature folder (commit 833fa7c)
+        Removed demo extension installation from production provider-backed app (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx
       Note: Provider config/profile bridge moved to feature folder (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx
@@ -53,14 +59,19 @@ RelatedFiles:
       Note: Pinocchio projectors moved under feature extensions (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Canonical versus legacy export evidence
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/frontendTools.ts
+      Note: Removed browser.get_page_context auto-demo behavior (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/vite.config.ts
       Note: Vite build/proxy setup evidence
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/demo.go
+      Note: Removed capabilities-showcase inference branch (commit 1a76cbe)
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -863,3 +874,93 @@ The work also moved Markdown rendering into its own card support folder and adde
   - `npx vitest run src/app/routeMode.test.ts`
   - `node .../03-pinocchio-webchat-devctl-playwright.js`
   - `node .../03-webchat-provider-multi-instance-smoke.js`
+
+## Step 12: Implement Phase 5 capability-demo deletion
+
+This step removed the temporary provider capability showcase from the production web-chat path. The demo route flags no longer select special pages, the main provider-backed web-chat no longer installs demo-only tools/widgets, and the backend no longer treats “run the capabilities demo” as a special prompt.
+
+The remaining frontend-tool endpoint support is generic: the server still accepts manifests/results, and the card renderer can still render a human-confirm style tool call when a real app provides confirm metadata. What was removed is the web-chat-specific `browser.*` demo tooling and `demo.capability_card` widget path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with the next cleanup phase, Phase 5: delete provider capability demo scaffolding and replace its coverage with production-focused validation.
+
+**Inferred user intent:** Stop carrying temporary demo/capability showcase code in production web-chat now that provider-backed parity and Storybook coverage exist.
+
+**Commit (code):** 1a76cbe — "refactor: remove web-chat capability demo"
+
+### What I did
+- Removed `WebChatProviderCapabilities` from `WebChatApp`.
+- Deleted the provider demo route/page files:
+  - `src/app/ProviderDemoRoot.tsx`
+  - `src/webchat/ProviderDemoPage.tsx`
+- Removed provider multi-demo from production route parsing:
+  - deleted `src/app/ProviderMultiDemoRoot.tsx`
+  - deleted old `src/webchat/ProviderMultiDemoPage.tsx` compatibility export
+  - removed `ProviderMultiDemoPage` from `src/chat/provider/index.ts`
+- Simplified route parsing so `providerDemo=1` and `providerMultiDemo=1` fall back to normal chat.
+- Removed `demo.capability_card` special rendering/export from widget cards and stories.
+- Generalized the human-confirm tool card away from the hard-coded `browser.confirm_action` demo name.
+- Removed automatic `browser.get_page_context` handling from legacy WebSocket code.
+- Removed backend special-casing for capabilities-showcase prompts from `cmd/web-chat/app`.
+- Removed the package-level demo branch that emitted `demo.capability_card` and `browser.confirm_action` from `pkg/chatapp/demo.go`.
+- Updated backend tests to use a neutral `app.confirm_action` frontend tool name.
+- Updated migration checklist and feature README.
+
+### Why
+- The capability showcase was useful for proving framework mechanics, but it made demo-only concepts look supported in production.
+- Provider-backed production chat now has direct Storybook/card coverage and route tests, so the demo route is no longer needed.
+- The codebase should not teach users to prompt “run the capabilities demo” as an application feature.
+
+### What worked
+- Full frontend validation passed.
+- Go app/package tests passed.
+- The main web-chat Playwright smoke passed after deleting demo routes.
+- The commit hook also ran `go generate ./...`, frontend build, Go build, golangci-lint, Go tests, typecheck, and Biome lint successfully.
+
+### What didn't work
+- First validation failed because `ToolCallCard` used `inputRecord` before declaration after the human-confirm condition was generalized:
+  - `src/features/web-chat/cards/ToolCallCard/ToolCallCard.tsx(15,74): error TS2448: Block-scoped variable 'inputRecord' used before its declaration.`
+  - Fixed by moving `const inputRecord = asRecord(input)` before `isHumanConfirm`.
+- Go test initially failed because `cmd/web-chat/app/server_test.go` still imported `widgets` after deleting the showcase test:
+  - `cmd/web-chat/app/server_test.go:24:2: "github.com/go-go-golems/pinocchio/pkg/chatapp/widgets" imported and not used`
+  - Fixed by removing the unused import.
+
+### What I learned
+- The provider demo had leaked into multiple layers: route parsing, app roots, provider extension installation, widget card special handling, automatic frontend-tool handling, backend prompt special-casing, and package-level demo inference.
+- Keeping frontend-tool endpoint tests generic preserves useful protocol coverage without retaining browser-demo names.
+
+### What was tricky to build
+- Removing the demo while preserving generic frontend-tool behavior required separating demo names from the mechanism. `submitFrontendToolResult` remains, but `browser.get_page_context` auto-handling is gone and `browser.confirm_action` is no longer hard-coded as the only human-confirm tool.
+- Route deletion needed to avoid breaking normal chat when old query flags are present. The route parser now ignores removed provider demo flags and falls back to production chat.
+
+### What warrants a second pair of eyes
+- Review whether the remaining `features/web-chat/demos/ProviderMultiDemo/` files should move into a test-only directory or be deleted in a later pass. They are no longer reachable from production routing or compatibility exports.
+- Review whether generic human-confirm detection should become a typed renderer concern in Phase 11 instead of keying off confirm metadata.
+
+### What should be done in the future
+- Phase 6 should define and execute the legacy/provider parity checklist before deleting the old Redux/WebSocket runtime.
+- Phase 8 should remove remaining inline styles from card/tool renderers.
+
+### Code review instructions
+- Start with `src/app/routeMode.ts` and `src/app/App.tsx` to confirm demo routes are gone.
+- Review `src/features/web-chat/WebChatApp/WebChatApp.tsx` to confirm demo extensions are no longer installed.
+- Review `pkg/chatapp/demo.go` and `cmd/web-chat/app/server.go` to confirm showcase prompt branching was removed.
+- Validate with frontend checks, Go tests, and main web-chat smoke.
+
+### Technical details
+- Validation commands run:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - `npx vitest run src/app/routeMode.test.ts`
+  - `go test ./cmd/web-chat/app ./pkg/chatapp -count=1`
+  - `node .../03-pinocchio-webchat-devctl-playwright.js`
+- Commit hook additionally ran:
+  - `go generate ./...`
+  - `go build ./...`
+  - `golangci-lint run`
+  - `go test ./...`

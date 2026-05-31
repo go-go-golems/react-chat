@@ -89,3 +89,14 @@ Implemented Phase 4 by splitting web-chat card renderers and Markdown into focus
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/cards.tsx — Compatibility barrel for old card imports
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/rendererRegistry.ts — Renderer registry now imports cards from feature folders
 
+
+## 2026-05-31
+
+Implemented Phase 5 by deleting web-chat capability demo routes, demo tools/widgets, and backend showcase prompt handling (commit 1a76cbe).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server_test.go — Frontend tool endpoint tests now use neutral app.confirm_action
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/routeMode.ts — Demo flags removed from production routing
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/demo.go — Generic demo inference no longer emits capability showcase
+
