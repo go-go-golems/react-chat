@@ -23,6 +23,10 @@ topics:
       description: Typed widget rendering system
     - slug: frontend-tools
       description: Browser-advertised tools executed by frontend clients through the Pinocchio/Geppetto tool loop
+    - slug: frontend
+      description: Frontend application architecture and browser-side implementation
+    - slug: web-chat
+      description: Pinocchio web-chat frontend and backend integration
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
