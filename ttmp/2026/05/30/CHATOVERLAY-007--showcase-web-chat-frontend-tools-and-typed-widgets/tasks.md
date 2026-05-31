@@ -79,3 +79,48 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 - [x] T6.5 Relate modified source files to design and diary docs.
 - [x] T6.6 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
 - [x] T6.7 Commit final documentation and smoke script.
+
+## Phase 7: ChatProvider headless API design update
+
+- [x] T7.1 Update the implementation guide to describe web-chat as a headless ChatProvider showcase.
+- [x] T7.2 Add tasks for ChatProvider request adapters, web-chat manifest endpoint, provider-demo page, and smoke validation.
+- [x] T7.3 Update the diary with the design pivot from manual wiring to ChatProvider-first showcase.
+- [x] T7.4 Commit the guide/task/diary update before code changes.
+
+## Phase 8: ChatProvider request adapter support
+
+- [ ] T8.1 Add `createSessionBody` and `sendMessageBody` hooks to `ChatProviderConfig`.
+- [ ] T8.2 Thread request adapter bodies through `createChatClient.ensureSession()` and `send()`.
+- [ ] T8.3 Preserve current default request body behavior for existing overlay users.
+- [ ] T8.4 Run `pnpm --filter @go-go-golems/chat-provider typecheck`.
+- [ ] T8.5 Run ecommerce demo build to ensure no regression.
+- [ ] T8.6 Commit ChatProvider request adapter support.
+
+## Phase 9: Web-chat provider-compatible backend endpoints
+
+- [ ] T9.1 Add `/api/chat/sessions/{id}/tools/manifest` to web-chat session routing.
+- [ ] T9.2 Decode ChatProvider tool manifests into `FrontendToolManifestCommand` descriptors.
+- [ ] T9.3 Submit manifests through `chatapp.Service.SubmitCommand(...)` and `frontendtools.Manager`.
+- [ ] T9.4 Add focused Go tests for manifest endpoint behavior.
+- [ ] T9.5 Run focused Go tests.
+- [ ] T9.6 Commit backend manifest endpoint support.
+
+## Phase 10: Web-chat ChatProvider demo page
+
+- [ ] T10.1 Add a `providerDemo=1` web-chat route/page that is wrapped in `ChatProvider` rather than the legacy web-chat Redux store.
+- [ ] T10.2 Build a small full-page provider demo shell with transcript, status, and composer.
+- [ ] T10.3 Register `browser.get_page_context` using `useFrontendTool`.
+- [ ] T10.4 Register `browser.confirm_action` using `useHumanTool` and `ToolCallOutlet`.
+- [ ] T10.5 Register/render `demo.capability_card` using `defineWidget` and `WidgetOutlet`.
+- [ ] T10.6 Use ChatProvider request adapters in the page config.
+- [ ] T10.7 Run web-chat typecheck/build/lint.
+- [ ] T10.8 Commit web-chat provider demo page.
+
+## Phase 11: Provider demo smoke and final closeout
+
+- [ ] T11.1 Add a Playwright smoke for `?providerDemo=1`.
+- [ ] T11.2 Validate devctl-managed provider demo flow end-to-end.
+- [ ] T11.3 Update diary with implementation details, failures, commits, and validation.
+- [ ] T11.4 Update changelog and relate new files.
+- [ ] T11.5 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
+- [ ] T11.6 Commit final docs and smoke script.

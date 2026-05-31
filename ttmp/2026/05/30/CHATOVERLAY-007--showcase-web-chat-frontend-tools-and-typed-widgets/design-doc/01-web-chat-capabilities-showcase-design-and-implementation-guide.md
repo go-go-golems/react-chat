@@ -282,3 +282,120 @@ node ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed
 - `pinocchio/pkg/chatapp/widgets/plugin.go`
 - `pinocchio/cmd/web-chat/web/src/ws/timelineEvents.ts`
 - `pinocchio/cmd/web-chat/web/src/webchat/cards.tsx`
+
+## Addendum: headless ChatProvider showcase target
+
+After the first implementation, the preferred direction changed from “manual web-chat support for provider-like primitives” to “web-chat should visibly consume the elegant ChatProvider API.” The existing manual showcase remains useful, but it does not prove that an app can install tools/widgets with the provider API and render a page shell around the provider runtime.
+
+The next implementation slice should add a separate provider-demo page in Pinocchio web-chat. This avoids destabilizing the existing full web-chat page and lets reviewers compare the legacy implementation with a ChatProvider-native implementation.
+
+### Target developer experience
+
+The web-chat provider demo should look like this at the app boundary:
+
+```tsx
+<ChatProvider
+  config={{
+    basePrefix,
+    createSessionBody: () => ({ profile: selectedProfile }),
+    sendMessageBody: ({ prompt }) => ({ prompt, profile: selectedProfile }),
+  }}
+>
+  <WebChatProviderCapabilities />
+  <WebChatProviderDemoShell />
+</ChatProvider>
+```
+
+Inside `WebChatProviderCapabilities`, tools and widgets should be registered declaratively:
+
+```tsx
+useFrontendTool({
+  name: 'browser.get_page_context',
+  description: 'Return URL, viewport, and browser metadata.',
+  execute: async () => ({
+    url: window.location.href,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
+  }),
+});
+
+useHumanTool({
+  name: 'browser.confirm_action',
+  mode: 'human',
+  render: ({ input, respond, reject }) => (
+    <ConfirmActionCard
+      input={input}
+      onApprove={() => respond({ approved: true, decision: 'approved' })}
+      onDeny={() => reject('User denied the request')}
+    />
+  ),
+});
+
+defineWidget('demo.capability_card', CapabilityCard);
+```
+
+The shell should render provider-owned timeline entities and delegate special behavior to provider outlets:
+
+```tsx
+const entities = useAppSelector(selectTimelineEntities);
+
+return entities.map((entity) => {
+  if (entity.kind === 'tool_call') {
+    return <ToolCallOutlet {...entity.props} />;
+  }
+  if (entity.kind === 'widget') {
+    return <WidgetOutlet {...entity.props} />;
+  }
+  return <MessageCard entity={entity} />;
+});
+```
+
+### Required provider additions
+
+The current `ChatProviderConfig` creates sessions and sends messages with fixed request bodies. Web-chat and CoinVault need request adapters so they can preserve app-specific request shapes:
+
+```ts
+type ChatProviderConfig = {
+  basePrefix?: string;
+  apiBase?: string;
+  createSessionBody?: () => Record<string, unknown>;
+  sendMessageBody?: (args: { prompt: string }) => Record<string, unknown>;
+};
+```
+
+Defaults must preserve existing behavior:
+
+- `createSessionBody` default: `{}`
+- `sendMessageBody` default: `{ prompt }`
+
+### Required web-chat backend additions
+
+`ChatProvider` syncs browser tool manifests before sending. Web-chat therefore needs the endpoint already used by the provider:
+
+```text
+POST /api/chat/sessions/{id}/tools/manifest
+```
+
+The handler should decode provider manifest entries and submit `frontendtools.CommandManifest` through `chatapp.Service.SubmitCommand(...)`. This keeps the manifest path on the same sessionstream command/event/projection system as tool results.
+
+### Page selection
+
+Use an opt-in query parameter for the new page:
+
+```text
+/?providerDemo=1
+```
+
+This keeps the original web-chat page stable while allowing the new provider-native page to demonstrate the elegant API.
+
+### Updated validation target
+
+The new Playwright smoke should:
+
+1. open `?providerDemo=1`,
+2. submit `run the capabilities demo`,
+3. wait for provider-rendered `demo.capability_card`,
+4. wait for provider-rendered `browser.confirm_action`,
+5. click approve,
+6. assert the provider `ToolCallOutlet` renders the approved result.
+
+This proves the browser path is no longer just manual web-chat code; it is ChatProvider runtime + web-chat shell.

@@ -320,3 +320,56 @@ This step added and ran a repeatable Playwright smoke for the showcase. The scri
 
 ### Technical details
 - Default URL: `http://127.0.0.1:5174`, with devctl state detection for the actual Vite health URL.
+
+## Step 6: Design pivot to a headless ChatProvider showcase
+
+After completing the manual web-chat showcase, I updated the plan to make web-chat demonstrate the elegant `ChatProvider` API directly. The new target is an opt-in `?providerDemo=1` page where `ChatProvider` owns session creation, WebSocket transport, timeline projection, frontend tool execution, and widget dispatch, while web-chat owns only the page shell.
+
+This does not remove the existing manual showcase. It adds a clearer provider-native demonstration so reviewers can see the intended developer API: request adapters in config, `useFrontendTool`, `useHumanTool`, `defineWidget`, `ToolCallOutlet`, and `WidgetOutlet`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright, update the implementation guide to reflect these changes, add detailed tasks to the ticket, and commit at appropriate intervals and keep diaries. work on it"
+
+**Assistant interpretation:** Revise the existing ticket plan so the feature showcases the elegant ChatProvider API directly, then implement that plan incrementally with commits and diary updates.
+
+**Inferred user intent:** Move from a manually wired web-chat demo toward a provider-native web-chat demo that proves reusable API ergonomics.
+
+**Commit (code):** Pending at this diary step.
+
+### What I did
+- Added a design-doc addendum describing web-chat as a headless ChatProvider showcase.
+- Added new task phases for:
+  - ChatProvider request adapters,
+  - web-chat tool manifest endpoint,
+  - provider-demo page,
+  - provider-demo Playwright smoke and final closeout.
+
+### Why
+- The previous implementation proved the backend/frontend protocol but not the intended provider developer experience.
+- A separate `?providerDemo=1` page avoids destabilizing the existing web-chat shell while making the API showcase explicit.
+
+### What worked
+- The ticket can continue without creating a new workspace; the new phases extend the existing capabilities showcase ticket.
+
+### What didn't work
+- N/A in this planning step.
+
+### What I learned
+- The provider already has much of the target API (`useFrontendTool`, `useHumanTool`, `defineWidget`, `ToolCallOutlet`, `WidgetOutlet`), but it needs request body adapters and web-chat needs a manifest endpoint before the provider can drive web-chat prompts cleanly.
+
+### What was tricky to build
+- The provider demo must not wrap the legacy web-chat Redux app, because `ChatProvider` includes its own React Redux provider. The design uses a separate query-param page to keep provider state isolated.
+
+### What warrants a second pair of eyes
+- Review whether `?providerDemo=1` should eventually become a route instead of a query parameter.
+- Review whether widget definitions should remain global or become provider-scoped.
+
+### What should be done in the future
+- After the provider demo works, evaluate migrating the main web-chat page incrementally to the same provider runtime.
+
+### Code review instructions
+- Start with the addendum in the design doc and the new Phase 7–11 tasks.
+
+### Technical details
+- Target page selector: `/?providerDemo=1`.

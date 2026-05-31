@@ -25,3 +25,12 @@ Implemented Pinocchio web-chat capabilities showcase: frontend tool result endpo
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/cards.tsx — Frontend tool UI and custom widget renderer
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/demo.go — Backend showcase stream
 
+
+## 2026-05-31
+
+Updated the implementation guide and task list to pivot from manual web-chat wiring toward a headless ChatProvider provider-demo page.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/design-doc/01-web-chat-capabilities-showcase-design-and-implementation-guide.md — Headless ChatProvider addendum
+
