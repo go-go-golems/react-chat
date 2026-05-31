@@ -102,18 +102,18 @@ Goal: remove provider-demo/capability showcase code rather than preserving it as
 
 Goal: prove provider-backed web-chat covers required behavior before removing legacy Redux/WebSocket chat.
 
-- [ ] Define a parity checklist for legacy `ChatWidget.tsx` versus provider-backed `WebChatApp`.
-- [ ] Verify session creation and URL/session-id persistence parity.
-- [ ] Verify profile loading, profile switching, and profile error behavior parity.
-- [ ] Verify WebSocket connect, reconnect, snapshot hydration, and buffered event behavior parity.
-- [ ] Verify user message sending and run status transitions parity.
-- [ ] Verify reasoning/thinking message rendering parity.
-- [ ] Verify backend tool call/result rendering parity.
-- [ ] Verify typed widget rendering parity.
-- [ ] Verify frontend tool request/result behavior parity if retained after demo deletion.
-- [ ] Verify export menu parity using provider session id.
-- [ ] Verify stream debug panel parity or explicitly mark it dev-only.
-- [ ] Run full validation suite and record results in the ticket diary.
+- [x] Define a parity checklist for legacy `ChatWidget.tsx` versus provider-backed `WebChatApp`.
+- [x] Verify session creation and URL/session-id persistence parity.
+- [x] Verify profile loading, profile switching, and profile error behavior parity.
+- [x] Verify WebSocket connect, reconnect, snapshot hydration, and buffered event behavior parity.
+- [x] Verify user message sending and run status transitions parity.
+- [x] Verify reasoning/thinking message rendering parity.
+- [x] Verify backend tool call/result rendering parity.
+- [x] Verify typed widget rendering parity.
+- [x] Verify frontend tool request/result behavior parity if retained after demo deletion.
+- [x] Verify export menu parity using provider session id.
+- [x] Verify stream debug panel parity or explicitly mark it dev-only.
+- [x] Run full validation suite and record results in the ticket diary.
 
 ## Phase 7 — Delete legacy Redux/WebSocket chat code after parity
 

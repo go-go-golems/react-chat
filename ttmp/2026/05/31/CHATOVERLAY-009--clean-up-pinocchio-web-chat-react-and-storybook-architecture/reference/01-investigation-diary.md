@@ -15,6 +15,8 @@ RelatedFiles:
       Note: Validation scripts and dependency/package-manager evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/scripts/print-dev-url.mjs
       Note: Phase 0 devctl URL helper (commit fe5b00f)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src
+      Note: Source tree no longer contains migration Markdown (commit e0ac7de)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/MIGRATION_CHECKLIST.md
       Note: Phase 0 path/deletion checklist (commit fe5b00f)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/README.md
@@ -65,12 +67,21 @@ RelatedFiles:
       Note: Vite build/proxy setup evidence
     - Path: ../../../../../../../pinocchio/pkg/chatapp/demo.go
       Note: Removed capabilities-showcase inference branch (commit 1a76cbe)
+    - Path: ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/reference/02-provider-parity-checklist.md
+      Note: Phase 6 provider parity gate
+    - Path: ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/01-phase6-webchat-parity-smoke.js
+      Note: Repeatable main web-chat parity smoke
+    - Path: ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/02-phase6-route-flag-regression.js
+      Note: Repeatable route flag regression smoke
+    - Path: ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/03-phase6-validation-suite.js
+      Note: Repeatable Phase 6 validation suite
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -964,3 +975,106 @@ The remaining frontend-tool endpoint support is generic: the server still accept
   - `go build ./...`
   - `golangci-lint run`
   - `go test ./...`
+
+## Step 13: Implement Phase 6 parity checklist and repeatable feedback scripts
+
+This step created the parity gate for deleting the legacy Redux/WebSocket chat runtime. The checklist now lives inside the ticket workspace, not in the application source tree, and records the evidence for session handling, profile handling, WebSocket/hydration behavior, message sending, reasoning/tool/widget projection, export, stream debug, and generic frontend-tool support.
+
+I also added repeatable Playwright/validation scripts under the ticket `scripts/` directory so the same feedback can be collected without reconstructing commands from the diary. Following the user correction, I moved all markdown guardrail/checklist documents that had been placed under `cmd/web-chat/web/src` into ticket reference documents.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with Phase 6: define and validate the provider-backed parity gate before legacy deletion.
+
+**Inferred user intent:** Gather enough repeatable evidence to safely proceed to deleting legacy Redux/WebSocket chat code.
+
+**Commit (code):** e0ac7de — "docs: move web-chat markdown to ticket"
+
+### Prompt Context Addendum
+
+**User prompt (verbatim):** "write playwright scripts if you want so that it's easier to repeat the different stepsa nd gather the necessary feedback information"
+
+**Assistant interpretation:** Add repeatable scripts for collecting browser-based parity evidence.
+
+**Inferred user intent:** Make later review/validation less manual and easier to rerun.
+
+**User prompt (verbatim):** "save all the scripts in the scripts/ folder of the ticket"
+
+**Assistant interpretation:** Store all new validation scripts under the CHATOVERLAY-009 ticket `scripts/` directory.
+
+**Inferred user intent:** Keep ticket-specific tooling with the ticket, not scattered across app source folders.
+
+**User prompt (verbatim):** "mv the parity checklist to the ticket as well. we don't really want markdown files outside of the ticket"
+
+**Assistant interpretation:** Move the newly created parity checklist out of source and into the ticket workspace.
+
+**Inferred user intent:** Keep planning/checklist Markdown in docmgr ticket docs, not in the production source tree.
+
+**User prompt (verbatim):** "that goes for /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/README.md aas well"
+
+**Assistant interpretation:** Move the feature-boundary README out of source as well, and by extension remove the remaining source Markdown guardrails from `src`.
+
+**Inferred user intent:** Ensure web-chat source contains code, not migration documentation.
+
+### What I did
+- Created `reference/02-provider-parity-checklist.md` inside the ticket.
+- Moved source Markdown documents into ticket references:
+  - `src/features/web-chat/PARITY_CHECKLIST.md` -> `reference/02-provider-parity-checklist.md`
+  - `src/features/web-chat/README.md` -> `reference/03-web-chat-feature-boundary.md`
+  - `src/README.md` -> `reference/04-web-chat-src-architecture-readme.md`
+  - `src/MIGRATION_CHECKLIST.md` -> `reference/05-web-chat-migration-checklist.md`
+- Deleted those Markdown files from Pinocchio source in commit `e0ac7de`.
+- Added ticket scripts:
+  - `scripts/01-phase6-webchat-parity-smoke.js`
+  - `scripts/02-phase6-route-flag-regression.js`
+  - `scripts/03-phase6-validation-suite.js`
+- Ran the route-flag Playwright script.
+- Ran the main web-chat parity Playwright script.
+- Re-ran focused frontend and Go validation.
+
+### Why
+- Phase 6 must produce reviewable evidence before Phase 7 deletes legacy runtime code.
+- Scripts make the evidence repeatable and less dependent on one-off terminal history.
+- Migration/checklist Markdown belongs to the ticket knowledge base, not production source.
+
+### What worked
+- `02-phase6-route-flag-regression.js` passed and wrote evidence to `/tmp/pinocchio-phase6-route-flag-regression.json`.
+- `01-phase6-webchat-parity-smoke.js` passed and wrote evidence to `/tmp/pinocchio-phase6-webchat-parity-smoke.json`.
+- `npm run typecheck`, `npm run lint`, route-mode Vitest, and focused Go tests passed.
+- Pinocchio pre-commit hook passed for the source Markdown deletion commit.
+
+### What didn't work
+- No code failures occurred in this step. The only correction was user-directed: the initial parity checklist and source README placement was wrong for this workflow, so I moved the Markdown into the ticket.
+
+### What I learned
+- The ticket workspace should be the canonical home for migration rationale, parity gates, and repeated validation scripts.
+- Keeping scripts in the ticket makes it clear which validation belongs to this phase, independent of whether scripts are later promoted into CI.
+
+### What was tricky to build
+- The Playwright scripts need to discover devctl's actual Vite URL because smokes may run on ephemeral ports. Both scripts read `.devctl/state.json` and fall back to `http://127.0.0.1:5174`.
+- The main parity smoke gathers evidence without writing artifacts into the repo by default; it writes JSON into `/tmp` unless `EVIDENCE_PATH` is set.
+
+### What warrants a second pair of eyes
+- Review the parity checklist to confirm it is strong enough to authorize Phase 7 legacy deletion.
+- Review whether the ticket scripts should later be promoted into a package script or CI job.
+
+### What should be done in the future
+- Phase 7 should delete legacy files only after reviewers accept `reference/02-provider-parity-checklist.md`.
+- If Phase 7 uncovers gaps, add focused scripts/tests here rather than reintroducing source Markdown.
+
+### Code review instructions
+- Start with `reference/02-provider-parity-checklist.md`.
+- Review scripts under `scripts/01-*`, `scripts/02-*`, and `scripts/03-*`.
+- Confirm source Markdown files were removed from `pinocchio/cmd/web-chat/web/src`.
+- Re-run scripts with `node ttmp/.../scripts/01-phase6-webchat-parity-smoke.js` and `node ttmp/.../scripts/02-phase6-route-flag-regression.js`.
+
+### Technical details
+- Validation commands run:
+  - `node .../scripts/02-phase6-route-flag-regression.js`
+  - `node .../scripts/01-phase6-webchat-parity-smoke.js`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npx vitest run src/app/routeMode.test.ts`
+  - `go test ./cmd/web-chat/app ./pkg/chatapp -count=1`

@@ -100,3 +100,14 @@ Implemented Phase 5 by deleting web-chat capability demo routes, demo tools/widg
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/routeMode.ts — Demo flags removed from production routing
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/demo.go — Generic demo inference no longer emits capability showcase
 
+
+## 2026-05-31
+
+Implemented Phase 6 parity checklist and repeatable Playwright/validation scripts; moved web-chat migration Markdown into the ticket (commit e0ac7de).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/reference/02-provider-parity-checklist.md — Parity gate
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/01-phase6-webchat-parity-smoke.js — Main parity smoke
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src — Markdown removed from source
+
