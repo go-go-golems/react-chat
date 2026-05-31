@@ -28,8 +28,12 @@ RelatedFiles:
       Note: Web-chat HTTP/session routing and prompt submission entrypoint
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/cards.tsx
       Note: React timeline renderer extension point
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/frontendTools.ts
+      Note: Browser result submission and automatic page-context tool
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/timelineEvents.ts
       Note: Frontend UI-event projection into timeline entities
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/demo.go
+      Note: Implemented showcase stream
     - Path: ../../../../../../../pinocchio/pkg/chatapp/frontendtools/manager.go
       Note: Frontend tool event and result payload contracts
     - Path: ../../../../../../../pinocchio/pkg/chatapp/service.go
@@ -44,6 +48,7 @@ WhenToUse: Before changing Pinocchio web-chat tool/widget demonstration behavior
 ---
 
 
+
 # Web-chat capabilities showcase design and implementation guide
 
 ## Executive summary
@@ -51,6 +56,8 @@ WhenToUse: Before changing Pinocchio web-chat tool/widget demonstration behavior
 Pinocchio `cmd/web-chat` should include a small capabilities showcase that demonstrates the reusable chatbot package capabilities in one visible flow. A user can type `run the capabilities demo`; the backend publishes ordinary chat lifecycle events, a typed custom widget named `demo.capability_card`, and a frontend tool request named `browser.confirm_action`. The browser renders the widget with a custom React renderer, presents the human approval tool, submits the result back to the backend, and the backend completes the widget based on the result.
 
 The showcase is intentionally implemented inside `cmd/web-chat` rather than as an ecommerce overlay. The goal is to prove that Pinocchio web-chat can display the generic chatbot primitives directly: sessionstream chat events, frontend tool calls, and typed widgets. It should not replace the normal profile/runtime path for ordinary prompts.
+
+Implementation note: the backend publishes the frontend tool request and then completes the showcase run; the browser result is posted asynchronously to the new result endpoint and updates the frontend tool card. This keeps the first showcase simple and avoids adding a long-lived app-level approval queue.
 
 ## Problem statement and scope
 
@@ -121,9 +128,8 @@ web-chat HandleSessionRoutes -> handleSubmitMessage
         |                         +-- publish ChatWidgetInstanceStarted
         |                         +-- publish ChatWidgetInstancePatched
         |                         +-- publish ChatFrontendToolCallRequested
-        |                         +-- wait for result or timeout
-        |                         +-- publish ChatFrontendToolResultReceived from endpoint
         |                         +-- publish final widget patch/completed
+        |                         +-- browser later publishes ChatFrontendToolResultReceived through endpoint
         |                         +-- publish ChatRunFinished
         |
         +-- showcase prompt? no -> existing runtime resolver and SubmitPromptRequest
@@ -193,18 +199,17 @@ Create this ticket, detailed task list, design guide, and diary. Commit this bef
 
 Add:
 
-- `chatapp.Service.PublishEvent(...)`
+- `chatapp.Service.SubmitCommand(...)`
 - `FrontendToolResultRequest` DTO in `cmd/web-chat/app`
 - `/api/chat/sessions/{id}/tools/results` route
-- an in-memory pending showcase result registry keyed by session id + tool call id
+- frontend tool manager command installation for web-chat
 
 The endpoint should:
 
 1. validate POST,
 2. decode `toolCallId`, `toolName`, `status`, `result`, and `error`,
 3. publish `ChatFrontendToolResultReceived`,
-4. notify any pending showcase waiter,
-5. return `{ accepted: true }`.
+4. return `{ accepted: true }`.
 
 ### Phase 3: Backend showcase run
 
@@ -218,9 +223,8 @@ The goroutine should publish:
 4. widget started,
 5. widget patched to waiting for user,
 6. frontend tool requested,
-7. final widget state after approval/denial/timeout,
-8. assistant closing text,
-9. run finished.
+7. final widget state after the request has been delivered,
+8. run finished.
 
 ### Phase 4: Frontend projections and tool runtime
 
