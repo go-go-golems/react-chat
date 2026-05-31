@@ -28,3 +28,13 @@ Uploaded generic ChatProvider analysis bundle to reMarkable at /ai/2026/05/30/CH
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-006--generalize-chat-overlay-provider-into-reusable-chat-provider-package/design-doc/01-generic-chat-provider-framework-analysis.md — Uploaded report
 
+
+## 2026-05-30
+
+Added Pinocchio and CoinVault provider migration guides; implemented first adoption slice by consuming chat-provider protocol helpers in Pinocchio web-chat (commit 6192886) and CoinVault (commit cdc3ee1); validated typecheck/build and devctl Playwright smokes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/web/src/ws/wsManager.ts — CoinVault adoption
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/ws/protocol.ts — Pinocchio adoption
+
