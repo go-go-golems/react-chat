@@ -66,7 +66,7 @@ export type ToolRegistry = {
   revision: () => number;
 };
 
-class DefaultToolRegistry implements ToolRegistry {
+export class ChatToolRegistry implements ToolRegistry {
   private tools = new Map<string, ToolDefinition>();
   private manifestRevision = 0;
 
@@ -105,7 +105,9 @@ class DefaultToolRegistry implements ToolRegistry {
   }
 }
 
-export const defaultToolRegistry: ToolRegistry = new DefaultToolRegistry();
+export function createToolRegistry(): ToolRegistry {
+  return new ChatToolRegistry();
+}
 
 export function defineTool<T extends ToolDefinition>(tool: T): T {
   return tool;

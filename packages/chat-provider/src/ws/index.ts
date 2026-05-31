@@ -1,2 +1,2 @@
 export * from './protocol';
-export { wsManager } from './wsManager';
+export { createWsManager, WsManager } from './wsManager';

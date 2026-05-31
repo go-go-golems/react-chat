@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
-import { useChatOverlay } from '../core/context';
+import { useChatClient } from '../core/context';
 import type { BackendToolUI } from './toolRegistry';
 
-export function useToolUI<TInput, TResult>(toolUI: BackendToolUI<TInput, TResult>, deps: unknown[] = []) {
-  const overlay = useChatOverlay();
+export function useToolUI<TInput, TResult>(tool: BackendToolUI<TInput, TResult>, deps: unknown[] = []) {
+  const client = useChatClient();
 
   useEffect(() => {
-    const unregister = overlay.tools.register(toolUI);
-    void overlay.tools.syncManifest();
+    const unregister = client.tools.register(tool);
+    void client.tools.syncManifest();
     return () => {
       unregister();
-      void overlay.tools.syncManifest();
+      void client.tools.syncManifest();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlay, ...deps]);
+  }, [client, ...deps]);
 }

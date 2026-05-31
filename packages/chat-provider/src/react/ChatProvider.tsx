@@ -1,22 +1,44 @@
 import { type ReactNode, useMemo } from 'react';
 import { Provider } from 'react-redux';
-import { createChatOverlay } from '../core/createChatOverlay';
-import { ChatOverlayContext } from '../core/context';
-import { store } from '../store/store';
+import { createChatClient, type ChatProviderConfig } from '../core/createChatClient';
+import { ChatRuntimeContext } from '../core/context';
+import { createChatStore } from '../store/store';
+import { createToolRegistry } from '../tools/toolRegistry';
+import { createToolRuntime } from '../tools/toolRuntime';
+import { createWsManager } from '../ws/wsManager';
 
 export type ChatProviderProps = {
   children: ReactNode;
-  config?: Parameters<typeof createChatOverlay>[0];
+  config?: ChatProviderConfig;
 };
 
 export function ChatProvider({ children, config }: ChatProviderProps) {
-  const client = useMemo(() => createChatOverlay(config), [config]);
+  const runtime = useMemo(() => {
+    const store = createChatStore();
+    const toolRegistry = createToolRegistry();
+    let submitToolResult: Parameters<typeof createToolRuntime>[0]['submitToolResult'] = async () => {
+      throw new Error('chat client is not initialized');
+    };
+    const toolRuntime = createToolRuntime({
+      registry: toolRegistry,
+      submitToolResult: (result) => submitToolResult(result),
+    });
+    const client = createChatClient({
+      config,
+      store,
+      toolRegistry,
+      toolRuntime,
+      wsManager: createWsManager(),
+    });
+    submitToolResult = client.tools.submitResult;
+    return { store, context: { client, toolRuntime } };
+  }, [config]);
 
   return (
-    <Provider store={store}>
-      <ChatOverlayContext.Provider value={client}>
+    <Provider store={runtime.store}>
+      <ChatRuntimeContext.Provider value={runtime.context}>
         {children}
-      </ChatOverlayContext.Provider>
+      </ChatRuntimeContext.Provider>
     </Provider>
   );
 }

@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
-import { useChatOverlay } from '@go-go-golems/chat-provider';
+import { useChatClient } from '@go-go-golems/chat-provider';
 import { useAppSelector, selectOverlay, selectTimelineEntities } from '@go-go-golems/chat-provider';
 import { ChatMessages } from './ChatMessages';
 import { ChatComposer } from './ChatComposer';
 import { useStickyScrollFollow } from './useStickyScrollFollow';
 
 export function ChatPanel() {
-  const overlay = useChatOverlay();
+  const client = useChatClient();
   const { isOpen, runStatus, wsStatus, error, sessionId } = useAppSelector(selectOverlay);
   const entities = useAppSelector(selectTimelineEntities);
   const contentVersion = useMemo(() => entities.map((entity) => `${entity.id}:${entity.kind}:${entity.props.status ?? ''}:${String(entity.props.content ?? '').length}`).join('|'), [entities]);
@@ -33,7 +33,7 @@ export function ChatPanel() {
         <div className="flex items-center gap-2">
           <StatusIndicator status={wsStatus} />
           <button
-            onClick={() => overlay.close()}
+            onClick={() => client.close()}
             className="w-5 h-5 border border-mac-black flex items-center justify-center text-xs font-bold hover:bg-mac-black hover:text-mac-white"
           >
             ×

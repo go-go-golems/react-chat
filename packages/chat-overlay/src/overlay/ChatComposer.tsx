@@ -1,17 +1,17 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
-import { useChatOverlay } from '@go-go-golems/chat-provider';
+import { useChatClient } from '@go-go-golems/chat-provider';
 import { useAppSelector, selectOverlay } from '@go-go-golems/chat-provider';
 
 export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
   const [text, setText] = useState('');
-  const overlay = useChatOverlay();
+  const client = useChatClient();
   const { runStatus } = useAppSelector(selectOverlay);
 
   const send = useCallback(() => {
     if (!text.trim()) return;
-    overlay.send(text.trim());
+    client.send(text.trim());
     setText('');
-  }, [overlay, text]);
+  }, [client, text]);
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -58,7 +58,7 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
       </button>
       {runStatus === 'streaming' && (
         <button
-          onClick={() => overlay.stop()}
+          onClick={() => client.stop()}
           className="px-2 py-1 border border-mac-black font-mono text-xs font-bold bg-mac-white hover:bg-mac-black hover:text-mac-white"
         >
           STOP

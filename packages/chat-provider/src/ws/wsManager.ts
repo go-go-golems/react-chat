@@ -8,6 +8,7 @@ import {
   safeOrdinal,
 } from './protocol';
 import { applyUIEvent } from './timelineEvents';
+import type { ToolRuntime } from '../tools/toolRuntime';
 import { applySnapshot } from './timelineSnapshot';
 
 type ConnectArgs = {
@@ -15,9 +16,10 @@ type ConnectArgs = {
   basePrefix: string;
   dispatch: AppDispatch;
   onStatus?: (s: string) => void;
+  toolRuntime?: ToolRuntime;
 };
 
-class WsManager {
+export class WsManager {
   private ws: WebSocket | null = null;
   private sessionId = '';
   private connectNonce = 0;
@@ -122,7 +124,7 @@ class WsManager {
       const buffered = this.buffered;
       this.buffered = [];
       for (const next of buffered) {
-        applyUIEvent(next, args.dispatch, args.sessionId);
+        applyUIEvent(next, args.dispatch, args.sessionId, args.toolRuntime);
       }
       return;
     }
@@ -135,9 +137,11 @@ class WsManager {
         this.buffered.push(frame);
         return;
       }
-      applyUIEvent(frame, args.dispatch, args.sessionId);
+      applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime);
     }
   }
 }
 
-export const wsManager = new WsManager();
+export function createWsManager(): WsManager {
+  return new WsManager();
+}

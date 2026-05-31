@@ -3,7 +3,7 @@ import { overlaySlice } from '../store/overlaySlice';
 import type { AppDispatch } from '../store/store';
 import { messageEntity, toolCallEntity, widgetEntity } from './timelineSnapshot';
 import type { CanonicalFrame } from './protocol';
-import { handleFrontendToolUIEvent } from '../tools/toolRuntime';
+import type { ToolRuntime } from '../tools/toolRuntime';
 
 type TimelineMutation = {
   upsert?: TimelineEntity;
@@ -164,8 +164,8 @@ export function timelineMutationFromUIEvent(frame: CanonicalFrame): TimelineMuta
   }
 }
 
-export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '') {
-  handleFrontendToolUIEvent(frame);
+export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '', toolRuntime?: ToolRuntime) {
+  toolRuntime?.handleFrontendToolUIEvent(frame);
   const mutation = timelineMutationFromUIEvent(frame);
   if (!mutation) return;
   if (mutation.deleteId) {

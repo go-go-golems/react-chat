@@ -1,13 +1,13 @@
-import { useChatOverlay } from '@go-go-golems/chat-provider';
+import { useChatClient } from '@go-go-golems/chat-provider';
 import { useAppSelector, selectOverlay } from '@go-go-golems/chat-provider';
 
 export function ChatBubble() {
-  const overlay = useChatOverlay();
+  const client = useChatClient();
   const { isOpen } = useAppSelector(selectOverlay);
 
   return (
     <button
-      onClick={() => overlay.toggle()}
+      onClick={() => client.toggle()}
       className={[
         'fixed bottom-4 right-4 z-50',
         'w-10 h-10',

@@ -1,36 +1,36 @@
-import type { ChatOverlay } from './createChatOverlay';
+import type { ChatClient } from './createChatClient';
 import type { ToolDefinition } from '../tools/toolRegistry';
 import type { WidgetDefinition } from '../widgets/widgetRegistry';
 
-export type ChatOverlayToolkit = {
+export type ChatToolkit = {
   name?: string;
   tools?: ToolDefinition[];
   widgets?: WidgetDefinition[];
-  install?: (overlay: ChatOverlay) => void | (() => void);
+  install?: (client: ChatClient) => void | (() => void);
 };
 
-export function defineToolkit<T extends ChatOverlayToolkit>(toolkit: T): T {
+export function defineToolkit<T extends ChatToolkit>(toolkit: T): T {
   return toolkit;
 }
 
-export function installToolkit(overlay: ChatOverlay, toolkit: ChatOverlayToolkit): () => void {
+export function installToolkit(client: ChatClient, toolkit: ChatToolkit): () => void {
   const cleanupFns: Array<() => void> = [];
 
   for (const tool of toolkit.tools ?? []) {
-    cleanupFns.push(overlay.tools.register(tool));
+    cleanupFns.push(client.tools.register(tool));
   }
 
-  const customCleanup = toolkit.install?.(overlay);
+  const customCleanup = toolkit.install?.(client);
   if (typeof customCleanup === 'function') {
     cleanupFns.push(customCleanup);
   }
 
-  void overlay.tools.syncManifest();
+  void client.tools.syncManifest();
 
   return () => {
     for (const cleanup of cleanupFns.toReversed()) {
       cleanup();
     }
-    void overlay.tools.syncManifest();
+    void client.tools.syncManifest();
   };
 }

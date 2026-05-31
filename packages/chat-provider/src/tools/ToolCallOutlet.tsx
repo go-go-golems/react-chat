@@ -1,82 +1,89 @@
-import { defaultToolRegistry, formatToolValidationError, parseToolInput, parseToolResult, type HumanTool } from './toolRegistry';
-import { isPendingHumanTool, respondToHumanTool } from './toolRuntime';
+import { formatToolValidationError, parseToolInput, parseToolResult, type HumanTool } from './toolRegistry';
+import { useChatRuntime } from '../core/context';
 
 type ToolCallOutletProps = {
   toolCallId: string;
   toolName: string;
   status: string;
-  input?: Record<string, unknown>;
-  result?: Record<string, unknown>;
+  input?: unknown;
+  result?: unknown;
   error?: string;
 };
 
 export function ToolCallOutlet({ toolCallId, toolName, status, input, result, error }: ToolCallOutletProps) {
-  const statusText = status || 'requested';
-  const tool = defaultToolRegistry.get(toolName);
-  const isHuman = tool?.mode === 'human' && isPendingHumanTool(toolCallId) && !result;
-  const humanTool = isHuman ? tool as HumanTool<Record<string, unknown>, Record<string, unknown>> : null;
-  const backendToolUI = tool?.mode === 'backend' && tool.render ? tool : null;
-  let parsedHumanInput: Record<string, unknown> | null = null;
-  let validationError = '';
-  if (humanTool) {
+  const { client, toolRuntime } = useChatRuntime();
+  const tool = client.tools.get(toolName);
+  const isHuman = tool?.mode === 'human' && toolRuntime.isPendingHumanTool(toolCallId) && !result;
+
+  if (isHuman && tool && 'render' in tool) {
+    let parsedInput: unknown = input ?? {};
     try {
-      parsedHumanInput = parseToolInput(humanTool, input ?? {});
-    } catch (err) {
-      validationError = formatToolValidationError(err);
+      parsedInput = parseToolInput(tool, input ?? {});
+    } catch {
+      // Keep raw input visible; validation failures are submitted by the runtime.
     }
+    return (
+      <div className="border border-mac-black p-2 bg-mac-gray-5" data-testid="human-tool-card">
+        {(tool as HumanTool<any, any>).render({
+          toolCallId,
+          toolName,
+          input: parsedInput,
+          status,
+          respond: (value) => {
+            try {
+              const parsedResult = parseToolResult(tool, value);
+              void toolRuntime.respondToHumanTool({ toolCallId, toolName, status: 'success', result: normalizeRecord(parsedResult) });
+            } catch (err) {
+              void toolRuntime.respondToHumanTool({
+                toolCallId,
+                toolName,
+                status: 'failed',
+                error: `invalid result for human tool ${toolName}: ${formatToolValidationError(err)}`,
+              });
+            }
+          },
+          reject: (message = 'User denied the request') => {
+            void toolRuntime.respondToHumanTool({ toolCallId, toolName, status: 'denied', result: { approved: false }, error: message });
+          },
+        })}
+      </div>
+    );
+  }
+
+  if (tool?.mode === 'backend' && 'render' in tool && typeof tool.render === 'function') {
+    let parsedInput: unknown = input ?? {};
+    let parsedResult: unknown = result;
+    try { parsedInput = parseToolInput(tool, input ?? {}); } catch { /* keep raw */ }
+    if (result !== undefined) {
+      try { parsedResult = parseToolResult(tool, result); } catch { /* keep raw */ }
+    }
+    return <>{tool.render({ input: parsedInput as any, result: parsedResult as any, status })}</>;
   }
 
   return (
-    <div className="border border-mac-black bg-mac-white shadow-mac p-2 text-xs" data-testid="tool-call-card">
-      <div className="flex items-center justify-between border-b border-mac-gray-3 pb-1 mb-1">
+    <div className="border border-mac-black p-2 bg-mac-gray-5 text-xs space-y-1" data-testid="tool-call-card">
+      <div className="flex items-center justify-between gap-2">
         <span className="font-bold uppercase">browser tool</span>
-        <span className="text-[10px] text-mac-gray-2" data-testid="tool-call-status">{statusText}</span>
+        <span className="border border-mac-black px-1" data-testid="tool-call-status">{status}</span>
       </div>
-      <div className="font-mono text-[11px]" data-testid="tool-call-name">{toolName}</div>
-      <div className="text-[10px] text-mac-gray-3 mb-1">{toolCallId}</div>
-      {input ? (
-        <pre className="bg-mac-gray-5 border border-mac-gray-4 p-1 overflow-auto text-[10px]">{JSON.stringify(input, null, 2)}</pre>
-      ) : null}
-      {humanTool ? (
-        <div className="mt-2" data-testid="human-tool-ui">
-          {validationError ? (
-            <div className="border border-mac-black bg-mac-gray-5 p-2 text-[10px]">
-              Invalid tool input: {validationError}
-            </div>
-          ) : humanTool.render({
-            toolCallId,
-            toolName,
-            input: parsedHumanInput ?? {},
-            status: statusText,
-            respond: (humanResult) => {
-              try {
-                const parsedResult = parseToolResult(humanTool, humanResult);
-                void respondToHumanTool({ toolCallId, toolName, status: 'success', result: parsedResult });
-              } catch (err) {
-                void respondToHumanTool({
-                  toolCallId,
-                  toolName,
-                  status: 'failed',
-                  result: {},
-                  error: `invalid human tool result: ${formatToolValidationError(err)}`,
-                });
-              }
-            },
-            reject: (message) => {
-              void respondToHumanTool({ toolCallId, toolName, status: 'denied', result: { approved: false }, error: message });
-            },
-          })}
-        </div>
-      ) : null}
-      {backendToolUI?.render ? (
-        <div className="mt-2" data-testid="backend-tool-ui">
-          {backendToolUI.render({ input: input ?? {}, result, status: statusText })}
-        </div>
-      ) : null}
-      {result ? (
-        <pre className="mt-1 bg-mac-gray-5 border border-mac-gray-4 p-1 overflow-auto text-[10px]" data-testid="tool-call-result">{JSON.stringify(result, null, 2)}</pre>
-      ) : null}
-      {error ? <div className="mt-1 text-[10px] text-mac-black">Error: {error}</div> : null}
+      <div className="font-mono" data-testid="tool-call-name">{toolName}</div>
+      <div className="font-mono text-mac-gray-2" data-testid="tool-call-id">{toolCallId}</div>
+      {input !== undefined && (
+        <pre className="whitespace-pre-wrap break-words border border-mac-gray-4 p-1 bg-mac-white" data-testid="tool-call-input">
+          {JSON.stringify(input, null, 2)}
+        </pre>
+      )}
+      {result !== undefined && (
+        <pre className="whitespace-pre-wrap break-words border border-mac-gray-4 p-1 bg-mac-white" data-testid="tool-call-result">
+          {JSON.stringify(result, null, 2)}
+        </pre>
+      )}
+      {error && <div className="text-mac-gray-1" data-testid="tool-call-error">{error}</div>}
     </div>
   );
+}
+
+function normalizeRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { value };
+  return value as Record<string, unknown>;
 }

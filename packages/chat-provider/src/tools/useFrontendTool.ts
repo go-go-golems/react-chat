@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
-import { useChatOverlay } from '../core/context';
+import { useChatClient } from '../core/context';
 import type { FrontendTool } from './toolRegistry';
 
 export function useFrontendTool<TInput, TResult>(tool: FrontendTool<TInput, TResult>, deps: unknown[] = []) {
-  const overlay = useChatOverlay();
+  const client = useChatClient();
 
   useEffect(() => {
-    const unregister = overlay.tools.register(tool);
-    void overlay.tools.syncManifest();
+    const unregister = client.tools.register(tool);
+    void client.tools.syncManifest();
     return () => {
       unregister();
-      void overlay.tools.syncManifest();
+      void client.tools.syncManifest();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlay, ...deps]);
+  }, [client, ...deps]);
 }
