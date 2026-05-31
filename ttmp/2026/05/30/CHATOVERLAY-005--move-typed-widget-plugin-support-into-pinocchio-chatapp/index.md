@@ -1,7 +1,7 @@
 ---
 Title: Move typed widget plugin support into Pinocchio chatapp
 Ticket: CHATOVERLAY-005
-Status: active
+Status: complete
 Topics:
     - chat-overlay
     - pinocchio
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-30T16:25:32.444929483-04:00
+LastUpdated: 2026-05-30T20:53:57.382427748-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Move typed widget plugin support into Pinocchio chatapp
 
