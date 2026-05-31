@@ -43,7 +43,7 @@ RelatedFiles:
       Note: chat-overlay store cleanup and interface migration (commit ea01179)
 ExternalSources: []
 Summary: Chronological diary for common backend extraction design.
-LastUpdated: 2026-05-30T20:08:00-04:00
+LastUpdated: 2026-05-30T20:20:00-04:00
 WhatFor: Record design-package creation and future implementation steps.
 WhenToUse: Read before continuing CHATOVERLAY-003 work.
 ---
@@ -408,3 +408,56 @@ The apps still own their route handlers. That keeps runtime resolution, authoriz
 - `serverkit.DecodeJSON` accepts empty bodies but returns malformed JSON errors.
 - `serverkit.EncodeSnapshotResponse` accepts a status callback so apps can keep local status semantics.
 - `serverkit.ParseSessionPath` is strict: it accepts `/api/chat/sessions/{id}` and `/api/chat/sessions/{id}/{action}` only.
+
+## Step 6: Close CHATOVERLAY-003 and defer full route-handler extraction
+
+This step closed the common-backend extraction ticket at the intended safe boundary. The shared code now covers store construction, cleanup, HTTP contracts, JSON helpers, path parsing, protobuf JSON encoding, and snapshot response encoding. The remaining possible route-handler extraction is explicitly deferred.
+
+The decision is to revisit a full route registrar only after frontend tools and widgets move into Pinocchio. Those migrations change the route set and plugin package boundaries, so extracting route handlers before them would likely create unstable configuration hooks.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, close 003,  do CHATOVERLAY-004 start to finish, similarly keep diary and commit at appropriate intervals"
+
+**Assistant interpretation:** Finalize CHATOVERLAY-003 documentation/bookkeeping and then move on to the frontend-tools migration ticket with the same commit-and-diary discipline.
+
+**Inferred user intent:** Stop the first ticket at the helper extraction boundary and avoid spending time on a premature generic route registrar.
+
+**Commit (code):** N/A — documentation closure only.
+
+### What I did
+- Marked the remaining route-handler extraction tasks as completed-by-decision/deferred.
+- Recorded that full route registration is a follow-up after CHATOVERLAY-004 and CHATOVERLAY-005 stabilize the final route/plugin surface.
+- Kept all code commits from the ticket intact and did not add another code slice.
+
+### Why
+- The helper layer delivered useful reuse without forcing a generic server API over app-specific behavior.
+- Frontend tools and widgets are the next package-boundary migrations and will clarify what a future route registrar must support.
+
+### What worked
+- The ticket now has a clean boundary: shared stores, contracts, and helper functions are done; full route handlers are intentionally not part of this ticket.
+
+### What didn't work
+- N/A. This was a closure/decision step.
+
+### What I learned
+- The safest shared backend surface is mostly mechanical so far. Handler ownership should remain app-local while higher-level features are still moving.
+
+### What was tricky to build
+- The tricky part was avoiding over-completion. A full route registrar is possible, but it would couple together runtime selection, auth, export/debug routes, mock engine behavior, frontend tool routes, and snapshot differences too early.
+
+### What warrants a second pair of eyes
+- Review whether the deferred route registrar should become a new ticket after CHATOVERLAY-004/005 or remain a long-term cleanup note.
+
+### What should be done in the future
+- Revisit route-handler extraction after frontendtools and widgets are both Pinocchio-owned.
+
+### Code review instructions
+- Review the final CHATOVERLAY-003 commits in order:
+  - `7235bd8`, `ee42217`, `ea01179`, `2c399ed`
+  - `7ab73f1`, `993fd6d`, `3fd0372`
+  - `67993d1`, `4f7300b`, `0b1ba42`
+- Validate with the commands listed in Steps 2–5.
+
+### Technical details
+- The route registrar is deferred because `CHATOVERLAY-004` will affect frontend tool routes and `CHATOVERLAY-005` will affect widget plugin route/projection assumptions.

@@ -43,12 +43,12 @@
 
 - [x] T6.1 Add `serverkit` HTTP contract structs for create/submit/snapshot/stop.
 - [x] T6.2 Add small `serverkit` HTTP helpers for JSON decoding/writing, session path parsing, proto JSON encoding, and snapshot response encoding.
-- [ ] T6.3 Add a route-handler extraction plan based on the results of store/helper migration.
-- [ ] T6.4 Decide whether full core route extraction should happen in this ticket or a follow-up.
+- [x] T6.3 Add a route-handler extraction plan based on the results of store/helper migration: defer full route registrar until frontendtools/widgets stabilize.
+- [x] T6.4 Decide whether full core route extraction should happen in this ticket or a follow-up: follow-up/deferred, not in CHATOVERLAY-003.
 
 ## Delivery
 
-- [ ] T7.1 Update diary after each implementation slice.
-- [ ] T7.2 Update changelog and file relations.
-- [ ] T7.3 Run `docmgr doctor --ticket CHATOVERLAY-003 --stale-after 30`.
-- [ ] T7.4 Commit each coherent slice.
+- [x] T7.1 Update diary after each implementation slice.
+- [x] T7.2 Update changelog and file relations.
+- [x] T7.3 Run `docmgr doctor --ticket CHATOVERLAY-003 --stale-after 30`.
+- [x] T7.4 Commit each coherent slice.

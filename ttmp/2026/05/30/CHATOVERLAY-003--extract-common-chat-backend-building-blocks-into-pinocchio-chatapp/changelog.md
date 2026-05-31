@@ -47,3 +47,12 @@ Added small serverkit HTTP helpers and migrated web-chat, chat-overlay, and Coin
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server.go — web-chat helper migration
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/http.go — Shared small HTTP helpers
 
+
+## 2026-05-30
+
+Closed CHATOVERLAY-003 at shared stores/contracts/helpers boundary; full route-handler registrar deferred until frontendtools/widgets stabilize.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/http.go — Final helper boundary for this ticket
+
