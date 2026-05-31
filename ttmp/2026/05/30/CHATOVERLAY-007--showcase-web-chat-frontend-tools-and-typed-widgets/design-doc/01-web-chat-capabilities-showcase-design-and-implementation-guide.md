@@ -399,3 +399,71 @@ The new Playwright smoke should:
 6. assert the provider `ToolCallOutlet` renders the approved result.
 
 This proves the browser path is no longer just manual web-chat code; it is ChatProvider runtime + web-chat shell.
+
+## Addendum: migrating the main ChatWidget to ChatProvider
+
+The provider demo proved that `ChatProvider` can run inside web-chat as a headless runtime. The next target is to make the main exported `ChatWidget` use the same runtime instead of the legacy local WebSocket manager and local timeline slice.
+
+### Desired split
+
+The main widget should keep web-chat responsibilities:
+
+- profile loading and profile picker,
+- header/statusbar/composer chrome,
+- web-chat CSS and part props,
+- optional custom renderers/components.
+
+`ChatProvider` should own chat mechanics:
+
+- session creation,
+- WebSocket connect/hydrate,
+- message send,
+- tool manifest sync,
+- frontend tool execution/result submission,
+- typed widget projection,
+- chat timeline state.
+
+### Provider API refinement
+
+The main widget needs to preserve the existing `?sessionId=` behavior. Add generic session configuration to `ChatProviderConfig`:
+
+```ts
+type ChatProviderConfig = {
+  sessionIdParam?: string;       // default: 'chatSessionId'
+  sessionStorageKey?: string;    // default: 'chat-provider.sessionId'
+  onSessionIdChange?: (sessionId: string | null) => void;
+};
+```
+
+This keeps the provider opinionated while allowing host apps to choose their URL/session persistence convention.
+
+### Main-widget implementation plan
+
+Create a provider-backed shell:
+
+```tsx
+export function ProviderBackedChatWidget(props: ChatWidgetProps) {
+  const selectedProfile = useWebChatProfileSelection();
+  return (
+    <ChatProvider config={{
+      basePrefix,
+      sessionIdParam: 'sessionId',
+      sessionStorageKey: 'pinocchio.web-chat.sessionId',
+      onSessionIdChange: setSessionIdInLocation,
+      createSessionBody: () => ({ profile: selectedProfile }),
+      sendMessageBody: ({ prompt }) => ({ prompt, profile: selectedProfile }),
+    }}>
+      <WebChatProviderCapabilities />
+      <ProviderBackedChatWidgetInner {...props} selectedProfile={selectedProfile} />
+    </ChatProvider>
+  );
+}
+```
+
+The inner widget must not call web-chat Redux hooks because it runs under `ChatProvider`'s Redux context. It should use provider selectors and client hooks only.
+
+### Migration caveats
+
+- The legacy stream debug panel depends on the old web-chat store and should not be rendered inside the provider store. Keep it out of the first main-widget port.
+- The existing main smoke should continue to pass with normal prompts.
+- The capabilities smoke should continue to pass on the main page.

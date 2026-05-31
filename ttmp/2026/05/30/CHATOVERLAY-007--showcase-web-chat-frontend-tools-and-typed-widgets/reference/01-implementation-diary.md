@@ -373,3 +373,166 @@ This does not remove the existing manual showcase. It adds a clearer provider-na
 
 ### Technical details
 - Target page selector: `/?providerDemo=1`.
+
+## Step 7: ChatProvider request adapters and ES2022 compatibility
+
+This step added the small provider API needed for web-chat to pass profile-aware request bodies while still using the generic ChatProvider client. `ChatProviderConfig` now accepts `createSessionBody` and `sendMessageBody` callbacks, with defaults preserving the existing ecommerce demo behavior.
+
+While validating the provider inside Pinocchio web-chat, I also found that `chat-provider` used `Array.prototype.toReversed()`. The provider package itself targets a newer TypeScript environment, but Pinocchio web-chat compiles with `ES2022`, so I replaced that call with a reverse index loop.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Implement the provider-side API changes required by the updated headless web-chat showcase plan.
+
+**Inferred user intent:** Let web-chat consume ChatProvider elegantly without losing app-specific request bodies.
+
+**Commit (code):** `11263c0` — "feat: add chat provider request adapters"; `ed0cf02` — "fix: keep chat toolkit compatible with es2022"
+
+### What I did
+- Added `createSessionBody` and `sendMessageBody` to `ChatProviderConfig`.
+- Used those callbacks in `createChatClient.ensureSession()` and `send()`.
+- Replaced `cleanupFns.toReversed()` with an ES2022-safe reverse loop.
+
+### Why
+- Web-chat and CoinVault need request body adapters for profile/registry fields.
+- The provider package must compile cleanly when consumed by web-chat's TypeScript target.
+
+### What worked
+- `pnpm --filter @go-go-golems/chat-provider typecheck` passed.
+- `pnpm --filter @go-go-golems/chat-overlay-ecommerce-demo build` passed.
+- Pinocchio web-chat typecheck later passed with the provider dependency.
+
+### What didn't work
+- Pinocchio web-chat initially failed to typecheck the provider source:
+  - `../../../../2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/core/toolkit.ts(31,38): error TS2550: Property 'toReversed' does not exist on type '(() => void)[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2023' or later.`
+
+### What I learned
+- Source-based local package dependencies inherit the consumer's TS target expectations, so reusable packages should avoid unnecessary newer JS helpers unless they are compiled first.
+
+### What was tricky to build
+- The adapter API needed to remain small. I kept it to body builders only, rather than introducing a broader fetch adapter before web-chat needed it.
+
+### What warrants a second pair of eyes
+- Review whether the body-builder callbacks should receive session/profile context in the future.
+
+### What should be done in the future
+- Add request adapter arguments for app state if/when CoinVault migrates to ChatProvider.
+
+### Code review instructions
+- Review `packages/chat-provider/src/core/createChatClient.ts` and `packages/chat-provider/src/core/toolkit.ts`.
+- Validate with the two pnpm commands listed above.
+
+### Technical details
+- Defaults remain `{}` for session creation and `{ prompt }` for message submission.
+
+## Step 8: Web-chat manifest endpoint for ChatProvider tool sync
+
+This step added the backend endpoint ChatProvider expects before sending a message: `/api/chat/sessions/{id}/tools/manifest`. The handler converts the provider manifest into Pinocchio `FrontendToolDescriptor` protobufs and submits `ChatFrontendToolManifest` through the frontend tool manager.
+
+This is the bridge that lets `defineToolkit`/`defineTool` registrations in the browser become durable backend-visible frontend tool manifests.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Add the server endpoint needed by ChatProvider tool manifest synchronization.
+
+**Inferred user intent:** Make the provider-native web-chat page use the same tool sync path as other ChatProvider consumers.
+
+**Commit (code):** `4d84971` — "feat: accept web-chat frontend tool manifests"
+
+### What I did
+- Added `tools/manifest` handling to `cmd/web-chat/app/server.go`.
+- Added manifest DTOs and mode conversion in `showcase_tools.go`.
+- Submitted `frontendtools.CommandManifest` through `chatapp.Service.SubmitCommand(...)`.
+- Added `TestFrontendToolManifestEndpointPublishesTimelineEntity`.
+
+### Why
+- `ChatProvider` calls `client.tools.syncManifest()` before sending.
+- Without this endpoint, the provider-native page would fail before it could submit the demo prompt.
+
+### What worked
+- Focused validation passed:
+  - `go test ./cmd/web-chat/app ./pkg/chatapp/frontendtools -count=1`
+- The Pinocchio pre-commit hook ran full lint/test successfully.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- Provider manifest `mode` values are string-based (`frontend`, `human`, `backend`), while Pinocchio protobufs use enum values, so the web-chat edge needs explicit normalization.
+
+### What was tricky to build
+- Route parsing had already been extended for `tools/results`; the manifest endpoint reused the nested session route shape.
+
+### What warrants a second pair of eyes
+- Review the mode mapping names before standardizing public API docs.
+
+### What should be done in the future
+- Add schema validation for manifest entries if this endpoint becomes production-facing.
+
+### Code review instructions
+- Review `cmd/web-chat/app/showcase_tools.go` and `cmd/web-chat/app/server_test.go`.
+
+### Technical details
+- `human` maps to `TOOL_EXECUTION_MODE_FRONTEND_HUMAN`.
+
+## Step 9: Provider-native web-chat demo page
+
+This step added an opt-in `?providerDemo=1` page that uses `ChatProvider` as the runtime and web-chat as only the page shell. It registers a toolkit with `browser.get_page_context`, `browser.confirm_action`, and `demo.capability_card`, then renders provider timeline entities with `ToolCallOutlet` and `WidgetOutlet`.
+
+This is the first page in Pinocchio web-chat that demonstrates the intended provider API directly instead of manually reproducing provider behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Build the new provider-native demo page and validate it through typecheck/lint/build and browser smoke.
+
+**Inferred user intent:** Showcase how an app can use ChatProvider headlessly while keeping its own UI shell.
+
+**Commit (code):** `3b080c0` — "feat: add web-chat chat provider demo page"
+
+### What I did
+- Added `cmd/web-chat/web/src/webchat/ProviderDemoPage.tsx`.
+- Updated `App.tsx` to render it when `providerDemo=1` is present.
+- Used `ChatProvider` with request adapters.
+- Registered tools/widgets with `defineToolkit`, `defineTool`, and `defineWidget`.
+- Rendered provider timeline entities with message cards, `ToolCallOutlet`, and `WidgetOutlet`.
+- Added a visible `browser.confirm_action` label to the human tool card for smoke-test discoverability.
+
+### Why
+- The main web-chat page still has its own Redux store and projection pipeline. A separate route avoids nested Redux-provider conflicts and lets the provider demo stay focused.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm run lint` passed after import organization.
+- `npm run build` passed.
+- The provider demo browser smoke passed after adding the visible tool-name label.
+
+### What didn't work
+- The first provider-demo smoke failed because the human tool renderer showed the approval text but not the literal `browser.confirm_action` tool name. Exact failure:
+  - `locator.waitFor: Timeout 20000ms exceeded. Call log: - waiting for getByText('browser.confirm_action') to be visible`
+- I added a visible pill with `browser.confirm_action` to the human tool renderer and reran the smoke successfully.
+
+### What I learned
+- `ToolCallOutlet` correctly handles the provider pending-human-tool state, but custom human renderers should include enough tool identity for debugging and tests.
+
+### What was tricky to build
+- The provider demo cannot sit under the legacy web-chat Redux `<Provider>` because `ChatProvider` also provides a Redux store. The query-param page keeps those stores isolated.
+
+### What warrants a second pair of eyes
+- Review whether the provider demo should be promoted from query param to a documented route.
+- Review whether `defineWidget` should be provider-scoped instead of global for long-lived apps.
+
+### What should be done in the future
+- Consider migrating the normal web-chat page's transport/timeline to ChatProvider after the demo stabilizes.
+
+### Code review instructions
+- Start with `ProviderDemoPage.tsx`.
+- Open `/?providerDemo=1`, send `run the capabilities demo`, and approve the browser tool.
+
+### Technical details
+- Browser smoke script: `scripts/02-webchat-chatprovider-demo-smoke.js`.

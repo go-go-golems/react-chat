@@ -34,3 +34,25 @@ Updated the implementation guide and task list to pivot from manual web-chat wir
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/design-doc/01-web-chat-capabilities-showcase-design-and-implementation-guide.md — Headless ChatProvider addendum
 
+
+## 2026-05-31
+
+Added provider-native web-chat demo: ChatProvider request adapters (commit 11263c0), ES2022 toolkit compatibility (commit ed0cf02), web-chat manifest endpoint (commit 4d84971), provider-demo page (commit 3b080c0), and provider-demo Playwright smoke.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/core/createChatClient.ts — Request adapters
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/core/toolkit.ts — ES2022 cleanup compatibility
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/02-webchat-chatprovider-demo-smoke.js — Provider demo smoke
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/showcase_tools.go — Manifest endpoint
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ProviderDemoPage.tsx — Provider demo page
+
+
+## 2026-05-31
+
+Added Phase 12 tasks and design guidance for porting the main web-chat ChatWidget to ChatProvider.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/tasks.md — Main ChatWidget migration tasks
+

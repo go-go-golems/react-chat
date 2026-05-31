@@ -89,38 +89,56 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 
 ## Phase 8: ChatProvider request adapter support
 
-- [ ] T8.1 Add `createSessionBody` and `sendMessageBody` hooks to `ChatProviderConfig`.
-- [ ] T8.2 Thread request adapter bodies through `createChatClient.ensureSession()` and `send()`.
-- [ ] T8.3 Preserve current default request body behavior for existing overlay users.
-- [ ] T8.4 Run `pnpm --filter @go-go-golems/chat-provider typecheck`.
-- [ ] T8.5 Run ecommerce demo build to ensure no regression.
-- [ ] T8.6 Commit ChatProvider request adapter support.
+- [x] T8.1 Add `createSessionBody` and `sendMessageBody` hooks to `ChatProviderConfig`.
+- [x] T8.2 Thread request adapter bodies through `createChatClient.ensureSession()` and `send()`.
+- [x] T8.3 Preserve current default request body behavior for existing overlay users.
+- [x] T8.4 Run `pnpm --filter @go-go-golems/chat-provider typecheck`.
+- [x] T8.5 Run ecommerce demo build to ensure no regression.
+- [x] T8.6 Commit ChatProvider request adapter support.
 
 ## Phase 9: Web-chat provider-compatible backend endpoints
 
-- [ ] T9.1 Add `/api/chat/sessions/{id}/tools/manifest` to web-chat session routing.
-- [ ] T9.2 Decode ChatProvider tool manifests into `FrontendToolManifestCommand` descriptors.
-- [ ] T9.3 Submit manifests through `chatapp.Service.SubmitCommand(...)` and `frontendtools.Manager`.
-- [ ] T9.4 Add focused Go tests for manifest endpoint behavior.
-- [ ] T9.5 Run focused Go tests.
-- [ ] T9.6 Commit backend manifest endpoint support.
+- [x] T9.1 Add `/api/chat/sessions/{id}/tools/manifest` to web-chat session routing.
+- [x] T9.2 Decode ChatProvider tool manifests into `FrontendToolManifestCommand` descriptors.
+- [x] T9.3 Submit manifests through `chatapp.Service.SubmitCommand(...)` and `frontendtools.Manager`.
+- [x] T9.4 Add focused Go tests for manifest endpoint behavior.
+- [x] T9.5 Run focused Go tests.
+- [x] T9.6 Commit backend manifest endpoint support.
 
 ## Phase 10: Web-chat ChatProvider demo page
 
-- [ ] T10.1 Add a `providerDemo=1` web-chat route/page that is wrapped in `ChatProvider` rather than the legacy web-chat Redux store.
-- [ ] T10.2 Build a small full-page provider demo shell with transcript, status, and composer.
-- [ ] T10.3 Register `browser.get_page_context` using `useFrontendTool`.
-- [ ] T10.4 Register `browser.confirm_action` using `useHumanTool` and `ToolCallOutlet`.
-- [ ] T10.5 Register/render `demo.capability_card` using `defineWidget` and `WidgetOutlet`.
-- [ ] T10.6 Use ChatProvider request adapters in the page config.
-- [ ] T10.7 Run web-chat typecheck/build/lint.
-- [ ] T10.8 Commit web-chat provider demo page.
+- [x] T10.1 Add a `providerDemo=1` web-chat route/page that is wrapped in `ChatProvider` rather than the legacy web-chat Redux store.
+- [x] T10.2 Build a small full-page provider demo shell with transcript, status, and composer.
+- [x] T10.3 Register `browser.get_page_context` using `defineToolkit`/`defineTool`.
+- [x] T10.4 Register `browser.confirm_action` using `defineToolkit`/`defineTool` and render it through `ToolCallOutlet`.
+- [x] T10.5 Register/render `demo.capability_card` using `defineWidget` and `WidgetOutlet`.
+- [x] T10.6 Use ChatProvider request adapters in the page config.
+- [x] T10.7 Run web-chat typecheck/build/lint.
+- [x] T10.8 Commit web-chat provider demo page.
 
 ## Phase 11: Provider demo smoke and final closeout
 
-- [ ] T11.1 Add a Playwright smoke for `?providerDemo=1`.
-- [ ] T11.2 Validate devctl-managed provider demo flow end-to-end.
-- [ ] T11.3 Update diary with implementation details, failures, commits, and validation.
+- [x] T11.1 Add a Playwright smoke for `?providerDemo=1`.
+- [x] T11.2 Validate devctl-managed provider demo flow end-to-end.
+- [x] T11.3 Update diary with implementation details, failures, commits, and validation.
 - [ ] T11.4 Update changelog and relate new files.
 - [ ] T11.5 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
 - [ ] T11.6 Commit final docs and smoke script.
+
+## Phase 12: Port the main web-chat ChatWidget to ChatProvider
+
+- [x] T12.1 Extend the implementation guide with the main-widget migration plan and provider API refinements.
+- [ ] T12.2 Add ChatProvider session id configuration (`sessionIdParam`, `sessionStorageKey`, `onSessionIdChange`) so web-chat can keep `?sessionId=` behavior.
+- [ ] T12.3 Validate ChatProvider package and ecommerce demo after session config changes.
+- [ ] T12.4 Commit provider session API refinements.
+- [ ] T12.5 Extract/reuse the web-chat provider capabilities toolkit from the provider demo page.
+- [ ] T12.6 Add a provider-backed main `ChatWidget` shell that keeps profile/header/composer chrome but uses ChatProvider for chat mechanics.
+- [ ] T12.7 Render provider timeline entities through existing web-chat cards plus `ToolCallOutlet` and `WidgetOutlet`.
+- [ ] T12.8 Preserve selected profile request bodies through ChatProvider request adapters.
+- [ ] T12.9 Switch the main web-chat export to the provider-backed widget while keeping the legacy file available for reference.
+- [ ] T12.10 Run web-chat typecheck/lint/build.
+- [ ] T12.11 Validate existing main web-chat smoke and capabilities smoke.
+- [ ] T12.12 Commit the main ChatWidget provider port.
+- [ ] T12.13 Update diary, changelog, and file relations with the main-widget migration.
+- [ ] T12.14 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
+- [ ] T12.15 Commit final docs for this migration slice.
