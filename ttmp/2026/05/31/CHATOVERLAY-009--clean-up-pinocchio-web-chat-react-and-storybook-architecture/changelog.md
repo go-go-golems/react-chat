@@ -78,3 +78,14 @@ Implemented Phase 3 component folders and focused Storybook stories for header, 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatStatusbar/ChatStatusbar.stories.tsx — Focused statusbar stories
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatTimeline/ChatTimeline.stories.tsx — Focused timeline stories
 
+
+## 2026-05-31
+
+Implemented Phase 4 by splitting web-chat card renderers and Markdown into focused feature folders with stories and fixtures (commit cb52e41).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/cards/index.ts — Card feature barrel
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/cards.tsx — Compatibility barrel for old card imports
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/rendererRegistry.ts — Renderer registry now imports cards from feature folders
+

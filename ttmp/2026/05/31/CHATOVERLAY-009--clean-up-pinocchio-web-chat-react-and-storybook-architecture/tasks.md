@@ -71,16 +71,16 @@ Goal: convert reusable UI pieces to one folder per component with colocated stor
 
 Goal: split large card/rendering code into typed, story-backed card components.
 
-- [ ] Create `src/features/web-chat/cards/MessageCard/` with component, types, stories, fixtures, and index.
-- [ ] Create `ToolCallCard/` with requested, running, completed, failed, and human-tool states.
-- [ ] Create `ToolResultCard/` with JSON, text, empty, and error states.
-- [ ] Create `AgentModeCard/` with preview and committed states.
-- [ ] Create `WidgetInstanceCard/` with streaming, ready, failed, and unknown-widget states.
-- [ ] Create `GenericCard/` for unknown entity fallback states.
-- [ ] Move markdown rendering into `Markdown/` with stories for links, code blocks, lists, and unsafe URL cases.
-- [ ] Replace `src/webchat/cards.tsx` with explicit exports or delete it once imports are migrated.
-- [ ] Add typed fixture builders for `RenderEntity` variants.
-- [ ] Validate visual stories and existing smokes.
+- [x] Create `src/features/web-chat/cards/MessageCard/` with component, types, stories, fixtures, and index.
+- [x] Create `ToolCallCard/` with requested, running, completed, failed, and human-tool states.
+- [x] Create `ToolResultCard/` with JSON, text, empty, and error states.
+- [x] Create `AgentModeCard/` with preview and committed states.
+- [x] Create `WidgetInstanceCard/` with streaming, ready, failed, and unknown-widget states.
+- [x] Create `GenericCard/` for unknown entity fallback states.
+- [x] Move markdown rendering into `Markdown/` with stories for links, code blocks, lists, and unsafe URL cases.
+- [x] Replace `src/webchat/cards.tsx` with explicit exports or delete it once imports are migrated.
+- [x] Add typed fixture builders for `RenderEntity` variants.
+- [x] Validate visual stories and existing smokes.
 
 ## Phase 5 — Delete demo capability code
 

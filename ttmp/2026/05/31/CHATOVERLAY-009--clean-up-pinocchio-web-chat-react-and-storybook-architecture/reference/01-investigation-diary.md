@@ -39,6 +39,16 @@ RelatedFiles:
       Note: Provider-backed web-chat chrome moved to feature folder (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx
       Note: Provider config/profile bridge moved to feature folder (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx
+      Note: Markdown renderer moved into card support folder (commit cb52e41)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/MessageCard/MessageCard.tsx
+      Note: Phase 4 message card folder (commit cb52e41)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/ToolCallCard/ToolCallCard.tsx
+      Note: Phase 4 tool call card folder (commit cb52e41)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/ToolResultCard/ToolResultCard.tsx
+      Note: Phase 4 tool result card folder (commit cb52e41)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/fixtures/renderEntities.ts
+      Note: Typed story fixture builders for card render entities (commit cb52e41)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-projectors/pinocchioProjectors.ts
       Note: Pinocchio projectors moved under feature extensions (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
@@ -51,6 +61,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -771,6 +782,84 @@ The move deliberately leaves deeper card renderer extraction for Phase 4. Phase 
   - `npm run lint`
   - `npm run build`
   - `npm run build-storybook`
+  - `npx vitest run src/app/routeMode.test.ts`
+  - `node .../03-pinocchio-webchat-devctl-playwright.js`
+  - `node .../03-webchat-provider-multi-instance-smoke.js`
+
+## Step 11: Implement Phase 4 card renderer decomposition
+
+This step split the monolithic web-chat card renderer file into focused card folders. The production renderer behavior remains wired through the existing `rendererRegistry`, but the card implementations now live under `src/features/web-chat/cards/*`, each with types, stories, and fixture-backed examples.
+
+The work also moved Markdown rendering into its own card support folder and added a small URL-safety guard for links. The old `src/webchat/cards.tsx` and `src/webchat/Markdown.tsx` now act as compatibility barrels so older imports continue to work during the cleanup sequence.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue with the next CHATOVERLAY-009 implementation phase after Phase 3, which is Phase 4 card renderer decomposition.
+
+**Inferred user intent:** Keep advancing the web-chat cleanup by decomposing card renderers and Storybook fixtures before demo and legacy deletion phases.
+
+**Commit (code):** cb52e41 — "refactor: split web-chat card renderers"
+
+### What I did
+- Created `src/features/web-chat/cards/MessageCard/` with component, types, story, and index.
+- Created `ToolCallCard/` with requested, running, completed, failed, and human-tool stories.
+- Created `ToolResultCard/` with JSON, text, empty, and error stories.
+- Created `AgentModeCard/` with preview and committed stories.
+- Created `WidgetInstanceCard/` with streaming, ready, failed, unknown-widget, and temporary capability-demo stories.
+- Created `GenericCard/` with unknown and empty fallback stories.
+- Created `Markdown/` with links, code blocks, lists, and unsafe URL stories.
+- Added typed fixture builders in `cards/fixtures/renderEntities.ts`.
+- Added `cards/storyDecorators.tsx` and `cards/index.ts`.
+- Replaced `src/webchat/cards.tsx` and `src/webchat/Markdown.tsx` with compatibility barrels.
+- Updated `rendererRegistry.ts` to import built-in card renderers from the feature card barrel.
+- Updated `src/features/web-chat/index.ts`, `src/MIGRATION_CHECKLIST.md`, and `src/features/web-chat/README.md`.
+
+### Why
+- Card rendering was too dense for safe review and story coverage in one file.
+- Phase 4 creates the target shape required for later renderer typing and style decomposition.
+- Focused stories let reviewers inspect each card state without running real backend streams.
+
+### What worked
+- Typecheck, lint, production build, Storybook build, route-mode test, main web-chat smoke, and provider multi-instance smoke all passed.
+- Storybook now emits separate chunks for card stories, which confirms the focused stories are discovered.
+- Existing runtime imports still work through compatibility barrels.
+
+### What didn't work
+- Initial lint failed on export ordering in new barrel files. I fixed it with:
+  - `npx --yes @biomejs/biome@2.3.8 check --write src/features/web-chat/cards src/webchat/Markdown.tsx src/webchat/cards.tsx src/webchat/rendererRegistry.ts src/features/web-chat/index.ts`
+
+### What I learned
+- `WidgetInstanceCard` still contains temporary `demo.capability_card` behavior. That should be deleted in Phase 5 rather than polished further.
+- Markdown link handling previously passed through any string. The new card-local Markdown component renders unsafe URLs as non-clickable spans.
+
+### What was tricky to build
+- The split had to preserve renderer names and exports used by the legacy registry while moving implementations to feature folders. The compatibility barrels are intentionally small and temporary.
+- Tool call rendering still includes frontend tool result submission for the legacy/capability flow. This means the card split is structural only; semantic cleanup belongs to Phase 5 and later provider-tool parity work.
+
+### What warrants a second pair of eyes
+- Review the Markdown URL-safety change to ensure no expected internal URL patterns are accidentally de-linked.
+- Review whether `LogCard` should remain as a separate folder even though Phase 4 did not explicitly list it; it was kept because the renderer registry still has a `log` renderer.
+- Review whether `src/webchat/cards.tsx` should be deleted in Phase 6/7 once all imports move.
+
+### What should be done in the future
+- Phase 5 should remove temporary capability-demo card/tool code.
+- Phase 6 should define parity gates before legacy Redux/WebSocket deletion.
+- Phase 8 should remove inline card styles while splitting CSS.
+
+### Code review instructions
+- Start with `src/features/web-chat/cards/index.ts` and the individual card folders.
+- Review compatibility barrels in `src/webchat/cards.tsx` and `src/webchat/Markdown.tsx`.
+- Review `src/webchat/rendererRegistry.ts` to confirm renderer keys still map to the same card components.
+- Validate with `npm run typecheck`, `npm run lint`, `npm run build`, `npm run build-storybook`, and the main/provider multi-instance smokes.
+
+### Technical details
+- Validation commands run:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build-storybook`
+  - `npm run build`
   - `npx vitest run src/app/routeMode.test.ts`
   - `node .../03-pinocchio-webchat-devctl-playwright.js`
   - `node .../03-webchat-provider-multi-instance-smoke.js`
