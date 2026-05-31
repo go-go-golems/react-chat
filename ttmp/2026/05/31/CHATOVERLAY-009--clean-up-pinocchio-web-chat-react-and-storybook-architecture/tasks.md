@@ -117,28 +117,23 @@ Goal: prove provider-backed web-chat covers required behavior before removing le
 
 ## Phase 6A — Deterministic mock inference profile before legacy deletion
 
-Goal: make provider parity testable without a live LLM by selecting an explicit `mock_parity` profile that emits deterministic canonical events.
+Goal: make provider parity testable without a live LLM by selecting an explicit `mock_parity` profile that short-circuits normal runtime composition and returns a deterministic mock engine.
 
-- [ ] Add `MockInferenceRuntime` to the Pinocchio web-chat profile runtime extension.
-- [ ] Deep-copy mock inference settings in `ProfileRuntime.Clone()`.
-- [ ] Include mock inference settings in runtime fingerprint inputs.
-- [ ] Add validation for unknown scenarios and invalid chunk delays.
-- [ ] Add a documented `mock_parity` profile fixture or built-in dev/test profile.
-- [ ] Add `cmd/web-chat/mockruntime` with a Geppetto-compatible mock `engine.Engine`.
-- [ ] Implement the `parity_all` scenario with stable message/tool/widget IDs.
-- [ ] Implement focused scenarios for text streaming, reasoning streaming, backend tool calls, frontend tool calls, widget lifecycle, and error/stop behavior.
-- [ ] Emit chat text and reasoning through Geppetto events so existing chatapp plugins/projectors are exercised.
-- [ ] Emit backend tool lifecycle through Geppetto tool-call events so `plugins.NewToolCallPlugin()` is exercised.
-- [ ] Add a profile-driven app/sessionstream context bridge for frontend-tool and widget events; do not use prompt matching.
-- [ ] Extend `infruntime.ComposedRuntime` with an optional `RuntimeContext` hook.
-- [ ] Pass composed runtime context from `cmd/web-chat/app/server.go` into `chatapp.PromptRequest`.
-- [ ] Compose the mock runtime in `cmd/web-chat/runtime_composer.go` only when the selected profile enables `mock_inference`.
-- [ ] Add app-owned `mockParityExtension` with `app.confirm_action`, optional `app.mock_echo`, and `mock.progress`.
-- [ ] Register mock frontend tools/widgets only when the selected profile enables mock inference.
-- [ ] Add unit tests for mock runtime event order and stable IDs.
-- [ ] Add runtime composer tests proving mock profiles bypass live provider construction and normal profiles do not.
-- [ ] Add app/server integration tests that submit a message under `mock_parity` and assert timeline entities.
-- [ ] Add Playwright scripts under this ticket's `scripts/` folder for mock profile parity, frontend tool approval, and hydration.
+- [ ] Add `mock_parity` to the dev/test profile list or profile fixture loaded by web-chat devctl.
+- [ ] Add `cmd/web-chat/mockruntime` with a small Geppetto-compatible mock `engine.Engine`.
+- [ ] Add a hardcoded resolver shortcut in `cmd/web-chat/canonical_runtime_resolver.go`: `profile=mock_parity` returns the mock engine; all other profiles use the existing resolver/composer path.
+- [ ] Keep prompt text irrelevant to mock activation; remove/avoid `/mock` or `mock:all` prompt checks.
+- [ ] Implement a first text-streaming mock scenario with deterministic assistant chunks and stable IDs.
+- [ ] Add resolver tests proving `mock_parity` uses the mock engine and normal profiles still delegate to normal runtime composition.
+- [ ] Add mock engine tests asserting deterministic event order for text streaming.
+- [ ] Extend the mock scenario to emit reasoning/thinking Geppetto events.
+- [ ] Extend the mock scenario to emit backend tool-call Geppetto events for started, args, requested, execution, result, and finished states.
+- [ ] Extend the mock scenario to emit app-owned special events such as agent-mode commit if straightforward through existing plugin paths.
+- [ ] Add app/server integration tests that submit a message with `profile=mock_parity` and assert deterministic timeline entities.
+- [ ] Decide whether widget/frontend-tool coverage is needed in the first mock pass or can be Phase 6A follow-up.
+- [ ] If widget/frontend-tool coverage is included, add only a minimal context bridge using the existing `PromptRequest.RuntimeContext` hook.
+- [ ] If widget/frontend-tool coverage is included, add app-owned `mockParityExtension` with `app.confirm_action`, optional `app.mock_echo`, and `mock.progress`.
+- [ ] Add Playwright scripts under this ticket's `scripts/` folder for mock profile parity and hydration.
 - [ ] Update `reference/02-provider-parity-checklist.md` with mock-profile evidence.
 - [ ] Re-run Phase 6 validation and block Phase 7 legacy deletion until mock-profile parity passes.
 

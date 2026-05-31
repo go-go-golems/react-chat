@@ -1149,3 +1149,62 @@ The guide defines `mock_parity` as an explicit runtime/profile choice. It keeps 
 ### Technical details
 - No code changes were committed for mock inference in this step.
 - The guide explicitly forbids prompt matching and route-flag activation.
+
+## Step 15: Simplify mock inference plan to a profile shortcut
+
+This step revised the mock-inference design to match the intended architecture: `mock_parity` is a special profile that short-circuits runtime resolution and returns a small deterministic mock engine. Normal profiles continue through the existing profile runtime resolver and composer unchanged.
+
+The simplified plan removes the unnecessary generalized mock-runtime schema from the guide. It keeps the profile as a user-visible activation switch and reserves any context bridge work only for the optional widget/frontend-tool phase.
+
+### Prompt Context
+
+**User prompt (verbatim):** "so i thought it would be possible to add a special profile that would replace the traditional inference engine with a simple mock one, I don't think we need all this mock runtime composed runtime stuff? it's just a hardcoded check before delegating this to the normal profile runtime system. \n\nRepease in your own words."
+
+**Assistant interpretation:** Restate that the desired solution is a simple selected-profile shortcut, not a broad profile runtime schema extension.
+
+**Inferred user intent:** Confirm shared understanding before rewriting the ticket plan.
+
+**User prompt (verbatim):** "yes, update and simplify the ticket"
+
+**Assistant interpretation:** Rewrite the ticket guide and tasks around the simple `mock_parity` resolver shortcut.
+
+**Inferred user intent:** Keep implementation scope small and avoid overengineering before coding.
+
+### What I did
+- Rewrote `design-doc/02-deterministic-mock-inference-profile-guide.md` around the special-profile shortcut.
+- Replaced the previous Phase 6A task list with a smaller implementation plan.
+- Kept optional widget/frontend-tool context bridge work as a later substep, not the core architecture.
+
+### Why
+- The selected profile is enough to make mock mode explicit and testable.
+- Normal profile runtime composition should remain untouched for real profiles.
+- A broad `MockInferenceRuntime` schema would add complexity before it is needed.
+
+### What worked
+- The guide now says `profile=mock_parity` should return a deterministic mock `engine.Engine` before the normal resolver/composer path.
+- The tasks now focus on the shortcut, mock engine, deterministic Geppetto events, integration tests, and Playwright scripts.
+
+### What didn't work
+- The previous design overgeneralized the problem into profile runtime schema and composed-runtime changes. That has now been simplified.
+
+### What I learned
+- The right activation boundary is `canonical_runtime_resolver.go`, because it already receives the selected profile and delegates to runtime composition.
+
+### What was tricky to build
+- The only remaining nuance is widget/frontend-tool coverage: those are app/sessionstream events, not pure Geppetto engine events. The simplified guide keeps that as optional follow-up using the existing `PromptRequest.RuntimeContext` hook if needed.
+
+### What warrants a second pair of eyes
+- Confirm whether `mock_parity` should be built into the dev profile registry or loaded from a dev/test profile YAML fixture.
+- Confirm whether widget/frontend-tool coverage belongs in the first mock pass.
+
+### What should be done in the future
+- Implement Phase 6A in the order listed in `tasks.md`.
+
+### Code review instructions
+- Review `design-doc/02-deterministic-mock-inference-profile-guide.md` first.
+- Then review Phase 6A in `tasks.md`.
+- Verify no code changes were made in this planning step.
+
+### Technical details
+- No Pinocchio source changes were made.
+- The revised design explicitly keeps prompt text irrelevant to mock activation.
