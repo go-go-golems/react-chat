@@ -66,3 +66,14 @@ Ported the main Pinocchio web-chat ChatWidget to the headless ChatProvider runti
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/core/createChatClient.ts — Provider API changes
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ProviderBackedChatWidget.tsx — Main widget provider port
 
+
+## 2026-05-31
+
+Added provider debug observer parity, a provider-safe export menu, and a repeatable two-instance provider smoke (commits 5b4e777, 4ee9ec4, dc97eb1).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/ws/wsManager.ts — Debug observer source
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/03-webchat-provider-multi-instance-smoke.js — Smoke script
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ProviderMultiDemoPage.tsx — Multi-instance validation route
+

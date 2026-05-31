@@ -18,8 +18,12 @@ RelatedFiles:
       Note: Provider-backed main ChatWidget implementation (commit 61fb547)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ProviderDemoPage.tsx
       Note: Exports shared provider capabilities toolkit used by the main widget (commit 61fb547)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ProviderMultiDemoPage.tsx
+      Note: Two-instance provider smoke route (commit 4ee9ec4)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/cards.tsx
       Note: Confirm tool card and capability widget renderer (commit c9640f3)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/components/ExportMenu.tsx
+      Note: Provider-safe export menu split (commit 4ee9ec4)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Exports provider-backed ChatWidget while retaining LegacyChatWidget (commit 61fb547)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/timelineEvents.ts
@@ -32,14 +36,19 @@ RelatedFiles:
       Note: Added SubmitCommand helper (commit 004ebc5)
     - Path: packages/chat-provider/src/core/createChatClient.ts
       Note: Generic session configuration and connect API for the main web-chat provider port (commits 3040510
+    - Path: packages/chat-provider/src/ws/wsManager.ts
+      Note: Generic provider debug observer events (commit 5b4e777)
     - Path: ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/01-webchat-capabilities-showcase-smoke.js
       Note: Repeatable browser smoke
+    - Path: ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/03-webchat-provider-multi-instance-smoke.js
+      Note: Repeatable multi-instance browser smoke (commit dc97eb1)
 ExternalSources: []
 Summary: Chronological diary for the web-chat capabilities showcase implementation.
 LastUpdated: 2026-05-31T03:55:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -629,3 +638,80 @@ The provider API also grew two generic pieces that the main widget needed: confi
 - Provider defaults remain `chatSessionId` and `chat-provider.sessionId`.
 - Web-chat config uses `sessionIdParam: 'sessionId'` and `sessionStorageKey: 'pinocchio.web-chat.sessionId'`.
 - The main widget still uses web-chat profile APIs outside the provider boundary and request adapters inside the provider config.
+
+## Step 9: Provider debug/export parity and multi-instance smoke
+
+This step filled the most visible parity gap left by the first provider-backed main widget: the provider runtime now emits generic debug observer events that Pinocchio can feed into its existing Stream Debug panel. The main provider-backed web-chat also regained an export menu that is safe under the provider Redux boundary because it accepts the provider session id as data instead of reading the legacy app store.
+
+I also added a dedicated two-provider smoke page. It renders two independent `ChatProvider` instances in one browser page, sends different prompts through each, and asserts that the sessions and timelines remain isolated.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Continue with the next identified follow-ups: provider-native export/debug parity and explicit multi-instance validation.
+
+**Inferred user intent:** Polish the provider-backed web-chat migration beyond the first successful port by restoring important observability/export affordances and proving instance isolation.
+
+**Commit (code):** 5b4e777 — "feat: add chat provider debug observer"; 4ee9ec4 — "feat: add provider debug and multi-instance demo"; dc97eb1 — "test: add provider multi-instance smoke"
+
+### What I did
+- Added generic provider debug event types and `ChatProviderConfig.onDebugEvent`.
+- Emitted provider debug events for:
+  - WebSocket lifecycle,
+  - raw WebSocket frames,
+  - parsed frames,
+  - snapshots,
+  - UI event projection mutations.
+- Changed provider snapshot/UI event projection helpers to return debug metadata while preserving existing state behavior.
+- Split web-chat export UI into a provider-safe `ExportMenuForSession` plus the existing legacy `ExportMenu` wrapper.
+- Wired provider-backed web-chat to `StreamDebugPanel` via `recordStreamDebug`.
+- Added `ProviderMultiDemoPage` behind `?providerMultiDemo=1`.
+- Added repeatable smoke script `scripts/03-webchat-provider-multi-instance-smoke.js`.
+
+### Why
+- The first provider-backed widget intentionally omitted debug/export parity to avoid crossing Redux store boundaries.
+- Debug events belong in the generic provider as observer callbacks, not as Pinocchio-specific imports.
+- Multi-instance isolation is a core promise of the provider after making store/tool/ws runtime instance-scoped.
+
+### What worked
+- Provider typecheck passed after adding the observer API.
+- Web-chat typecheck, lint, and build passed.
+- The existing main web-chat smoke, capabilities smoke, provider-demo smoke, and new multi-instance smoke all passed.
+- The new multi-instance smoke confirmed distinct session ids and no prompt leakage between left/right provider timelines.
+
+### What didn't work
+- No new blocker. The main constraint was keeping Pinocchio debug storage out of the generic provider package; the observer callback avoided that coupling.
+
+### What I learned
+- The provider projection layer is the right generic place to expose debug metadata because it can describe raw transport and interpreted mutations without knowing app-specific debug sinks.
+- Export parity only needed the session id, so it was better to split the component than to make a legacy store hook optional.
+
+### What was tricky to build
+- The debug observer needed useful data without changing reducer semantics. I solved this by returning snapshot mapping/debug arrays from `applySnapshot` and returning the interpreted mutation from `applyUIEvent`; reducers still apply exactly once in the same order.
+- The multi-instance smoke had to avoid localStorage collision. The demo page uses per-instance storage keys and disables URL session-id hydration with `sessionIdParam: ''`.
+
+### What warrants a second pair of eyes
+- Review the debug event type shape before external consumers depend on it.
+- Review whether `ProviderMultiDemoPage` should stay as a permanent smoke-only route or move behind a development flag.
+- Review whether the Stream Debug SQLite upload path should understand provider-originated entries beyond the current shared shape.
+
+### What should be done in the future
+- Add package-level automated tests if/when a frontend test runner such as Vitest is introduced.
+- Consider exposing debug controls from `chat-provider` itself for non-Pinocchio consumers.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/ws/wsManager.ts` and `packages/chat-provider/src/core/createChatClient.ts` for the observer API.
+- Then review `ProviderBackedChatWidget.tsx` and `ExportMenu.tsx` for provider-safe Pinocchio integration.
+- Validate with:
+  - `pnpm --filter @go-go-golems/chat-provider typecheck`
+  - `npm run typecheck && npm run lint && npm run build`
+  - `node .../03-pinocchio-webchat-devctl-playwright.js`
+  - `node .../01-webchat-capabilities-showcase-smoke.js`
+  - `node .../02-webchat-chatprovider-demo-smoke.js`
+  - `node .../03-webchat-provider-multi-instance-smoke.js`
+
+### Technical details
+- `ChatDebugEvent` is exported from `@go-go-golems/chat-provider` and `@go-go-golems/chat-provider/ws`.
+- Pinocchio maps provider debug events into the existing `recordStreamDebug(...)` sink.
+- `ExportMenuForSession` builds the same `/api/chat/sessions/{id}/...` download URLs as the legacy export menu.

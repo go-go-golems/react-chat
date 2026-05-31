@@ -142,3 +142,15 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 - [x] T12.13 Update diary, changelog, and file relations with the main-widget migration.
 - [x] T12.14 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
 - [x] T12.15 Commit final docs for this migration slice.
+
+## Phase 13: Provider parity polish
+
+- [x] T13.1 Add ticket tasks for provider-native export/debug parity and multi-instance validation.
+- [x] T13.2 Add a generic ChatProvider debug observer API for raw WS frames, parsed frames, snapshots, UI events, and lifecycle changes.
+- [x] T13.3 Wire the Pinocchio provider-backed widget to the existing Stream Debug panel through the generic observer.
+- [x] T13.4 Add a provider-safe export menu backed by the provider session id.
+- [x] T13.5 Add a repeatable multi-instance provider browser smoke.
+- [x] T13.6 Validate provider package, web-chat build/lint/typecheck, main/capabilities/provider-demo smokes, and multi-instance smoke.
+- [x] T13.7 Commit provider parity code and smoke.
+- [x] T13.8 Update diary/changelog/relations and run docmgr doctor.
+- [x] T13.9 Commit provider parity docs.
