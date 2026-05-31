@@ -44,5 +44,5 @@
 
 - [x] T27: Update implementation diary after each commit with commands, failures, and review notes.
 - [x] T28: Update changelog and file relations for provider and consumer changes.
-- [ ] T29: Run `docmgr doctor --ticket CHATOVERLAY-008 --stale-after 30`.
+- [x] T29: Run `docmgr doctor --ticket CHATOVERLAY-008 --stale-after 30`.
 - [ ] T30: Commit final ticket documentation.
