@@ -31,6 +31,207 @@
   -moz-osx-font-smoothing: unset;
 }
 
+/* Floating overlay chrome: explicit CSS instead of package-local Tailwind utilities.
+ * The ecommerce demo consumes this package as source, and Tailwind's scanner can
+ * miss utility strings inside workspace packages. Keep the critical positioning
+ * and dialog layout in stable component classes so the overlay never collapses
+ * back into normal page flow.
+ */
+.chat-overlay-bubble {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-mac-black);
+  background: var(--color-mac-white);
+  color: var(--color-mac-black);
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 4px 4px 0 var(--color-mac-black);
+}
+
+.chat-overlay-bubble:hover {
+  background: var(--color-mac-black);
+  color: var(--color-mac-white);
+}
+
+.chat-overlay-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 5rem;
+  z-index: 999;
+  width: min(24rem, calc(100vw - 2rem));
+  height: min(32rem, calc(100vh - 7rem));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid var(--color-mac-black);
+  background: var(--color-mac-white);
+  color: var(--color-mac-black);
+  box-shadow: 6px 6px 0 var(--color-mac-black);
+}
+
+.chat-overlay-panel-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--color-mac-black);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-mac-white);
+}
+
+.chat-overlay-panel-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.chat-overlay-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-overlay-close-button {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-mac-black);
+  background: var(--color-mac-white);
+  color: var(--color-mac-black);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-overlay-close-button:hover,
+.chat-overlay-jump-button:hover,
+.chat-overlay-composer-button:hover:not(:disabled) {
+  background: var(--color-mac-black);
+  color: var(--color-mac-white);
+}
+
+.chat-overlay-messages-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+.chat-overlay-error-bar {
+  flex: 0 0 auto;
+  border-top: 2px solid var(--color-mac-black);
+  padding: 0.375rem 0.75rem;
+  background: var(--color-mac-black);
+  color: var(--color-mac-white);
+  font-size: 0.75rem;
+}
+
+.chat-overlay-streaming-bar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--color-mac-gray-4);
+  padding: 0.25rem 0.75rem;
+  color: var(--color-mac-gray-2);
+  font-size: 0.75rem;
+}
+
+.chat-overlay-jump-button {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin: 0 0.75rem 0.5rem;
+  border: 1px solid var(--color-mac-black);
+  background: var(--color-mac-white);
+  color: var(--color-mac-black);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chat-overlay-composer {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  border-top: 2px solid var(--color-mac-black);
+  padding: 0.5rem;
+  background: var(--color-mac-white);
+}
+
+.chat-overlay-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  resize: none;
+  border: 1px solid var(--color-mac-black);
+  background: var(--color-mac-white);
+  color: var(--color-mac-black);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  outline: none;
+}
+
+.chat-overlay-composer-input:focus {
+  border-width: 2px;
+  padding: calc(0.25rem - 1px) calc(0.5rem - 1px);
+}
+
+.chat-overlay-composer-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.chat-overlay-composer-input::placeholder {
+  color: var(--color-mac-gray-3);
+}
+
+.chat-overlay-composer-button {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-mac-black);
+  background: var(--color-mac-white);
+  color: var(--color-mac-black);
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-overlay-composer-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+@media (max-width: 520px) {
+  .chat-overlay-panel {
+    right: 0.5rem;
+    bottom: 4.5rem;
+    width: calc(100vw - 1rem);
+    height: min(32rem, calc(100vh - 5.5rem));
+  }
+
+  .chat-overlay-bubble {
+    right: 0.5rem;
+    bottom: 0.5rem;
+  }
+}
+
 /* Scrollbar: minimal, monochrome */
 .chat-overlay-root ::-webkit-scrollbar {
   width: 8px;

@@ -20,21 +20,15 @@ export function ChatPanel() {
   if (!isOpen) return null;
 
   return (
-    <div className={[
-      'fixed bottom-16 right-4 z-40',
-      'w-96 h-[32rem]',
-      'border-2 border-mac-black bg-mac-white',
-      'flex flex-col',
-      'shadow-none',
-    ].join(' ')}>
+    <div className="chat-overlay-panel">
       {/* Header */}
-      <div className="border-b-2 border-mac-black px-3 py-2 flex items-center justify-between">
-        <span className="font-bold text-sm tracking-wide">CHAT</span>
-        <div className="flex items-center gap-2">
+      <div className="chat-overlay-panel-header">
+        <span className="chat-overlay-panel-title">CHAT</span>
+        <div className="chat-overlay-panel-actions">
           <StatusIndicator status={wsStatus} />
           <button
             onClick={() => client.close()}
-            className="w-5 h-5 border border-mac-black flex items-center justify-center text-xs font-bold hover:bg-mac-black hover:text-mac-white"
+            className="chat-overlay-close-button"
           >
             ×
           </button>
@@ -46,7 +40,7 @@ export function ChatPanel() {
         ref={scroll.containerRef}
         onScroll={scroll.onScroll}
         onWheel={scroll.onWheel}
-        className="flex-1 overflow-y-auto p-3 space-y-2"
+        className="chat-overlay-messages-scroll"
       >
         <ChatMessages bottomRef={scroll.tailRef} />
       </div>
@@ -55,7 +49,7 @@ export function ChatPanel() {
         <button
           type="button"
           onClick={scroll.jumpToLatest}
-          className="mx-3 mb-2 border border-mac-black bg-mac-white px-2 py-1 text-[10px] uppercase hover:bg-mac-black hover:text-mac-white"
+          className="chat-overlay-jump-button"
         >
           Jump to latest
         </button>
@@ -63,14 +57,14 @@ export function ChatPanel() {
 
       {/* Error bar */}
       {error && (
-        <div className="border-t-2 border-mac-black px-3 py-1.5 bg-mac-black text-mac-white text-xs">
+        <div className="chat-overlay-error-bar">
           {error}
         </div>
       )}
 
       {/* Status bar */}
       {isStreaming && (
-        <div className="border-t border-mac-gray-4 px-3 py-1 text-xs text-mac-gray-2">
+        <div className="chat-overlay-streaming-bar">
           <span className="cursor-blink">▌</span> generating...
         </div>
       )}

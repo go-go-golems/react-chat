@@ -24,7 +24,7 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
   );
 
   return (
-    <div className="border-t-2 border-mac-black p-2 flex gap-2">
+    <div className="chat-overlay-composer">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -32,34 +32,19 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
         disabled={disabled}
         placeholder={disabled ? 'generating...' : 'Type a message...'}
         rows={1}
-        className={[
-          'flex-1 resize-none',
-          'border border-mac-black px-2 py-1',
-          'font-mono text-xs',
-          'bg-mac-white text-mac-black',
-          'placeholder:text-mac-gray-3',
-          'focus:outline-none focus:border-2 focus:border-mac-black',
-          disabled ? 'opacity-50 cursor-not-allowed' : '',
-        ].join(' ')}
+        className="chat-overlay-composer-input"
       />
       <button
         onClick={send}
         disabled={disabled || !text.trim()}
-        className={[
-          'px-3 py-1',
-          'border border-mac-black',
-          'font-mono text-xs font-bold',
-          'bg-mac-white text-mac-black',
-          'hover:bg-mac-black hover:text-mac-white',
-          'disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-mac-white disabled:hover:text-mac-black',
-        ].join(' ')}
+        className="chat-overlay-composer-button"
       >
         SEND
       </button>
       {runStatus === 'streaming' && (
         <button
           onClick={() => client.stop()}
-          className="px-2 py-1 border border-mac-black font-mono text-xs font-bold bg-mac-white hover:bg-mac-black hover:text-mac-white"
+          className="chat-overlay-composer-button"
         >
           STOP
         </button>
