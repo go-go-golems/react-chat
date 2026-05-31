@@ -55,3 +55,14 @@ Implemented Phase 0 guardrails and Phase 1 route-mode split for Pinocchio web-ch
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/App.tsx — Named root route composition
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/routeMode.ts — Typed route-mode parser
 
+
+## 2026-05-31
+
+Implemented Phase 2 by moving provider-backed web-chat files into src/features/web-chat with compatibility exports (commit 833fa7c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/README.md — Feature boundary documentation
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx — Provider-backed app body
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx — Provider shell
+

@@ -21,6 +21,16 @@ RelatedFiles:
       Note: Phase 1 app route switch (commit bf3a98b)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/routeMode.ts
       Note: Phase 1 typed route-mode parser (commit bf3a98b)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/index.ts
+      Note: Temporary compatibility export for old provider path (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/README.md
+      Note: Phase 2 feature boundary README (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx
+      Note: Provider-backed web-chat chrome moved to feature folder (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx
+      Note: Provider config/profile bridge moved to feature folder (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-projectors/pinocchioProjectors.ts
+      Note: Pinocchio projectors moved under feature extensions (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Canonical versus legacy export evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/vite.config.ts
@@ -31,6 +41,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -590,3 +601,89 @@ The difference is that each route mode now has a named root component, and query
   - `01-webchat-capabilities-showcase-smoke.js`
   - `02-webchat-chatprovider-demo-smoke.js`
   - `03-webchat-provider-multi-instance-smoke.js`
+
+## Step 9: Implement Phase 2 feature-folder layout for provider-backed web-chat
+
+This step moved the provider-backed production web-chat files out of the migration-era `src/chat/provider` folder and into the new `src/features/web-chat` boundary. The app behavior is still intended to be unchanged: old import paths continue through small compatibility re-exports, while new code can import the canonical feature-folder surface.
+
+The move also created the first component-style folders for the provider-backed shell: `WebChatProviderShell` owns provider configuration and the profile bridge, while `WebChatApp` owns the provider-backed chrome/body. Provider support helpers and Pinocchio projectors now live under named subfolders instead of being mixed with route/demo files.
+
+### Prompt Context
+
+**User prompt (verbatim):** "phase 2"
+
+**Assistant interpretation:** Implement CHATOVERLAY-009 Phase 2: create the `features/web-chat` folder, move provider-backed production files there, keep compatibility wrappers, validate, update docs/diary, and commit.
+
+**Inferred user intent:** Continue the cleanup by making the provider-backed production web-chat feature boundary concrete without breaking existing routes or smokes.
+
+**Commit (code):** 833fa7c — "refactor: move web-chat provider files to feature folder"
+
+### What I did
+- Added `cmd/web-chat/web/src/features/web-chat/README.md`.
+- Created `src/features/web-chat/WebChatProviderShell/`:
+  - `WebChatProviderShell.tsx`
+  - `types.ts`
+  - `index.ts`
+- Created `src/features/web-chat/WebChatApp/`:
+  - `WebChatApp.tsx`
+  - `types.ts`
+  - `index.ts`
+  - provider-specific renderer/statusbar components.
+- Moved provider support helpers into `src/features/web-chat/provider-support/`:
+  - `providerDebug.ts`
+  - `providerSession.ts`
+  - `providerTimeline.ts`
+- Moved Pinocchio projectors into `src/features/web-chat/extensions/pinocchio-projectors/`.
+- Moved provider multi-demo into `src/features/web-chat/demos/ProviderMultiDemo/` so it is visibly temporary/demo-scoped ahead of Phase 5.
+- Kept compatibility exports:
+  - `src/chat/provider/index.ts`
+  - `src/webchat/ProviderBackedChatWidget.tsx`
+  - `src/webchat/ProviderMultiDemoPage.tsx`
+- Updated `src/webchat/ProviderDemoPage.tsx` to import projectors from the feature boundary.
+- Updated `src/MIGRATION_CHECKLIST.md` to mark the moved provider files as done/moved.
+
+### Why
+- `src/chat/provider` was a migration staging area, not a clear feature boundary.
+- New contributors need one obvious home for canonical production web-chat code.
+- Keeping compatibility wrappers makes this a safe structural move before later deletion phases.
+
+### What worked
+- TypeScript typecheck passed after import rewrites.
+- Biome import organization fixed the new barrel/type files.
+- Build, Storybook build, route-mode unit test, and provider multi-instance smoke all passed.
+
+### What didn't work
+- Initial lint failed because newly created export/type files did not match Biome import/export sorting. I fixed it with:
+  - `npx --yes @biomejs/biome@2.3.8 check --write src/features/web-chat src/webchat/ProviderDemoPage.tsx src/webchat/ProviderBackedChatWidget.tsx src/webchat/ProviderMultiDemoPage.tsx src/chat/provider/index.ts`
+- Relative imports were easy to get wrong after moving deeply nested files. I corrected paths from `features/web-chat/...` back to `store`, `utils`, `webchat`, and `ws`.
+
+### What I learned
+- The provider-backed shell naturally splits into two concepts: provider/profile configuration (`WebChatProviderShell`) and render/chrome composition (`WebChatApp`).
+- Demo code should live under `demos/` even before deletion so it stops looking canonical.
+
+### What was tricky to build
+- The move had to preserve existing public names (`ProviderBackedChatWidget`, `ProviderMultiDemoPage`) while introducing cleaner new names (`WebChatProviderShell`, `WebChatApp`). The compatibility exports keep the old names alive without forcing new code to import them.
+- `ProviderDemoPage` still lives under `webchat` until Phase 5, so it imports feature projectors across the old/new boundary. That is temporary and documented.
+
+### What warrants a second pair of eyes
+- Review whether `pinocchioProjectors.ts` should have waited until Phase 9 to move. I moved it now because it is part of the provider-backed feature boundary, but it still needs Phase 9 splitting/tests.
+- Review whether the provider multi-demo should remain under `features/web-chat/demos` or move directly into a test harness before Phase 5.
+
+### What should be done in the future
+- Phase 3 should move visual components (`Header`, `Statusbar`, `Composer`, `Timeline`) into one-folder-per-component feature folders.
+- Phase 5 should delete or move demo routes and capability code.
+
+### Code review instructions
+- Start with `src/features/web-chat/README.md`.
+- Then review `WebChatProviderShell/WebChatProviderShell.tsx` and `WebChatApp/WebChatApp.tsx`.
+- Confirm compatibility wrappers are small and temporary.
+- Validate with `npm run typecheck`, `npm run lint`, `npm run build`, `npm run build-storybook`, and the provider multi-instance smoke.
+
+### Technical details
+- Validation commands run:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - `npx vitest run src/app/routeMode.test.ts`
+  - `node .../03-webchat-provider-multi-instance-smoke.js`

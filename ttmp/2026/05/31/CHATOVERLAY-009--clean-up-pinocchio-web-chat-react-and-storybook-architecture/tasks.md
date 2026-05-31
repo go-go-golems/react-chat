@@ -40,14 +40,14 @@ Goal: make app entrypoints and dev/demo routes explicit before moving components
 
 Goal: introduce the target folder convention without changing component behavior.
 
-- [ ] Create `src/features/web-chat/README.md` documenting canonical production web-chat ownership.
-- [ ] Create `src/features/web-chat/WebChatApp/` with `WebChatApp.tsx`, `types.ts`, `index.ts`, and `WebChatApp.stories.tsx`.
-- [ ] Create `src/features/web-chat/WebChatProviderShell/` with provider config and profile bridge boundaries.
-- [ ] Move provider-backed production files from `src/chat/provider/*` into `src/features/web-chat/WebChatApp/` and `WebChatProviderShell/`.
-- [ ] Move `providerSession.ts`, `providerDebug.ts`, and `providerTimeline.ts` into clearly named provider support folders.
-- [ ] Keep old `src/chat/provider/index.ts` exports only as temporary compatibility wrappers.
-- [ ] Update imports in `src/webchat/index.ts` and app routes to point at the new feature paths.
-- [ ] Validate with typecheck, lint, build, and provider multi-instance smoke.
+- [x] Create `src/features/web-chat/README.md` documenting canonical production web-chat ownership.
+- [x] Create `src/features/web-chat/WebChatApp/` with `WebChatApp.tsx`, `types.ts`, `index.ts`, and `WebChatApp.stories.tsx`.
+- [x] Create `src/features/web-chat/WebChatProviderShell/` with provider config and profile bridge boundaries.
+- [x] Move provider-backed production files from `src/chat/provider/*` into `src/features/web-chat/WebChatApp/` and `WebChatProviderShell/`.
+- [x] Move `providerSession.ts`, `providerDebug.ts`, and `providerTimeline.ts` into clearly named provider support folders.
+- [x] Keep old `src/chat/provider/index.ts` exports only as temporary compatibility wrappers.
+- [x] Update imports in `src/webchat/index.ts` and app routes to point at the new feature paths.
+- [x] Validate with typecheck, lint, build, and provider multi-instance smoke.
 
 ## Phase 3 — Component folders and Storybook foundation
 
