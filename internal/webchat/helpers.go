@@ -1,7 +1,6 @@
 package webchat
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-go-golems/pinocchio/pkg/chatapp/serverkit"
@@ -64,25 +63,11 @@ type snapshotEntityResponse struct {
 // --- Helpers ---
 
 func decodeJSON(r *http.Request, v any) error {
-	if r.Body == nil {
-		return nil
-	}
-	defer r.Body.Close()
-	err := json.NewDecoder(r.Body).Decode(v)
-	if err != nil {
-		// EOF is fine for empty bodies (e.g. POST /api/chat/sessions with no body)
-		if _, ok := err.(*json.SyntaxError); ok || err.Error() == "EOF" {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return serverkit.DecodeJSON(r, v)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	serverkit.WriteJSON(w, status, v)
 }
 
 func encodeSnapshotResponse(snap sessionstream.Snapshot) snapshotResponse {
