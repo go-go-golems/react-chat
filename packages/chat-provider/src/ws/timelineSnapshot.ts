@@ -57,12 +57,17 @@ export function timelineEntityFromSnapshotEntity(entity: SnapshotEntityFrame): T
   return { id, kind: kind || 'system', createdAt: Date.now(), updatedAt: Date.now(), props: payload };
 }
 
-export function applySnapshot(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '') {
+export type SnapshotDebugEntity = { raw: SnapshotEntityFrame; mapped: TimelineEntity | null };
+
+export function applySnapshot(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = ''): SnapshotDebugEntity[] {
   dispatch(timelineSlice.actions.clear());
   const entities = Array.isArray(frame.entities) ? (frame.entities as SnapshotEntityFrame[]) : [];
+  const debugEntities: SnapshotDebugEntity[] = [];
   for (const entity of entities) {
     const mapped = timelineEntityFromSnapshotEntity(entity);
+    debugEntities.push({ raw: entity, mapped });
     if (!mapped) continue;
     dispatch(timelineSlice.actions.upsertEntity(mapped));
   }
+  return debugEntities;
 }

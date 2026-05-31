@@ -11,12 +11,22 @@ import { applyUIEvent } from './timelineEvents';
 import type { ToolRuntime } from '../tools/toolRuntime';
 import { applySnapshot } from './timelineSnapshot';
 
+export type ChatDebugEvent =
+  | { type: 'ws-lifecycle'; sessionId: string; event: string; [key: string]: unknown }
+  | { type: 'raw-ws'; sessionId: string; size: number; preview: string; raw: string }
+  | { type: 'parsed-frame'; sessionId: string; frameType?: unknown; name?: unknown; ordinal?: unknown; frame: CanonicalFrame }
+  | { type: 'snapshot'; sessionId: string; ordinal?: unknown; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
+  | { type: 'ui-event'; sessionId: string; ordinal?: unknown; name?: unknown; messageId?: unknown; mutation: unknown };
+
+export type ChatDebugHandler = (event: ChatDebugEvent) => void;
+
 type ConnectArgs = {
   sessionId: string;
   basePrefix: string;
   dispatch: AppDispatch;
   onStatus?: (s: string) => void;
   toolRuntime?: ToolRuntime;
+  onDebugEvent?: ChatDebugHandler;
 };
 
 export class WsManager {
@@ -41,6 +51,7 @@ export class WsManager {
     this.buffered = [];
     this.lastOnStatus = args.onStatus ?? null;
 
+    args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'connecting', nonce });
     args.onStatus?.('connecting...');
     const ws = new WebSocket(buildWebSocketURL({ basePrefix: args.basePrefix }));
     this.ws = ws;
@@ -59,6 +70,7 @@ export class WsManager {
     ws.onopen = () => {
       settleOpen?.();
       if (nonce !== this.connectNonce) return;
+      args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'connected', nonce });
       args.onStatus?.('connected');
       try {
         ws.send(encodeSubscribeFrame(args.sessionId));
@@ -69,17 +81,29 @@ export class WsManager {
     ws.onclose = () => {
       settleOpen?.();
       if (nonce !== this.connectNonce) return;
+      args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'closed', nonce });
       args.onStatus?.('closed');
     };
     ws.onerror = () => {
       settleOpen?.();
       if (nonce !== this.connectNonce) return;
+      args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'error', nonce });
       args.onStatus?.('error');
     };
     ws.onmessage = (m) => {
       if (nonce !== this.connectNonce) return;
+      const raw = String(m.data);
+      args.onDebugEvent?.({ type: 'raw-ws', sessionId: args.sessionId, size: raw.length, preview: raw.slice(0, 1000), raw });
       try {
-        const frame = parseServerFrame(String(m.data));
+        const frame = parseServerFrame(raw);
+        args.onDebugEvent?.({
+          type: 'parsed-frame',
+          sessionId: args.sessionId,
+          frameType: frame.type,
+          name: frame.name,
+          ordinal: frame.ordinal,
+          frame,
+        });
         const ord = safeOrdinal(frame.ordinal);
         if (ord !== null) {
           // Could dispatch to a lastSeq slice if needed
@@ -118,7 +142,21 @@ export class WsManager {
     }
     if (type === 'snapshot') {
       if (nonce !== this.connectNonce) return;
-      applySnapshot(frame, args.dispatch, args.sessionId);
+      const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId);
+      args.onDebugEvent?.({
+        type: 'snapshot',
+        sessionId: args.sessionId,
+        ordinal: frame.ordinal,
+        entityCount: debugEntities.length,
+        droppedCount: debugEntities.filter((entity) => !entity.mapped).length,
+        entities: debugEntities.map((entity) => ({
+          rawKind: entity.raw.kind,
+          rawId: entity.raw.id,
+          mappedId: entity.mapped?.id,
+          mappedKind: entity.mapped?.kind,
+          dropped: !entity.mapped,
+        })),
+      });
       this.hydrated = true;
       args.onStatus?.('hydrated');
       const buffered = this.buffered;
@@ -137,7 +175,15 @@ export class WsManager {
         this.buffered.push(frame);
         return;
       }
-      applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime);
+      const mutation = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime);
+      args.onDebugEvent?.({
+        type: 'ui-event',
+        sessionId: args.sessionId,
+        ordinal: frame.ordinal,
+        name: frame.name,
+        messageId: (frame.payload as any)?.messageId,
+        mutation,
+      });
     }
   }
 }

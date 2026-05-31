@@ -19,3 +19,4 @@ export { useFrontendTool } from './tools/useFrontendTool';
 export { useHumanTool } from './tools/useHumanTool';
 export { useToolUI } from './tools/useToolUI';
 export { ToolCallOutlet } from './tools/ToolCallOutlet';
+export type { ChatDebugEvent, ChatDebugHandler } from './ws/wsManager';

@@ -3,7 +3,7 @@ import { overlaySlice } from '../store/overlaySlice';
 import { timelineSlice } from '../store/timelineSlice';
 import type { ToolRegistry } from '../tools/toolRegistry';
 import type { ToolRuntime } from '../tools/toolRuntime';
-import type { WsManager } from '../ws/wsManager';
+import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
 import { installToolkit, type ChatToolkit } from './toolkit';
 
 export type ChatRequestBody = Record<string, unknown>;
@@ -14,6 +14,7 @@ export type ChatProviderConfig = {
   sessionIdParam?: string;
   sessionStorageKey?: string;
   onSessionIdChange?: (sessionId: string | null) => void;
+  onDebugEvent?: ChatDebugHandler;
   createSessionBody?: () => ChatRequestBody | Promise<ChatRequestBody>;
   sendMessageBody?: (args: { prompt: string }) => ChatRequestBody | Promise<ChatRequestBody>;
 };
@@ -116,6 +117,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       dispatch,
       toolRuntime: args.toolRuntime,
       onStatus: (s) => dispatch(overlaySlice.actions.setWsStatus(s)),
+      onDebugEvent: config.onDebugEvent,
     });
   }
 

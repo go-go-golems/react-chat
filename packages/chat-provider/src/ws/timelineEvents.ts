@@ -5,7 +5,7 @@ import { messageEntity, toolCallEntity, widgetEntity } from './timelineSnapshot'
 import type { CanonicalFrame } from './protocol';
 import type { ToolRuntime } from '../tools/toolRuntime';
 
-type TimelineMutation = {
+export type TimelineMutation = {
   upsert?: TimelineEntity;
   upsertIfExists?: TimelineEntity;
   deleteId?: string;
@@ -164,10 +164,10 @@ export function timelineMutationFromUIEvent(frame: CanonicalFrame): TimelineMuta
   }
 }
 
-export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '', toolRuntime?: ToolRuntime) {
+export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '', toolRuntime?: ToolRuntime): TimelineMutation | null {
   toolRuntime?.handleFrontendToolUIEvent(frame);
   const mutation = timelineMutationFromUIEvent(frame);
-  if (!mutation) return;
+  if (!mutation) return null;
   if (mutation.deleteId) {
     dispatch(timelineSlice.actions.deleteEntity(mutation.deleteId));
   }
@@ -180,4 +180,5 @@ export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sess
   if (mutation.status) {
     dispatch(overlaySlice.actions.setRunStatus(mutation.status));
   }
+  return mutation;
 }
