@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
 	mockengine "github.com/go-go-golems/chat-overlay/internal/mockengine"
-	toolv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/tools/v1"
+	"github.com/go-go-golems/pinocchio/pkg/chatapp/frontendtools"
+	toolv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/frontendtools/v1"
 	chatappv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/v1"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
 	"github.com/google/uuid"

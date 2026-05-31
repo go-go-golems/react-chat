@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
 	mockengine "github.com/go-go-golems/chat-overlay/internal/mockengine"
 	"github.com/go-go-golems/chat-overlay/internal/widgets"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	chatapp "github.com/go-go-golems/pinocchio/pkg/chatapp"
+	"github.com/go-go-golems/pinocchio/pkg/chatapp/frontendtools"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
 	wstransport "github.com/go-go-golems/sessionstream/pkg/sessionstream/transport/ws"
 )

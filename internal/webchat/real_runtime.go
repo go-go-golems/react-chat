@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-go-golems/chat-overlay/internal/frontendtools"
 	geptools "github.com/go-go-golems/geppetto/pkg/inference/tools"
 	"github.com/go-go-golems/geppetto/pkg/turns"
 	"github.com/go-go-golems/geppetto/pkg/turns/serde"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/pinocchio/pkg/chatapp"
+	"github.com/go-go-golems/pinocchio/pkg/chatapp/frontendtools"
 	"github.com/go-go-golems/pinocchio/pkg/cmds/profilebootstrap"
 	infruntime "github.com/go-go-golems/pinocchio/pkg/inference/runtime"
 	"github.com/go-go-golems/pinocchio/pkg/persistence/chatstore"
