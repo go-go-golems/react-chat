@@ -42,3 +42,12 @@ Implemented provider-scoped extension registries, migrated ecommerce/widgets and
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/ecommerce/extensions.ts — Ecommerce extension migration
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/chat/provider/projectors/pinocchioProjectors.ts — Pinocchio projector extension
 
+
+## 2026-05-31
+
+Uploaded updated implementation bundle to reMarkable at /ai/2026/05/31/CHATOVERLAY-008.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-008--provider-scoped-extension-registry-for-tools-widgets-and-projectors/reference/01-implementation-diary.md — Updated implementation diary included in upload
+
