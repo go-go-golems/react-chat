@@ -29,3 +29,12 @@ Implemented typed widget migration into pinocchio/pkg/chatapp/widgets; migrated 
 
 Ticket closed
 
+
+## 2026-05-30
+
+Uploaded final CHATOVERLAY-005 documentation bundle to reMarkable at /ai/2026/05/30/CHATOVERLAY-005.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/reference/01-investigation-diary.md — Final implementation diary included in uploaded bundle
+
