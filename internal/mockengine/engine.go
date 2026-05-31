@@ -345,7 +345,7 @@ func (e *Engine) publishWidget(runCtx, publishCtx context.Context, sid sessionst
 		return err
 	}
 	if w.StreamParts <= 0 {
-		return publish(publishCtx, sid, pub, widgets.EventWidgetInstanceStarted, &widgetv1.WidgetInstanceStarted{InstanceId: instanceID, WidgetName: w.Name, ParentMessageId: parentMessageID, Status: widgetv1.WidgetStatus_WIDGET_STATUS_READY, Props: props})
+		return widgets.PublishWidgetInstanceStarted(publishCtx, sid, pub, &widgetv1.WidgetInstanceStarted{InstanceId: instanceID, WidgetName: w.Name, ParentMessageId: parentMessageID, Status: widgetv1.WidgetStatus_WIDGET_STATUS_READY, Props: props})
 	}
 
 	partial := map[string]any{}
@@ -360,7 +360,7 @@ func (e *Engine) publishWidget(runCtx, publishCtx context.Context, sid sessionst
 	if err != nil {
 		return err
 	}
-	if err := publish(publishCtx, sid, pub, widgets.EventWidgetInstanceStarted, &widgetv1.WidgetInstanceStarted{InstanceId: instanceID, WidgetName: w.Name, ParentMessageId: parentMessageID, Status: widgetv1.WidgetStatus_WIDGET_STATUS_STREAMING, Props: partialProps}); err != nil {
+	if err := widgets.PublishWidgetInstanceStarted(publishCtx, sid, pub, &widgetv1.WidgetInstanceStarted{InstanceId: instanceID, WidgetName: w.Name, ParentMessageId: parentMessageID, Status: widgetv1.WidgetStatus_WIDGET_STATUS_STREAMING, Props: partialProps}); err != nil {
 		return err
 	}
 
@@ -381,12 +381,12 @@ func (e *Engine) publishWidget(runCtx, publishCtx context.Context, sid sessionst
 			if err != nil {
 				return err
 			}
-			if err := publish(publishCtx, sid, pub, widgets.EventWidgetInstancePatched, &widgetv1.WidgetInstancePatched{InstanceId: instanceID, WidgetName: w.Name, Status: widgetv1.WidgetStatus_WIDGET_STATUS_STREAMING, Patch: patch}); err != nil {
+			if err := widgets.PublishWidgetInstancePatched(publishCtx, sid, pub, &widgetv1.WidgetInstancePatched{InstanceId: instanceID, WidgetName: w.Name, Status: widgetv1.WidgetStatus_WIDGET_STATUS_STREAMING, Patch: patch}); err != nil {
 				return err
 			}
 		}
 	}
-	return publish(publishCtx, sid, pub, widgets.EventWidgetInstanceCompleted, &widgetv1.WidgetInstanceCompleted{InstanceId: instanceID, Status: widgetv1.WidgetStatus_WIDGET_STATUS_READY})
+	return widgets.PublishWidgetInstanceCompleted(publishCtx, sid, pub, &widgetv1.WidgetInstanceCompleted{InstanceId: instanceID, Status: widgetv1.WidgetStatus_WIDGET_STATUS_READY})
 }
 
 func (e *Engine) publishStopped(ctx context.Context, sid sessionstream.SessionId, pub sessionstream.EventPublisher, messageID, textSegmentID, prompt, accumulated string) {
