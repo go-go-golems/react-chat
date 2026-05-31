@@ -4,6 +4,7 @@ import type { AppDispatch } from '../store/store';
 import { messageEntity, toolCallEntity, widgetEntity } from './timelineSnapshot';
 import type { CanonicalFrame } from './protocol';
 import type { ToolRuntime } from '../tools/toolRuntime';
+import type { TimelineProjectionResult, TimelineProjector, TimelineProjectorRegistry } from './projectorRegistry';
 
 export type TimelineMutation = {
   upsert?: TimelineEntity;
@@ -219,10 +220,13 @@ export function timelineMutationFromUIEvent(frame: CanonicalFrame): TimelineMuta
   }
 }
 
-export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = '', toolRuntime?: ToolRuntime): TimelineMutation | null {
-  toolRuntime?.handleFrontendToolUIEvent(frame);
-  const mutation = timelineMutationFromUIEvent(frame);
-  if (!mutation) return null;
+export const coreChatProjector: TimelineProjector = {
+  name: 'chat-provider.core',
+  priority: 0,
+  project: (frame) => timelineMutationFromUIEvent(frame),
+};
+
+export function applyTimelineMutation(dispatch: AppDispatch, mutation: TimelineMutation) {
   if (mutation.deleteId) {
     dispatch(timelineSlice.actions.deleteEntity(mutation.deleteId));
   }
@@ -235,5 +239,19 @@ export function applyUIEvent(frame: CanonicalFrame, dispatch: AppDispatch, _sess
   if (mutation.status) {
     dispatch(overlaySlice.actions.setRunStatus(mutation.status));
   }
-  return mutation;
+}
+
+export function applyUIEvent(
+  frame: CanonicalFrame,
+  dispatch: AppDispatch,
+  sessionId = '',
+  toolRuntime?: ToolRuntime,
+  projectorRegistry?: TimelineProjectorRegistry,
+): TimelineProjectionResult | null {
+  toolRuntime?.handleFrontendToolUIEvent(frame);
+  const projection = projectorRegistry?.project(frame, { sessionId, toolRuntime }) ?? coreChatProjector.project(frame, { sessionId, toolRuntime });
+  if (!projection) return null;
+  const result = 'mutation' in projection ? projection : { mutation: projection, projectorName: coreChatProjector.name };
+  applyTimelineMutation(dispatch, result.mutation);
+  return result;
 }

@@ -1,8 +1,10 @@
-import { getWidgetDefinition, type WidgetProps } from './widgetRegistry';
+import { useChatRuntime } from '../core/context';
 import { UnknownWidget } from './UnknownWidget';
+import type { WidgetProps } from './widgetRegistry';
 
 export function WidgetOutlet({ instanceId, widgetName, status, props }: WidgetProps) {
-  const def = getWidgetDefinition(widgetName);
+  const { widgetRegistry } = useChatRuntime();
+  const def = widgetRegistry.get(widgetName);
 
   if (!def) {
     return <UnknownWidget instanceId={instanceId} widgetName={widgetName} status={status} props={props} />;

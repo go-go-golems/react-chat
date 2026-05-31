@@ -1,10 +1,16 @@
 import { createContext, useContext } from 'react';
-import type { ChatClient } from './createChatClient';
 import type { ToolRuntime } from '../tools/toolRuntime';
+import type { ToolRegistry } from '../tools/toolRegistry';
+import type { TimelineProjectorRegistry } from '../ws/projectorRegistry';
+import type { WidgetRegistry } from '../widgets/widgetRegistry';
+import type { ChatClient } from './createChatClient';
 
 export type ChatRuntimeContextValue = {
   client: ChatClient;
   toolRuntime: ToolRuntime;
+  toolRegistry: ToolRegistry;
+  widgetRegistry: WidgetRegistry;
+  projectorRegistry: TimelineProjectorRegistry;
 };
 
 export const ChatRuntimeContext = createContext<ChatRuntimeContextValue | null>(null);

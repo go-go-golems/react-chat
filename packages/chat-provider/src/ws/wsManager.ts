@@ -9,6 +9,7 @@ import {
 } from './protocol';
 import { applyUIEvent } from './timelineEvents';
 import type { ToolRuntime } from '../tools/toolRuntime';
+import type { TimelineProjectorRegistry } from './projectorRegistry';
 import { applySnapshot } from './timelineSnapshot';
 
 export type ChatDebugEvent =
@@ -16,7 +17,7 @@ export type ChatDebugEvent =
   | { type: 'raw-ws'; sessionId: string; size: number; preview: string; raw: string }
   | { type: 'parsed-frame'; sessionId: string; frameType?: unknown; name?: unknown; ordinal?: unknown; frame: CanonicalFrame }
   | { type: 'snapshot'; sessionId: string; ordinal?: unknown; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
-  | { type: 'ui-event'; sessionId: string; ordinal?: unknown; name?: unknown; messageId?: unknown; mutation: unknown };
+  | { type: 'ui-event'; sessionId: string; ordinal?: unknown; name?: unknown; messageId?: unknown; mutation: unknown; projectorName?: string };
 
 export type ChatDebugHandler = (event: ChatDebugEvent) => void;
 
@@ -26,6 +27,7 @@ type ConnectArgs = {
   dispatch: AppDispatch;
   onStatus?: (s: string) => void;
   toolRuntime?: ToolRuntime;
+  projectorRegistry?: TimelineProjectorRegistry;
   onDebugEvent?: ChatDebugHandler;
 };
 
@@ -175,14 +177,15 @@ export class WsManager {
         this.buffered.push(frame);
         return;
       }
-      const mutation = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime);
+      const projection = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime, args.projectorRegistry);
       args.onDebugEvent?.({
         type: 'ui-event',
         sessionId: args.sessionId,
         ordinal: frame.ordinal,
         name: frame.name,
         messageId: (frame.payload as any)?.messageId,
-        mutation,
+        mutation: projection?.mutation ?? null,
+        projectorName: projection?.projectorName,
       });
     }
   }

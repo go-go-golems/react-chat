@@ -1,14 +1,15 @@
-import type { ChatStore, AppDispatch } from '../store/store';
 import { overlaySlice } from '../store/overlaySlice';
+import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
 import type { ToolRegistry } from '../tools/toolRegistry';
 import type { ToolRuntime } from '../tools/toolRuntime';
+import type { TimelineProjectorRegistry } from '../ws/projectorRegistry';
 import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
-import { installToolkit, type ChatToolkit } from './toolkit';
+import type { ChatExtensionConfig } from './extensions';
 
 export type ChatRequestBody = Record<string, unknown>;
 
-export type ChatProviderConfig = {
+export type ChatProviderConfig = ChatExtensionConfig & {
   basePrefix?: string;
   apiBase?: string;
   sessionIdParam?: string;
@@ -42,7 +43,6 @@ export type ChatClient = {
   reset: () => void;
   getStore: () => ChatStore;
   tools: ChatClientTools;
-  use: (toolkit: ChatToolkit) => () => void;
 };
 
 export type CreateChatClientArgs = {
@@ -50,6 +50,7 @@ export type CreateChatClientArgs = {
   store: ChatStore;
   toolRegistry: ToolRegistry;
   toolRuntime: ToolRuntime;
+  projectorRegistry: TimelineProjectorRegistry;
   wsManager: WsManager;
 };
 
@@ -116,6 +117,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       basePrefix,
       dispatch,
       toolRuntime: args.toolRuntime,
+      projectorRegistry: args.projectorRegistry,
       onStatus: (s) => dispatch(overlaySlice.actions.setWsStatus(s)),
       onDebugEvent: config.onDebugEvent,
     });
@@ -203,6 +205,5 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
 
     getStore: () => args.store,
     tools,
-    use(toolkit: ChatToolkit) { return installToolkit(this, toolkit); },
   };
 }

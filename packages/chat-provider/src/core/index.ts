@@ -1,6 +1,6 @@
 export type { ChatClient, ChatProviderConfig, ChatClientTools, ToolResultSubmission } from './createChatClient';
 export { createChatClient } from './createChatClient';
-export { defineToolkit, installToolkit } from './toolkit';
-export type { ChatToolkit } from './toolkit';
-export { useToolkit } from './useToolkit';
+export { defineChatExtensions, installChatExtension, installChatExtensions, normalizeChatExtensions } from './extensions';
+export type { ChatExtension, ChatExtensionConfig, ChatRuntimeApi } from './extensions';
+export { useChatExtensions } from './useChatExtensions';
 export { ChatRuntimeContext, useChatRuntime, useChatClient } from './context';
