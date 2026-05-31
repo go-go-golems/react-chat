@@ -1078,3 +1078,74 @@ I also added repeatable Playwright/validation scripts under the ticket `scripts/
   - `npm run lint`
   - `npx vitest run src/app/routeMode.test.ts`
   - `go test ./cmd/web-chat/app ./pkg/chatapp -count=1`
+
+## Step 14: Design profile-driven deterministic mock inference mode
+
+This step corrected the mock-inference direction before implementation. A prompt-triggered mock path would have been a shortcut in the wrong layer, so I removed the uncommitted exploratory code and wrote a profile-driven implementation guide instead.
+
+The guide defines `mock_parity` as an explicit runtime/profile choice. It keeps normal prompts normal, avoids reintroducing provider demo routes, and gives Phase 6 a deterministic way to exercise reasoning, chat streaming, backend tool calls, frontend tool calls, widgets, and app-owned special events without a live LLM.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we create a mock inference engine in web-chat so that we can test all the different scenarios of events (tool call, thinking streaming, chat streaming, special events, frontend tool call, registered widget) quickly and withouth aving to rely on an llm? that way doing proper parity testing will be much easier, as well as automated testing in the future"
+
+**Assistant interpretation:** Explore adding a deterministic mock inference path for parity and automation coverage.
+
+**Inferred user intent:** Make provider-backed parity tests reliable and independent of LLM availability or probabilistic output.
+
+**User prompt (verbatim):** "let's do it through a custom profile"
+
+**Assistant interpretation:** Use profile/runtime configuration as the activation mechanism, not prompt text or route hacks.
+
+**Inferred user intent:** Keep mock mode explicit, architectural, and consistent with web-chat profile selection.
+
+**User prompt (verbatim):** "not through hacks like these."
+
+**Assistant interpretation:** Revert the exploratory prompt-triggered mock code and document the proper design before implementation.
+
+**Inferred user intent:** Avoid hidden behavior and keep production architecture clean.
+
+**User prompt (verbatim):** "add a detailed guide to the ticket on how to implement this mock mode, in detail, then add phases and tasks to the ticket."
+
+**Assistant interpretation:** Write a ticket-local implementation guide and update the ticket task plan with phases/tasks for profile-driven mock inference.
+
+**Inferred user intent:** Plan the work carefully before coding and preserve the design in docmgr.
+
+### What I did
+- Reverted uncommitted exploratory prompt-triggered mock changes in Pinocchio.
+- Added `design-doc/02-deterministic-mock-inference-profile-guide.md`.
+- Added `Phase 6A — Deterministic mock inference profile before legacy deletion` to `tasks.md`.
+- Related the guide to the relevant Pinocchio runtime/profile/chatapp files.
+
+### Why
+- Mock mode should be activated by an explicit profile such as `mock_parity`, not by prompt matching.
+- A deterministic profile is the right foundation for reliable Playwright and future CI tests.
+
+### What worked
+- The ticket now has a detailed implementation plan covering backend profile schema, runtime composition, mock engine scenarios, frontend tools/widgets, tests, and Playwright scripts.
+- The Pinocchio working tree was restored to clean before documenting the proper design.
+
+### What didn't work
+- The initial exploratory approach used prompt detection and frontend fixture registration directly in production setup. That was intentionally discarded before commit.
+
+### What I learned
+- The existing `PromptRequest.RuntimeContext` hook is the right mechanism for passing session id/message id/publisher handles into a mock runtime, but activation should come from resolved profile runtime configuration.
+
+### What was tricky to build
+- The desired scenario spans two event channels: Geppetto events for chat/reasoning/backend tools, and app/sessionstream events for frontend tools and widgets. The guide separates these paths and proposes a runtime context bridge instead of overloading prompts.
+
+### What warrants a second pair of eyes
+- Review whether `MockInferenceRuntime` belongs directly in `ProfileRuntime` or as a nested extension type with stricter validation.
+- Review whether mock frontend tools/widgets should register only for mock profiles or can remain app-owned test fixtures that are harmless for all profiles.
+
+### What should be done in the future
+- Implement Phase 6A before deleting legacy Redux/WebSocket chat.
+
+### Code review instructions
+- Start with `design-doc/02-deterministic-mock-inference-profile-guide.md`.
+- Then review the new Phase 6A tasks in `tasks.md`.
+- Confirm no prompt-triggered mock code was left in Pinocchio.
+
+### Technical details
+- No code changes were committed for mock inference in this step.
+- The guide explicitly forbids prompt matching and route-flag activation.

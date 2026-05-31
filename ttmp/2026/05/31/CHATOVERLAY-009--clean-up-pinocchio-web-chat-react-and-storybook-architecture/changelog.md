@@ -111,3 +111,13 @@ Implemented Phase 6 parity checklist and repeatable Playwright/validation script
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/01-phase6-webchat-parity-smoke.js — Main parity smoke
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src — Markdown removed from source
 
+
+## 2026-05-31
+
+Added a detailed profile-driven mock inference implementation guide and Phase 6A task plan; reverted prompt-hack exploration before implementation.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/design-doc/02-deterministic-mock-inference-profile-guide.md — Mock profile design
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md — Phase 6A tasks
+
