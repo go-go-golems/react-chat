@@ -28,8 +28,8 @@ export function installToolkit(client: ChatClient, toolkit: ChatToolkit): () => 
   void client.tools.syncManifest();
 
   return () => {
-    for (const cleanup of cleanupFns.toReversed()) {
-      cleanup();
+    for (let i = cleanupFns.length - 1; i >= 0; i--) {
+      cleanupFns[i]?.();
     }
     void client.tools.syncManifest();
   };
