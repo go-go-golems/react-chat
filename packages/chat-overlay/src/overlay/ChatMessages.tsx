@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
-import { useAppSelector, selectTimelineEntities } from '../store/store';
-import { WidgetOutlet } from '../widgets/WidgetOutlet';
-import { ToolCallOutlet } from '../tools/ToolCallOutlet';
+import { useAppSelector, selectTimelineEntities } from '@go-go-golems/chat-provider';
+import { WidgetOutlet } from '@go-go-golems/chat-provider';
+import { ToolCallOutlet } from '@go-go-golems/chat-provider';
 
 export function ChatMessages({ bottomRef }: { bottomRef?: RefObject<HTMLDivElement | null> } = {}) {
   const entities = useAppSelector(selectTimelineEntities);

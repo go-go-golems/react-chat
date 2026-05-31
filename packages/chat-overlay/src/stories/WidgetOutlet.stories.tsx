@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { WidgetOutlet } from '../widgets/WidgetOutlet';
+import { WidgetOutlet } from '@go-go-golems/chat-provider';
 import '../ecommerce';
 
 import '../theme/retro-mac.css';

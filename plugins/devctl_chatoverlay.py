@@ -171,7 +171,7 @@ for line in sys.stdin:
             web_dir = os.path.join(repo_root, "web")
             node_modules = os.path.join(web_dir, "node_modules")
 
-            for tool in ["go", "node", "npx"]:
+            for tool in ["go", "node", "pnpm"]:
                 if shutil.which(tool) is None:
                     errors.append({"key": f"tool.{tool}", "message": f"required tool not found on PATH: {tool}"})
             if not os.path.isfile(os.path.join(repo_root, "go.mod")):
@@ -179,7 +179,7 @@ for line in sys.stdin:
             if not os.path.isdir(web_dir):
                 errors.append({"key": "web.dir", "message": "web directory not found"})
             if not os.path.isdir(node_modules):
-                warnings.append({"key": "frontend.node_modules", "message": "web/node_modules missing; devctl prepare will run npm install"})
+                warnings.append({"key": "frontend.node_modules", "message": "web/node_modules missing; devctl prepare will run pnpm install"})
             if not os.path.isfile(os.path.join(repo_root, "ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/scripts/01-widget-browser-smoke.js")):
                 warnings.append({"key": "smoke.widget", "message": "widget browser smoke script not found"})
 
@@ -198,13 +198,13 @@ for line in sys.stdin:
             node_modules = os.path.join(web_dir, "node_modules")
             steps = []
             if os.path.isdir(node_modules):
-                steps.append({"name": "npm-install", "ok": True, "output": {"reason": "node_modules exists"}})
+                steps.append({"name": "pnpm-install", "ok": True, "output": {"reason": "node_modules exists"}})
             elif dry_run:
-                steps.append({"name": "npm-install", "ok": True, "output": {"reason": "dry-run; npm install would run"}})
+                steps.append({"name": "pnpm-install", "ok": True, "output": {"reason": "dry-run; pnpm install would run"}})
             else:
-                if not run_step(rid, "npm install", ["npm", "install"], web_dir, timeout=180):
+                if not run_step(rid, "pnpm install", ["pnpm", "install"], repo_root, timeout=180):
                     continue
-                steps.append({"name": "npm-install", "ok": True})
+                steps.append({"name": "pnpm-install", "ok": True})
             emit({"type": "response", "request_id": rid, "ok": True, "output": {"steps": steps}})
 
         elif op == "build.run":
@@ -213,7 +213,7 @@ for line in sys.stdin:
             if not dry_run:
                 if not run_step(rid, "go test", ["go", "test", "./..."], repo_root, timeout=180):
                     continue
-                if not run_step(rid, "frontend build", ["npm", "run", "build"], os.path.join(repo_root, "web"), timeout=180):
+                if not run_step(rid, "frontend build", ["pnpm", "--filter", "@go-go-golems/chat-overlay-ecommerce-demo", "build"], repo_root, timeout=180):
                     continue
             steps.append({"name": "go-test", "ok": True, "output": {"dry_run": dry_run}})
             steps.append({"name": "frontend-build", "ok": True, "output": {"dry_run": dry_run}})
@@ -254,7 +254,7 @@ for line in sys.stdin:
                     backend_args.extend(["--profile-registries", profile_registries])
 
             backend_cmd = f"mkdir -p {shlex.quote(data_dir)} && exec {shell_join(backend_args)}"
-            vite_cmd = f"exec npx vite --host 127.0.0.1 --port {int(vite_port)} --clearScreen false"
+            vite_cmd = f"exec pnpm exec vite --host 127.0.0.1 --port {int(vite_port)} --clearScreen false"
 
             emit(
                 {

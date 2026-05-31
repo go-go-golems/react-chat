@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "@go-go-golems/chat-overlay-ecommerce-demo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,6 +12,8 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@go-go-golems/chat-overlay": "workspace:*",
+    "@go-go-golems/chat-provider": "workspace:*",
     "@reduxjs/toolkit": "^2.12.0",
     "@tailwindcss/vite": "^4.3.0",
     "react": "^19.2.6",

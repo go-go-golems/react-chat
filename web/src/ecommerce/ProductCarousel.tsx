@@ -1,4 +1,4 @@
-import { defineWidget, type WidgetProps } from '../widgets/widgetRegistry';
+import { defineWidget, type WidgetProps } from '@go-go-golems/chat-provider';
 
 // ─── Types ───────────────────────────────────────────────────────────
 

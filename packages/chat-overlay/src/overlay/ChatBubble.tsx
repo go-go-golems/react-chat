@@ -1,5 +1,5 @@
-import { useChatOverlay } from '../core/context';
-import { useAppSelector, selectOverlay } from '../store/store';
+import { useChatOverlay } from '@go-go-golems/chat-provider';
+import { useAppSelector, selectOverlay } from '@go-go-golems/chat-provider';
 
 export function ChatBubble() {
   const overlay = useChatOverlay();

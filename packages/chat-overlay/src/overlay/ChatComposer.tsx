@@ -1,6 +1,6 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
-import { useChatOverlay } from '../core/context';
-import { useAppSelector, selectOverlay } from '../store/store';
+import { useChatOverlay } from '@go-go-golems/chat-provider';
+import { useAppSelector, selectOverlay } from '@go-go-golems/chat-provider';
 
 export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
   const [text, setText] = useState('');

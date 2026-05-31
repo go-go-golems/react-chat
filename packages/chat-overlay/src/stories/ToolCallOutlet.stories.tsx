@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ToolCallOutlet } from '../tools/ToolCallOutlet';
+import { ToolCallOutlet } from '@go-go-golems/chat-provider';
 import { defineToolUI } from '../tools/toolRegistry';
 
 const meta = {

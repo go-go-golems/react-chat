@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { z } from 'zod';
-import { ChatOverlayProvider, ChatPanel, ChatBubble, useFrontendTool, useHumanTool } from './core/index';
+import { useFrontendTool, useHumanTool } from '@go-go-golems/chat-provider';
+import { ChatOverlayProvider, ChatPanel, ChatBubble } from '@go-go-golems/chat-overlay';
 import './ecommerce'; // register ecommerce widgets
 
 type DemoCartItem = {

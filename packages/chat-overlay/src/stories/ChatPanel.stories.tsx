@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { ChatOverlayProvider, ChatPanel } from '../core/index';
+import { ChatOverlayProvider, ChatPanel } from '@go-go-golems/chat-provider';
 import '../ecommerce';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';

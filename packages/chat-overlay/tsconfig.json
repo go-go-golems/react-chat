@@ -1,0 +1,9 @@
+{
+  "extends": "../../web/tsconfig.app.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src"
+  },
+  "include": ["src/overlay", "src/index.ts", "src/theme"],
+  "exclude": ["src/stories"]
+}

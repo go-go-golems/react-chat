@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useChatOverlay } from '../core/context';
-import { useAppSelector, selectOverlay, selectTimelineEntities } from '../store/store';
+import { useChatOverlay } from '@go-go-golems/chat-provider';
+import { useAppSelector, selectOverlay, selectTimelineEntities } from '@go-go-golems/chat-provider';
 import { ChatMessages } from './ChatMessages';
 import { ChatComposer } from './ChatComposer';
 import { useStickyScrollFollow } from './useStickyScrollFollow';

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { ChatBubble } from '../core/index';
-import { ChatOverlayProvider } from '../core/index';
+import { ChatBubble } from '@go-go-golems/chat-provider';
+import { ChatOverlayProvider } from '@go-go-golems/chat-provider';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { timelineSlice } from '../store/timelineSlice';
