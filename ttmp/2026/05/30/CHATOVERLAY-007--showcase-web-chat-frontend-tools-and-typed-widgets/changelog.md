@@ -56,3 +56,13 @@ Added Phase 12 tasks and design guidance for porting the main web-chat ChatWidge
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/tasks.md — Main ChatWidget migration tasks
 
+
+## 2026-05-31
+
+Ported the main Pinocchio web-chat ChatWidget to the headless ChatProvider runtime, including generic session-id configuration and explicit provider connect support (commits 3040510, 3297f46, 61fb547).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/core/createChatClient.ts — Provider API changes
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ProviderBackedChatWidget.tsx — Main widget provider port
+

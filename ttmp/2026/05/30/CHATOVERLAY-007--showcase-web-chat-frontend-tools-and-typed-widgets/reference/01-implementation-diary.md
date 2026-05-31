@@ -14,8 +14,14 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/showcase_tools.go
       Note: Showcase prompt detection and result endpoint (commits 004ebc5
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ProviderBackedChatWidget.tsx
+      Note: Provider-backed main ChatWidget implementation (commit 61fb547)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ProviderDemoPage.tsx
+      Note: Exports shared provider capabilities toolkit used by the main widget (commit 61fb547)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/cards.tsx
       Note: Confirm tool card and capability widget renderer (commit c9640f3)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
+      Note: Exports provider-backed ChatWidget while retaining LegacyChatWidget (commit 61fb547)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/timelineEvents.ts
       Note: Frontend widget/tool UI event projection (commit c9640f3)
     - Path: ../../../../../../../pinocchio/pkg/chatapp/demo.go
@@ -24,6 +30,8 @@ RelatedFiles:
       Note: Allows demo-published frontend tool results (commit 004ebc5)
     - Path: ../../../../../../../pinocchio/pkg/chatapp/service.go
       Note: Added SubmitCommand helper (commit 004ebc5)
+    - Path: packages/chat-provider/src/core/createChatClient.ts
+      Note: Generic session configuration and connect API for the main web-chat provider port (commits 3040510
     - Path: ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/01-webchat-capabilities-showcase-smoke.js
       Note: Repeatable browser smoke
 ExternalSources: []
@@ -32,6 +40,7 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -536,3 +545,87 @@ This is the first page in Pinocchio web-chat that demonstrates the intended prov
 
 ### Technical details
 - Browser smoke script: `scripts/02-webchat-chatprovider-demo-smoke.js`.
+
+## Step 8: Main web-chat ChatWidget port to ChatProvider
+
+This step moved the normal web-chat export onto the headless `ChatProvider` runtime rather than leaving the provider only behind `?providerDemo=1`. The new provider-backed shell keeps web-chat-owned concerns—profiles, header/statusbar/composer chrome, part props, theme roots, and timeline renderers—outside the provider runtime while delegating session creation, WebSocket subscription, sends, tool manifests, tool results, and widget/tool projection to `ChatProvider`.
+
+The provider API also grew two generic pieces that the main widget needed: configurable session id persistence (`sessionIdParam`, `sessionStorageKey`, `onSessionIdChange`) and an explicit `client.connect()` method. These keep web-chat's existing `?sessionId=` URL behavior without hard-coding Pinocchio conventions into the provider package.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Add detailed phases and tasks to the ticket for porting the existing `web-chat` `ChatWidget` to use the new provider, modifying the provider APIs as needed to keep them generic, elegant, and opinionated."
+
+**Assistant interpretation:** Add ticket phases/tasks for the main `ChatWidget` provider migration, then implement generic provider API changes and port the widget.
+
+**Inferred user intent:** Make the new provider framework real in Pinocchio's primary web-chat UI, not only in a side demo page, while keeping the provider reusable for other apps.
+
+**Commit (code):** 3040510 — "feat: configure chat provider session ids"; 3297f46 — "feat: expose chat provider connect"; 61fb547 — "feat: back web-chat widget with chat provider"
+
+### What I did
+- Added Phase 12 tasks and a design addendum for the main `ChatWidget` migration.
+- Extended `ChatProviderConfig` with:
+  - `sessionIdParam`
+  - `sessionStorageKey`
+  - `onSessionIdChange`
+- Added `ChatClient.connect()` so host apps can proactively create/connect a session before the first send.
+- Added `cmd/web-chat/web/src/webchat/ProviderBackedChatWidget.tsx`.
+- Switched `cmd/web-chat/web/src/webchat/index.ts` to export the provider-backed widget as `ChatWidget`, while retaining `LegacyChatWidget` for reference.
+- Exported `WebChatProviderCapabilities` from the provider demo page so the main widget can register the same frontend tools/widgets.
+- Ran validation:
+  - `pnpm --filter @go-go-golems/chat-provider typecheck`
+  - `pnpm --filter @go-go-golems/chat-overlay-ecommerce-demo build`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `node .../03-pinocchio-webchat-devctl-playwright.js`
+  - `node .../01-webchat-capabilities-showcase-smoke.js`
+  - `node .../02-webchat-chatprovider-demo-smoke.js`
+
+### Why
+- The provider demo proved the runtime path, but the normal exported `ChatWidget` still used the legacy local store/WebSocket manager.
+- The provider needed app-neutral session configuration because web-chat uses `?sessionId=` while the generic provider default remains `chatSessionId`.
+- The main smoke expects an established WebSocket status before sending, so the widget needed a provider-native way to connect on mount.
+
+### What worked
+- The session id config stayed generic and preserved defaults for existing provider consumers.
+- The main widget can now run the existing Pinocchio smoke and the capabilities showcase through `ChatProvider`.
+- Web-chat typecheck, lint, and production build passed after the port.
+
+### What didn't work
+- The first provider-backed render crashed in `ExportMenu` because `DefaultStatusbar` reads the legacy web-chat Redux store while it was rendered under the provider Redux store:
+  - `TypeError: Cannot read properties of undefined (reading 'convId')`
+- The first main smoke then failed because provider status advanced from `connected` to `subscribed`, while the existing smoke waited for `/ws: connected/`:
+  - `locator.waitFor: Timeout 20000ms exceeded. Call log: - waiting for getByText(/ws: connected/) to be visible`
+- I fixed the crash by adding a provider-safe statusbar that omits the legacy `ExportMenu` for the first port.
+- I fixed the smoke compatibility by displaying `subscribed`/`hydrated` as `connected` in the web-chat chrome while keeping provider runtime status internal.
+
+### What I learned
+- Legacy web-chat Redux components cannot be embedded inside `ChatProvider` without auditing their store assumptions.
+- The header/statusbar/composer are safe to preserve only when their nested components do not call legacy store hooks.
+- A headless provider works best when the app shell maps provider state into app-specific terminology rather than exposing every internal transport status literally.
+
+### What was tricky to build
+- The central sharp edge was the nested Redux provider boundary. `ProviderBackedChatWidget` runs profile hooks outside `ChatProvider`, then renders chat mechanics inside `ChatProvider`. Any component below that boundary must use provider hooks only, or no store hooks at all. The `ExportMenu` failure exposed this immediately because it selected `s.app.convId` from the wrong store shape.
+- Another subtlety was connection timing. The original provider only created a session during `send()`, but the legacy UI and smoke expected a visible WebSocket connection before sending. Adding `client.connect()` solved this without forcing all provider consumers to auto-connect on mount.
+
+### What warrants a second pair of eyes
+- Review whether the provider-safe statusbar should grow an export menu backed by provider session state, or whether export belongs outside the provider boundary.
+- Review whether displaying `subscribed`/`hydrated` as `connected` is the right compatibility choice for web-chat chrome.
+- Review whether `LegacyChatWidget` should remain exported long-term or be removed after follow-up parity work.
+
+### What should be done in the future
+- Add provider-native debug/export hooks if the old debug panel and export menu are still required.
+- Add explicit multi-instance provider tests.
+- Rename provider `overlaySlice` to a neutral `chatSlice` or split overlay UI state from runtime state.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/core/createChatClient.ts` for the generic API changes.
+- Then review `pinocchio/cmd/web-chat/web/src/webchat/ProviderBackedChatWidget.tsx` for the main shell/store-boundary decisions.
+- Confirm that `pinocchio/cmd/web-chat/web/src/webchat/index.ts` intentionally maps `ChatWidget` to the provider-backed implementation.
+- Validate with the three smoke scripts listed above.
+
+### Technical details
+- Provider defaults remain `chatSessionId` and `chat-provider.sessionId`.
+- Web-chat config uses `sessionIdParam: 'sessionId'` and `sessionStorageKey: 'pinocchio.web-chat.sessionId'`.
+- The main widget still uses web-chat profile APIs outside the provider boundary and request adapters inside the provider config.

@@ -121,24 +121,24 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 - [x] T11.1 Add a Playwright smoke for `?providerDemo=1`.
 - [x] T11.2 Validate devctl-managed provider demo flow end-to-end.
 - [x] T11.3 Update diary with implementation details, failures, commits, and validation.
-- [ ] T11.4 Update changelog and relate new files.
-- [ ] T11.5 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
-- [ ] T11.6 Commit final docs and smoke script.
+- [x] T11.4 Update changelog and relate new files.
+- [x] T11.5 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
+- [x] T11.6 Commit final docs and smoke script.
 
 ## Phase 12: Port the main web-chat ChatWidget to ChatProvider
 
 - [x] T12.1 Extend the implementation guide with the main-widget migration plan and provider API refinements.
-- [ ] T12.2 Add ChatProvider session id configuration (`sessionIdParam`, `sessionStorageKey`, `onSessionIdChange`) so web-chat can keep `?sessionId=` behavior.
-- [ ] T12.3 Validate ChatProvider package and ecommerce demo after session config changes.
-- [ ] T12.4 Commit provider session API refinements.
-- [ ] T12.5 Extract/reuse the web-chat provider capabilities toolkit from the provider demo page.
-- [ ] T12.6 Add a provider-backed main `ChatWidget` shell that keeps profile/header/composer chrome but uses ChatProvider for chat mechanics.
-- [ ] T12.7 Render provider timeline entities through existing web-chat cards plus `ToolCallOutlet` and `WidgetOutlet`.
-- [ ] T12.8 Preserve selected profile request bodies through ChatProvider request adapters.
-- [ ] T12.9 Switch the main web-chat export to the provider-backed widget while keeping the legacy file available for reference.
-- [ ] T12.10 Run web-chat typecheck/lint/build.
-- [ ] T12.11 Validate existing main web-chat smoke and capabilities smoke.
-- [ ] T12.12 Commit the main ChatWidget provider port.
-- [ ] T12.13 Update diary, changelog, and file relations with the main-widget migration.
-- [ ] T12.14 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
-- [ ] T12.15 Commit final docs for this migration slice.
+- [x] T12.2 Add ChatProvider session id configuration (`sessionIdParam`, `sessionStorageKey`, `onSessionIdChange`) so web-chat can keep `?sessionId=` behavior.
+- [x] T12.3 Validate ChatProvider package and ecommerce demo after session config changes.
+- [x] T12.4 Commit provider session API refinements.
+- [x] T12.5 Extract/reuse the web-chat provider capabilities toolkit from the provider demo page.
+- [x] T12.6 Add a provider-backed main `ChatWidget` shell that keeps profile/header/composer chrome but uses ChatProvider for chat mechanics.
+- [x] T12.7 Render provider timeline entities through existing web-chat cards plus `ToolCallOutlet` and `WidgetOutlet`.
+- [x] T12.8 Preserve selected profile request bodies through ChatProvider request adapters.
+- [x] T12.9 Switch the main web-chat export to the provider-backed widget while keeping the legacy file available for reference.
+- [x] T12.10 Run web-chat typecheck/lint/build.
+- [x] T12.11 Validate existing main web-chat smoke and capabilities smoke.
+- [x] T12.12 Commit the main ChatWidget provider port.
+- [x] T12.13 Update diary, changelog, and file relations with the main-widget migration.
+- [x] T12.14 Run `docmgr doctor --ticket CHATOVERLAY-007 --stale-after 30`.
+- [x] T12.15 Commit final docs for this migration slice.
