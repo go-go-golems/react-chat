@@ -6,9 +6,13 @@ import type { ToolRuntime } from '../tools/toolRuntime';
 import type { WsManager } from '../ws/wsManager';
 import { installToolkit, type ChatToolkit } from './toolkit';
 
+export type ChatRequestBody = Record<string, unknown>;
+
 export type ChatProviderConfig = {
   basePrefix?: string;
   apiBase?: string;
+  createSessionBody?: () => ChatRequestBody | Promise<ChatRequestBody>;
+  sendMessageBody?: (args: { prompt: string }) => ChatRequestBody | Promise<ChatRequestBody>;
 };
 
 export type ToolResultSubmission = {
@@ -83,10 +87,11 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       return sessionId;
     }
 
+    const createBody = await (config.createSessionBody?.() ?? {});
     const res = await fetch(`${apiBase}/api/chat/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(createBody ?? {}),
     });
     if (!res.ok) throw new Error(`create session failed: ${res.status}`);
     const data = await res.json() as { sessionId: string };
@@ -144,10 +149,11 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
         const sessionId = await ensureSession();
         await ensureConnection(sessionId);
         await syncToolManifest();
+        const sendBody = await (config.sendMessageBody?.({ prompt }) ?? { prompt });
         const res = await fetch(`${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify(sendBody ?? { prompt }),
         });
         if (!res.ok) dispatch(overlaySlice.actions.setError(await res.text()));
       } catch (err) {
