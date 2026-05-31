@@ -53,19 +53,19 @@ Goal: introduce the target folder convention without changing component behavior
 
 Goal: convert reusable UI pieces to one folder per component with colocated stories.
 
-- [ ] Move `src/webchat/components/Header.tsx` to `src/features/web-chat/ChatHeader/ChatHeader.tsx`.
-- [ ] Add `src/features/web-chat/ChatHeader/types.ts` and `index.ts`.
-- [ ] Add `ChatHeader.stories.tsx` with default, many-profiles, error-count, and narrow-width examples.
-- [ ] Move `src/webchat/components/Statusbar.tsx` to `src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx`.
-- [ ] Add `ChatStatusbar.stories.tsx` with connected, disconnected, error, and export-visible states.
-- [ ] Move `src/webchat/components/Composer.tsx` to `src/features/web-chat/ChatComposer/ChatComposer.tsx`.
-- [ ] Add `ChatComposer.stories.tsx` with empty, typed, disabled/streaming, and long-text states.
-- [ ] Move `src/webchat/components/Timeline.tsx` to `src/features/web-chat/ChatTimeline/ChatTimeline.tsx`.
-- [ ] Add `ChatTimeline.stories.tsx` with empty, message-only, tool/widget, error-panel, and detached-scroll examples.
-- [ ] Move `src/webchat/hooks/useStickyScrollFollow.ts` into `ChatTimeline/` or `shared/hooks/` with tests preserved.
-- [ ] Replace the monolithic `src/webchat/ChatWidget.stories.tsx` with focused component stories.
-- [ ] Ensure every new component folder has `Component.tsx`, `Component.stories.tsx`, `types.ts`, and `index.ts` unless explicitly documented.
-- [ ] Validate with `npm run build-storybook` after each group of moves.
+- [x] Move `src/webchat/components/Header.tsx` to `src/features/web-chat/ChatHeader/ChatHeader.tsx`.
+- [x] Add `src/features/web-chat/ChatHeader/types.ts` and `index.ts`.
+- [x] Add `ChatHeader.stories.tsx` with default, many-profiles, error-count, and narrow-width examples.
+- [x] Move `src/webchat/components/Statusbar.tsx` to `src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx`.
+- [x] Add `ChatStatusbar.stories.tsx` with connected, disconnected, error, and export-visible states.
+- [x] Move `src/webchat/components/Composer.tsx` to `src/features/web-chat/ChatComposer/ChatComposer.tsx`.
+- [x] Add `ChatComposer.stories.tsx` with empty, typed, disabled/streaming, and long-text states.
+- [x] Move `src/webchat/components/Timeline.tsx` to `src/features/web-chat/ChatTimeline/ChatTimeline.tsx`.
+- [x] Add `ChatTimeline.stories.tsx` with empty, message-only, tool/widget, error-panel, and detached-scroll examples.
+- [x] Move `src/webchat/hooks/useStickyScrollFollow.ts` into `ChatTimeline/` or `shared/hooks/` with tests preserved.
+- [x] Replace the monolithic `src/webchat/ChatWidget.stories.tsx` with focused component stories.
+- [x] Ensure every new component folder has `Component.tsx`, `Component.stories.tsx`, `types.ts`, and `index.ts` unless explicitly documented.
+- [x] Validate with `npm run build-storybook` after each group of moves.
 
 ## Phase 4 — Card renderer decomposition
 

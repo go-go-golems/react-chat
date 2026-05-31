@@ -23,6 +23,16 @@ RelatedFiles:
       Note: Phase 1 typed route-mode parser (commit bf3a98b)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/index.ts
       Note: Temporary compatibility export for old provider path (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatComposer/ChatComposer.tsx
+      Note: Phase 3 composer component folder (commit 0c897b1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatHeader/ChatHeader.tsx
+      Note: Phase 3 header component folder (commit 0c897b1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx
+      Note: Phase 3 statusbar component folder (commit 0c897b1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatTimeline/ChatTimeline.tsx
+      Note: Phase 3 timeline component folder (commit 0c897b1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatTimeline/useStickyScrollFollow.ts
+      Note: Sticky scroll hook moved with timeline (commit 0c897b1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/README.md
       Note: Phase 2 feature boundary README (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx
@@ -41,6 +51,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -686,4 +697,80 @@ The move also created the first component-style folders for the provider-backed 
   - `npm run build`
   - `npm run build-storybook`
   - `npx vitest run src/app/routeMode.test.ts`
+  - `node .../03-webchat-provider-multi-instance-smoke.js`
+
+## Step 10: Implement Phase 3 component folders and Storybook foundation
+
+This step moved the first production visual components into one-folder-per-component feature directories. The goal was to make the Storybook surface match the desired architecture: contributors can now inspect header, statusbar, composer, and timeline behavior without loading the whole legacy chat widget.
+
+The move deliberately leaves deeper card renderer extraction for Phase 4. Phase 3 only establishes the folder convention, focused stories, and compatibility imports so both the provider-backed app and the legacy widget can consume the same canonical component locations while the legacy runtime still exists.
+
+### Prompt Context
+
+**User prompt (verbatim):** "phase 3"
+
+**Assistant interpretation:** Implement CHATOVERLAY-009 Phase 3 by moving core visual components into component folders, adding stories and type/index files, replacing the monolithic widget story, validating, updating docs, and committing.
+
+**Inferred user intent:** Continue the web-chat cleanup with a concrete Storybook/component architecture foundation that is easier to review and evolve.
+
+**Commit (code):** 0c897b1 — "refactor: add web-chat component story folders"
+
+### What I did
+- Moved `src/webchat/components/Header.tsx` to `src/features/web-chat/ChatHeader/ChatHeader.tsx`.
+- Added `ChatHeader/types.ts`, `index.ts`, and `ChatHeader.stories.tsx`.
+- Moved `src/webchat/components/Statusbar.tsx` to `src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx`.
+- Added `ChatStatusbar/types.ts`, `index.ts`, and `ChatStatusbar.stories.tsx`.
+- Moved `src/webchat/components/Composer.tsx` to `src/features/web-chat/ChatComposer/ChatComposer.tsx`.
+- Added `ChatComposer/types.ts`, `index.ts`, and `ChatComposer.stories.tsx`.
+- Moved `src/webchat/components/Timeline.tsx` to `src/features/web-chat/ChatTimeline/ChatTimeline.tsx`.
+- Moved `useStickyScrollFollow.ts` into `ChatTimeline/` and exported it from the timeline folder.
+- Added `ChatTimeline/types.ts`, `index.ts`, and `ChatTimeline.stories.tsx`.
+- Removed the monolithic `src/webchat/ChatWidget.stories.tsx` in favor of focused component stories.
+- Updated `WebChatApp`, legacy `ChatWidget`, `src/webchat/index.ts`, `src/features/web-chat/index.ts`, `src/MIGRATION_CHECKLIST.md`, and `src/features/web-chat/README.md`.
+
+### Why
+- Phase 3 needed a canonical pattern for component ownership before the larger renderer/card split in Phase 4.
+- Focused stories reduce the need to boot the entire chat runtime just to inspect simple component states.
+- Keeping the legacy widget pointed at the new components avoids duplicating visual components during the parity period.
+
+### What worked
+- The component moves preserved typecheck/build behavior.
+- Storybook now builds individual chunks for `ChatHeader`, `ChatStatusbar`, `ChatComposer`, and `ChatTimeline` stories.
+- Existing main web-chat and provider multi-instance smokes still pass.
+
+### What didn't work
+- The first lint run failed with Biome import/export ordering after the moves. I fixed it with:
+  - `npx --yes @biomejs/biome@2.3.8 check --write src/webchat src/features/web-chat`
+- The initial statusbar export-visible story did not actually seed a session id, so `ExportMenu` could render nothing. I added a story render wrapper that dispatches `appSlice.actions.setConvId('story-session-123')`.
+
+### What I learned
+- The current `DefaultStatusbar` still depends on the Redux-backed `ExportMenu`, even though the provider-backed app uses `ProviderStatusbar`. That coupling is acceptable for legacy compatibility but should be revisited when legacy Redux code is deleted.
+- `ChatTimeline` is a good home for `useStickyScrollFollow` because its refs and scroll mode are tightly coupled to the timeline layout.
+
+### What was tricky to build
+- The trickiest part was avoiding a half-migration where provider-backed code imports new component folders while legacy code imports deleted paths. I updated both `WebChatApp` and legacy `ChatWidget` to import the canonical feature components.
+- Storybook stories had to be pure enough to avoid runtime transport, but still realistic enough to exercise `data-part` styling and state variants.
+
+### What warrants a second pair of eyes
+- Review whether `ExportMenu` should move with `ChatStatusbar` or remain under legacy `webchat/components` until provider-safe export work is consolidated.
+- Review whether the old `ChatWidget` story deletion removed any useful full-widget scenarios that should be recreated later as provider-shell stories.
+
+### What should be done in the future
+- Phase 4 should extract card renderers into focused folders and fixtures.
+- Phase 8 should split style files so the component folders and CSS organization align.
+
+### Code review instructions
+- Start with the new folders under `src/features/web-chat/ChatHeader`, `ChatStatusbar`, `ChatComposer`, and `ChatTimeline`.
+- Confirm each folder has `Component.tsx`, `Component.stories.tsx`, `types.ts`, and `index.ts`.
+- Then review import changes in `WebChatApp.tsx`, legacy `ChatWidget.tsx`, and `src/webchat/index.ts`.
+- Validate with `npm run typecheck`, `npm run lint`, `npm run build`, `npm run build-storybook`, and the main/provider multi-instance smokes.
+
+### Technical details
+- Validation commands run:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - `npx vitest run src/app/routeMode.test.ts`
+  - `node .../03-pinocchio-webchat-devctl-playwright.js`
   - `node .../03-webchat-provider-multi-instance-smoke.js`

@@ -66,3 +66,15 @@ Implemented Phase 2 by moving provider-backed web-chat files into src/features/w
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx — Provider-backed app body
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx — Provider shell
 
+
+## 2026-05-31
+
+Implemented Phase 3 component folders and focused Storybook stories for header, statusbar, composer, and timeline (commit 0c897b1).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatComposer/ChatComposer.stories.tsx — Focused composer stories
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatHeader/ChatHeader.stories.tsx — Focused header stories
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatStatusbar/ChatStatusbar.stories.tsx — Focused statusbar stories
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatTimeline/ChatTimeline.stories.tsx — Focused timeline stories
+
