@@ -365,3 +365,72 @@ The upload target is `/ai/2026/05/31/CHATOVERLAY-009`, with the PDF name `CHATOV
   - `changelog.md`
 - Remote directory:
   - `/ai/2026/05/31/CHATOVERLAY-009`
+
+## Step 6: Expand the cleanup plan into implementation phases
+
+This step converted the broad assessment roadmap into a detailed implementation backlog. The important product-direction changes are now explicit: the provider demo/capability showcase code should be deleted, and the legacy Redux/WebSocket chat implementation should be deleted after provider-backed parity is proven.
+
+I updated both the ticket task list and the primary assessment. The task list now has concrete phase-by-phase checkboxes that can be assigned to an intern or split into follow-up tickets. The assessment now explains the intent behind each phase, including the deletion plan for demo capability code and legacy code.
+
+### Prompt Context
+
+**User prompt (verbatim):** "create detailed phases and tasks, we definitely want to delete the demo capabtiility code and delete the legacy code after parity. The other suggestions are great too."
+
+**Assistant interpretation:** Expand CHATOVERLAY-009 from a high-level assessment into an actionable phased implementation plan, making demo deletion and legacy deletion after parity explicit decisions.
+
+**Inferred user intent:** Turn the review into a concrete cleanup backlog that enforces a clean, opinionated example project rather than preserving old demo/legacy surfaces.
+
+### What I did
+- Rewrote `tasks.md` into detailed phases:
+  - Phase 0: safety rails and decision log,
+  - Phase 1: app shell and route-mode cleanup,
+  - Phase 2: feature-folder layout,
+  - Phase 3: component folders and Storybook foundation,
+  - Phase 4: card renderer decomposition,
+  - Phase 5: delete demo capability code,
+  - Phase 6: parity gate for legacy deletion,
+  - Phase 7: delete legacy Redux/WebSocket chat code,
+  - Phase 8: replace global registries,
+  - Phase 9: Pinocchio projector hardening,
+  - Phase 10: CSS/theming modularization,
+  - Phase 11: debug UI boundary cleanup,
+  - Phase 12: generated code and package-management cleanup,
+  - Phase 13: final cleanup verification.
+- Updated the design doc's roadmap section to mirror the accepted direction.
+- Updated open questions so legacy deletion and demo deletion are no longer phrased as undecided.
+
+### Why
+- The original assessment had a roadmap, but not enough granular tasks to drive implementation.
+- The user's preference is now clear: delete temporary capability-demo code and delete legacy code after parity.
+
+### What worked
+- The existing design doc structure made it easy to replace the high-level roadmap with a more actionable phase plan.
+- The task list is now explicit enough to support piecemeal implementation.
+
+### What didn't work
+- No blocker in this step.
+
+### What I learned
+- The cleanup should treat `ProviderDemoPage`, `demo.capability_card`, and `run the capabilities demo` as scaffolding, not product surface.
+- Legacy deletion needs a parity gate so removal is safe and reviewable.
+
+### What was tricky to build
+- The task list needed to be detailed without becoming an implementation patch itself. I split destructive work into two phases: first prove parity, then delete legacy code.
+- Demo deletion also needs replacement tests, otherwise removing demo smokes could reduce confidence in provider tools/widgets.
+
+### What warrants a second pair of eyes
+- Review the Phase 6 parity checklist before deleting legacy code.
+- Review Phase 5 replacement-smoke requirements so demo deletion does not remove useful provider coverage.
+
+### What should be done in the future
+- Split the phases into separate implementation PRs or tickets once the team approves sequencing.
+
+### Code review instructions
+- Start with `tasks.md` to review the implementation backlog.
+- Then review the updated `Refactoring roadmap and implementation phases` section in the design doc.
+
+### Technical details
+- Updated files:
+  - `ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md`
+  - `ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/design-doc/01-web-chat-react-and-storybook-cleanup-assessment.md`
+  - `ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/reference/01-investigation-diary.md`

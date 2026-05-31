@@ -965,88 +965,288 @@ Mark these as legacy or delete after parity review:
 
 Do not delete immediately if tests still depend on them. First add explicit `legacy/README.md` stating whether each file is kept for comparison, tests, or deletion.
 
-## Refactoring roadmap
+## Refactoring roadmap and implementation phases
 
-### Phase 1: Make boundaries obvious without changing behavior
+This section refines the earlier roadmap into an implementation backlog. Two decisions are now explicit:
 
-1. Create `src/app/` and move route-mode parsing out of `src/App.tsx`.
-2. Create `src/features/web-chat/` and move provider-backed production files there.
-3. Create `src/legacy/webchat-redux/` and move old `ChatWidget.tsx`, legacy `ws/`, and legacy timeline store files there, or at least add deprecation banners before moving.
-4. Move compatibility re-exports into a small `src/webchat/compat.ts` or remove them after imports are changed.
-5. Add `README.md` files to `features/web-chat`, `features/debug-ui`, and `legacy/webchat-redux`.
+1. The provider-demo/capability-showcase code should be deleted, not polished into permanent architecture.
+2. The legacy Redux/WebSocket chat implementation should be deleted after provider-backed parity is proven, not kept as a long-term compatibility surface.
 
-Validation:
+The detailed task checklist lives in `tasks.md`. The phases below explain the intent and sequencing for a new intern.
+
+### Phase 0: Refactor safety rails and decision log
+
+Before moving files, add written guardrails. The project needs short READMEs and a migration checklist that say which runtime is canonical and which files are temporary. This avoids the common failure mode where a cleanup move accidentally makes legacy code look more official.
+
+Tasks:
+
+- Document that provider-backed `ChatProvider` runtime is canonical for production web-chat.
+- Document that provider demo/capability showcase code is temporary and scheduled for deletion.
+- Document that legacy Redux/WebSocket chat code is scheduled for deletion after parity.
+- Add a path migration checklist from current paths to target paths.
+- Capture the current validation baseline and devctl actual-port discovery command.
+
+### Phase 1: App shell and route-mode cleanup
+
+Move ad hoc query-parameter branching out of `src/App.tsx` into a typed app route layer. Keep behavior the same, but make each route mode visible as a deliberate app mode.
+
+Target files:
+
+```text
+src/app/
+  App.tsx
+  routeMode.ts
+  MainWebChatRoot.tsx
+  DebugUiRoot.tsx
+  ProviderDemoRoot.tsx        # temporary, deleted in Phase 5
+  ProviderMultiDemoRoot.tsx   # temporary or test-only, deleted/moved in Phase 5
+```
+
+Pseudocode:
+
+```ts
+type WebChatRouteMode =
+  | { kind: 'chat' }
+  | { kind: 'debug' }
+  | { kind: 'provider-demo' }
+  | { kind: 'provider-multi-demo' };
+
+export function routeModeFromSearch(search: string): WebChatRouteMode {
+  const params = new URLSearchParams(search);
+  if (params.get('debug') === '1') return { kind: 'debug' };
+  if (params.get('providerDemo') === '1') return { kind: 'provider-demo' };
+  if (params.get('providerMultiDemo') === '1') return { kind: 'provider-multi-demo' };
+  return { kind: 'chat' };
+}
+```
+
+### Phase 2: Establish feature-folder layout
+
+Introduce the desired project shape without rewriting every component yet. The canonical production web-chat code should move under `src/features/web-chat/`. Provider configuration and app/profile bridging should be named as such.
+
+Target files:
+
+```text
+src/features/web-chat/
+  README.md
+  WebChatApp/
+    WebChatApp.tsx
+    WebChatApp.stories.tsx
+    types.ts
+    index.ts
+  WebChatProviderShell/
+    WebChatProviderShell.tsx
+    types.ts
+    index.ts
+  provider-support/
+    providerDebug.ts
+    providerSession.ts
+    providerTimeline.ts
+```
+
+The old `src/chat/provider/index.ts` may remain briefly as a compatibility wrapper, but every new import should point at the feature folder.
+
+### Phase 3: Component folders and Storybook foundation
+
+Move reusable UI components one at a time into the one-folder-per-component convention. Each move should add or improve a Storybook story. The story should use static props/fixtures unless the component is specifically a runtime integration component.
+
+Component folders:
+
+```text
+ChatHeader/
+  ChatHeader.tsx
+  ChatHeader.stories.tsx
+  types.ts
+  index.ts
+ChatStatusbar/
+ChatComposer/
+ChatTimeline/
+```
+
+Story requirements:
+
+- default state,
+- edge state,
+- narrow/overflow state where relevant,
+- themed/unstyled state where relevant,
+- no live WebSocket dependency for pure visual stories.
+
+### Phase 4: Card renderer decomposition
+
+Split `src/webchat/cards.tsx` into one folder per card. This is where the example-project quality will become visible: each card should have typed props, fixtures, and stories.
+
+Card folders:
+
+```text
+cards/
+  MessageCard/
+  ToolCallCard/
+  ToolResultCard/
+  AgentModeCard/
+  WidgetInstanceCard/
+  GenericCard/
+```
+
+The desired fixture style:
+
+```ts
+export const messageFixtures = {
+  user: entity.message({ role: 'user', content: 'Show me boots' }),
+  assistant: entity.message({ role: 'assistant', content: 'Here are some boots.' }),
+  thinking: entity.message({ role: 'thinking', content: 'Looking up products...' }),
+};
+```
+
+### Phase 5: Delete demo capability code
+
+The capability showcase was useful to prove provider tools/widgets, but it should not remain as production app architecture. Delete it once replacement tests cover the provider behavior we still care about.
+
+Delete or remove from production imports:
+
+- `WebChatProviderCapabilities`,
+- `webChatProviderCapabilitiesExtension`,
+- `demo.capability_card`,
+- `browser.get_page_context`,
+- `browser.confirm_action`,
+- `?providerDemo=1` route,
+- `run the capabilities demo` docs/prompts/smokes.
+
+Replace with production-relevant coverage:
+
+- main web-chat connect/send smoke,
+- typed widget rendering smoke or unit test using a real product widget/event,
+- real frontend tool test if frontend tools remain a product feature,
+- provider isolation unit tests that do not require a demo page.
+
+### Phase 6: Parity gate for legacy deletion
+
+Before deleting legacy code, prove the provider-backed app covers the required behavior. This phase is a checklist and test-writing phase, not a cleanup phase.
+
+Parity areas:
+
+- session creation and session id persistence,
+- profile loading and switching,
+- WebSocket connect/reconnect/snapshot hydration,
+- message sending and run status transitions,
+- reasoning/thinking rendering,
+- backend tool calls/results,
+- typed widgets,
+- frontend tool path if retained,
+- export menu behavior,
+- stream debug behavior or explicit dev-only demotion.
+
+### Phase 7: Delete legacy Redux/WebSocket chat code after parity
+
+Once Phase 6 passes, delete the legacy runtime rather than moving it around indefinitely.
+
+Deletion candidates:
+
+- `src/webchat/ChatWidget.tsx`,
+- `LegacyChatWidget` export,
+- legacy singleton `src/ws/wsManager.ts`,
+- legacy projection files `src/ws/timelineEvents.ts` and `src/ws/timelineSnapshot.ts`,
+- legacy timeline Redux slice if production no longer uses it,
+- compatibility re-exports for provider-backed pages,
+- tests that only assert deleted implementation details.
+
+After deletion, run:
 
 ```bash
-cd pinocchio/cmd/web-chat/web
+rg "LegacyChatWidget|wsManager|timelineEvents|timelineSnapshot|timelineSlice" src
+```
+
+Only deliberately retained references should remain.
+
+### Phase 8: Replace global registries with explicit APIs
+
+The provider extension work made global import-side-effect registries undesirable. Web-chat should follow the same direction.
+
+Tasks:
+
+- Replace `rendererRegistry.ts` global registration with a renderer factory.
+- Replace `timelinePropsRegistry.ts` global registration with projector-local or renderer-local normalization.
+- Make render entity props typed instead of `any`.
+- Remove `getDefaultMiddleware: any` in the store.
+
+### Phase 9: Pinocchio projector hardening
+
+Keep app-specific projection explicit and testable.
+
+Target shape:
+
+```text
+extensions/pinocchio-projectors/
+  reasoningProjector.ts
+  agentModeProjector.ts
+  backendToolProjector.ts
+  fixtures.ts
+  pinocchioProjectors.test.ts
+  index.ts
+```
+
+Tests should cover append/snapshot/finish behavior for reasoning, preview/commit/clear behavior for agent mode, and argument patch/result behavior for backend tools.
+
+### Phase 10: CSS/theming modularization
+
+Preserve the good `data-pwchat`/`data-part` design, but split the large stylesheet into readable modules.
+
+Target files:
+
+```text
+styles/
+  index.css
+  tokens.css
+  root.css
+  layout.css
+  header.css
+  statusbar.css
+  timeline.css
+  cards.css
+  composer.css
+  debug-panel.css
+  themes/default.css
+```
+
+Also update the public part type so the documented customization API matches the parts that actually exist in CSS.
+
+### Phase 11: Debug UI boundary cleanup
+
+The debug UI is valuable and should remain separate. Its dependencies should not leak through the production app store/types.
+
+Tasks:
+
+- Move or document `src/debug-ui` as `src/features/debug-ui`.
+- Fix any imports from debug UI into main app store types.
+- Add stories for lanes and shell components.
+- Decide whether `?debug=1` is a production route or dev-only route.
+
+### Phase 12: Generated code and package-management cleanup
+
+Reduce contributor noise.
+
+Tasks:
+
+- Move generated protobuf code to `src/generated/chatapp` if Buf/Vite paths allow it.
+- Add generated-code README.
+- Choose npm or pnpm for this app and remove the other lockfile.
+- Document the temporary local `@go-go-golems/chat-provider` dependency.
+- Add Storybook build to CI if desired.
+
+### Phase 13: Final cleanup verification
+
+The final phase is a proof phase. A cleaned example project should have no dangling references to deleted demo or legacy code.
+
+Required checks:
+
+```bash
 npm run typecheck
 npm run lint
 npm run build
-```
-
-### Phase 2: Component folder layout and Storybook expansion
-
-1. Split `src/webchat/components/*` into one folder per component.
-2. Split `src/webchat/cards.tsx` into one folder per card.
-3. Split `src/webchat/styles/webchat.css` into modular CSS files imported by `styles/index.css`.
-4. Replace `ChatWidget.stories.tsx` with focused stories:
-   - app shell story,
-   - header story,
-   - composer story,
-   - timeline story,
-   - one story per card.
-5. Add debug UI stories for lanes and AppShell.
-
-Validation:
-
-```bash
 npm run build-storybook
-npm run check
+rg "ProviderDemoPage|capability_card|run the capabilities demo|LegacyChatWidget|wsManager" src
 ```
 
-### Phase 3: Remove global registries and strengthen types
-
-1. Replace global renderer registry with explicit renderer maps.
-2. Replace global timeline props registry with projector/renderer-local normalization.
-3. Introduce typed render entity unions.
-4. Add projector unit tests for Pinocchio events.
-5. Add Storybook interaction tests for human tools/widgets if practical.
-
-### Phase 4: Legacy deletion or quarantine
-
-1. Decide whether legacy Redux chat still needs to run.
-2. If no, delete legacy widget/runtime and update tests to use provider projector fixtures.
-3. If yes, keep it under `/legacy` with explicit route flag and docs.
-4. Remove stale compatibility re-exports.
-
-## Suggested implementation order for an intern
-
-Start with safe moves and tests. Do not begin by changing runtime behavior.
-
-1. **Create folders and READMEs.**
-   - Add `features/web-chat/README.md`, `features/debug-ui/README.md`, `legacy/webchat-redux/README.md`.
-   - Explain what code is canonical and what is legacy.
-
-2. **Move pure visual components first.**
-   - `DefaultComposer` → `ChatComposer/ChatComposer.tsx`
-   - `DefaultHeader` → `ChatHeader/ChatHeader.tsx`
-   - `DefaultStatusbar` → `ChatStatusbar/ChatStatusbar.tsx`
-   - `ChatTimeline` → `ChatTimeline/ChatTimeline.tsx`
-
-3. **Add stories while moving.**
-   - Each component gets a story before or during the move.
-   - Use static fixtures, not live WebSocket state.
-
-4. **Move provider app shell second.**
-   - Move `ProviderBackedChatWidget.tsx` and `ProviderBackedChatWidgetInner.tsx` into `WebChatApp/` or `WebChatProviderShell/`.
-   - Keep old re-export temporarily only if needed.
-
-5. **Move demos third.**
-   - Move `ProviderDemoPage` and multi-demo into `demos/`.
-   - Keep routes unchanged initially.
-
-6. **Quarantine legacy last.**
-   - Move old `ChatWidget.tsx` and legacy `ws/` only after current smokes pass.
+Also run the production Playwright smokes and update the ticket diary with exact validation output.
 
 ## Validation plan
 
@@ -1093,8 +1293,8 @@ PY
 ## Open questions
 
 1. Should Pinocchio web-chat standardize on npm or pnpm for this frontend?
-2. Is legacy Redux chat still needed as a runnable comparison path, or can it be deleted once provider-backed smoke coverage is accepted?
-3. Should `WebChatProviderCapabilities` be installed in production main web-chat, or only in demo routes?
+2. What exact parity checklist must pass before deleting legacy Redux/WebSocket chat code?
+3. Which production replacement tests should take over from the deleted capability-demo smokes?
 4. Should `rendererRegistry` be removed entirely, or kept as a local non-global renderer factory?
 5. Should debug UI be built into the same Vite app forever, or become a separate route/package with shared generated protocol code?
 6. Should generated protobuf files move from `src/chatapp/pb` to `src/generated/chatapp`?
