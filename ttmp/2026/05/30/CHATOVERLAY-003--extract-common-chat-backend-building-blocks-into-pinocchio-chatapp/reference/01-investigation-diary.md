@@ -13,28 +13,41 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_contracts.go
       Note: CoinVault aliases shared HTTP contracts (commit 3fd0372)
+    - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_encoding.go
+      Note: CoinVault uses shared snapshot/write helpers (commit 0b1ba42)
+    - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_handlers.go
+      Note: CoinVault uses shared path/decode helpers (commit 0b1ba42)
     - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_store.go
       Note: CoinVault wrapper migration to serverkit hydration store (commit 2c399ed)
     - Path: ../../../../../../../2026-03-16--gec-rag/internal/webchat/turn_store.go
       Note: CoinVault wrapper migration to serverkit turn store (commit 2c399ed)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/contracts.go
       Note: web-chat aliases shared HTTP contracts (commit 7ab73f1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server.go
+      Note: web-chat uses serverkit HTTP helpers while keeping handlers local (commit 67993d1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
       Note: web-chat migration to serverkit turn store (commit ee42217)
     - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/contracts.go
       Note: Shared HTTP API contract structs (commit 7ab73f1)
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/http.go
+      Note: Shared small HTTP helpers (commit 67993d1)
+    - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/http_test.go
+      Note: Helper tests for path parsing and JSON decoding (commit 67993d1)
     - Path: ../../../../../../../pinocchio/pkg/chatapp/serverkit/stores.go
       Note: New shared store helpers and memory turn store (commit 7235bd8)
     - Path: internal/webchat/helpers.go
-      Note: chat-overlay aliases shared HTTP contracts (commit 993fd6d)
+      Note: |-
+        chat-overlay aliases shared HTTP contracts (commit 993fd6d)
+        chat-overlay uses shared JSON helpers (commit 4f7300b)
     - Path: internal/webchat/server.go
       Note: chat-overlay store cleanup and interface migration (commit ea01179)
 ExternalSources: []
 Summary: Chronological diary for common backend extraction design.
-LastUpdated: 2026-05-30T19:52:00-04:00
+LastUpdated: 2026-05-30T20:08:00-04:00
 WhatFor: Record design-package creation and future implementation steps.
 WhenToUse: Read before continuing CHATOVERLAY-003 work.
 ---
+
 
 
 
@@ -312,3 +325,86 @@ The extraction intentionally supports the superset required by Pinocchio web-cha
 ### Technical details
 - `serverkit.CreateSessionRequest` and `serverkit.SubmitMessageRequest` include optional `ApplicationProfile`, `Profile`, and `Registry` fields.
 - `serverkit.SessionSnapshotResponse` includes the web-chat/CoinVault snapshot shape; chat-overlay has not switched to it yet.
+
+## Step 5: Add small HTTP helpers instead of a full route registrar
+
+This step followed the decision to avoid a full route-handler extraction for now. The shared package now owns small, low-risk helpers for JSON request decoding, JSON response writing, session path parsing, protobuf-to-JSON payload encoding, and canonical snapshot response construction.
+
+The apps still own their route handlers. That keeps runtime resolution, authorization, mock-engine branching, export routes, frontend-tool routes, and app-specific snapshot shapes in the application packages while removing more duplicated mechanics.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add small helpers, continue"
+
+**Assistant interpretation:** Do not extract the full HTTP route registrar yet; centralize the safe helper pieces and keep continuing the first ticket task-by-task.
+
+**Inferred user intent:** Reduce duplication without over-abstracting route behavior that still differs between web-chat, chat-overlay, and CoinVault.
+
+**Commit (code):** 67993d1 — "feat: add serverkit HTTP helpers"
+
+**Commit (code):** 4f7300b — "refactor: use serverkit HTTP helpers"
+
+**Commit (code):** 0b1ba42 — "refactor: use serverkit HTTP helpers"
+
+### What I did
+- Added `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/http.go` with:
+  - `DecodeJSON(...)`
+  - `WriteJSON(...)`
+  - `WriteError(...)`
+  - `ParseSessionPath(...)`
+  - `ParseSessionPathWithPrefix(...)`
+  - `EncodeSnapshotResponse(...)`
+  - `EncodeProtoJSON(...)`
+- Added `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/http_test.go` with tests for session path parsing and empty/malformed JSON decoding.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server.go` to use the shared helpers while keeping local handler functions and the local snapshot status heuristic.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/helpers.go` to use shared JSON decode/write helpers.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_encoding.go` and `sessionstream_handlers.go` to use shared JSON, path parsing, and snapshot encoding helpers while keeping the CoinVault status heuristic.
+
+### Why
+- A full route registrar would need configuration hooks for runtime resolution, authorization, mock-vs-real runtime dispatch, stop behavior, exports, debug routes, and frontend tools.
+- Small helpers remove duplication now and keep the next extraction reversible.
+
+### What worked
+- Pinocchio focused tests passed: `go test ./pkg/chatapp/serverkit ./cmd/web-chat/app ./cmd/web-chat`.
+- Pinocchio pre-commit passed for commit `67993d1` after a lint fix.
+- Chat-overlay tests passed: `go test ./...`.
+- CoinVault focused tests passed: `go test ./internal/webchat/...`.
+- CoinVault pre-commit passed for commit `0b1ba42` after removing an unused wrapper.
+
+### What didn't work
+- The first Pinocchio commit attempt failed because the new parse helpers used named return values, which violate the repository's `nonamedreturns` lint rule:
+  - Error: `pkg/chatapp/serverkit/http.go:42:1: named return "sessionID" with type "string" found (nonamedreturns)`
+  - Error: `pkg/chatapp/serverkit/http.go:46:1: named return "sessionID" with type "string" found (nonamedreturns)`
+- I fixed this by changing both helpers to unnamed return values.
+- The first CoinVault helper commit attempt failed because `encodeProtoJSON` became unused after snapshot encoding moved fully to `serverkit.EncodeSnapshotResponse(...)`:
+  - Error: `internal/webchat/sessionstream/sessionstream_encoding.go:30:6: func encodeProtoJSON is unused (unused)`
+- I removed the unused wrapper and reran the focused tests and commit.
+
+### What I learned
+- The shared helper layer is the right granularity for this step: it reduces duplicated mechanics without forcing handler lifecycle choices.
+- `DecodeJSON` now treats only an empty body as acceptable. Chat-overlay previously ignored `json.SyntaxError` in its local helper; the shared helper reports malformed JSON as an error, which is safer and aligns with the other handlers.
+
+### What was tricky to build
+- Snapshot encoding needed to preserve different status heuristics. Pinocchio web-chat has a richer status heuristic that accounts for user and assistant message roles; CoinVault keeps a simpler last-status heuristic. The shared helper therefore accepts a `statusFn` rather than hard-coding one policy.
+- Handler packages also had debug/export files that called the old unexported `encodeProtoJSON`/`writeJSON` helpers. I kept a thin `encodeProtoJSON` wrapper in Pinocchio web-chat so those files continue to compile while centralizing the actual implementation.
+
+### What warrants a second pair of eyes
+- Review the stricter `DecodeJSON` behavior for chat-overlay malformed JSON requests. It should be an improvement, but it is a behavior change.
+- Review whether `CreatedAt` should stay in the generic `SnapshotEntity` as a compatibility field or whether older chat-overlay snapshot shape should remain separate.
+
+### What should be done in the future
+- Add a short route-handler extraction plan that explicitly lists which parts are safe to extract and which should stay app-local.
+- Defer a generic route registrar unless the remaining duplication stays high after frontendtools/widgets migrate into Pinocchio.
+
+### Code review instructions
+- Start with `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/http.go` and `http_test.go`.
+- Review how `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server.go` keeps handler ownership while delegating mechanics.
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./pkg/chatapp/serverkit ./cmd/web-chat/app ./cmd/web-chat`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && go test ./...`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag && go test ./cmd/... ./internal/...`
+
+### Technical details
+- `serverkit.DecodeJSON` accepts empty bodies but returns malformed JSON errors.
+- `serverkit.EncodeSnapshotResponse` accepts a status callback so apps can keep local status semantics.
+- `serverkit.ParseSessionPath` is strict: it accepts `/api/chat/sessions/{id}` and `/api/chat/sessions/{id}/{action}` only.

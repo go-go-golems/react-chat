@@ -36,3 +36,14 @@ Added shared serverkit HTTP contracts and migrated web-chat, chat-overlay, and C
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/internal/webchat/helpers.go — chat-overlay contract aliases
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/contracts.go — Shared HTTP contracts
 
+
+## 2026-05-30
+
+Added small serverkit HTTP helpers and migrated web-chat, chat-overlay, and CoinVault callers without extracting full route handlers (commits 67993d1, 4f7300b, 0b1ba42).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-03-16--gec-rag/internal/webchat/sessionstream/sessionstream_encoding.go — CoinVault snapshot/helper migration
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server.go — web-chat helper migration
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/serverkit/http.go — Shared small HTTP helpers
+
