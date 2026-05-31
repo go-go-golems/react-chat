@@ -11,6 +11,9 @@ export type ChatRequestBody = Record<string, unknown>;
 export type ChatProviderConfig = {
   basePrefix?: string;
   apiBase?: string;
+  sessionIdParam?: string;
+  sessionStorageKey?: string;
+  onSessionIdChange?: (sessionId: string | null) => void;
   createSessionBody?: () => ChatRequestBody | Promise<ChatRequestBody>;
   sendMessageBody?: (args: { prompt: string }) => ChatRequestBody | Promise<ChatRequestBody>;
 };
@@ -48,24 +51,28 @@ export type CreateChatClientArgs = {
   wsManager: WsManager;
 };
 
-const SESSION_STORAGE_KEY = 'chat-provider.sessionId';
+const DEFAULT_SESSION_STORAGE_KEY = 'chat-provider.sessionId';
+const DEFAULT_SESSION_ID_PARAM = 'chatSessionId';
 
-function persistedSessionId(): string {
+function persistedSessionId(config: ChatProviderConfig): string {
   if (typeof window === 'undefined') return '';
   try {
-    const fromURL = new URL(window.location.href).searchParams.get('chatSessionId') || '';
+    const sessionIdParam = config.sessionIdParam ?? DEFAULT_SESSION_ID_PARAM;
+    const fromURL = sessionIdParam ? new URL(window.location.href).searchParams.get(sessionIdParam) || '' : '';
     if (fromURL.trim()) return fromURL.trim();
-    return window.localStorage.getItem(SESSION_STORAGE_KEY)?.trim() || '';
+    return window.localStorage.getItem(config.sessionStorageKey ?? DEFAULT_SESSION_STORAGE_KEY)?.trim() || '';
   } catch {
     return '';
   }
 }
 
-function persistSessionId(sessionId: string | null) {
+function persistSessionId(config: ChatProviderConfig, sessionId: string | null) {
   if (typeof window === 'undefined') return;
   try {
-    if (sessionId) window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
-    else window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    const storageKey = config.sessionStorageKey ?? DEFAULT_SESSION_STORAGE_KEY;
+    if (sessionId) window.localStorage.setItem(storageKey, sessionId);
+    else window.localStorage.removeItem(storageKey);
+    config.onSessionIdChange?.(sessionId);
   } catch {
     // Ignore storage failures in embedded contexts/private windows.
   }
@@ -81,7 +88,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     let sessionId = args.store.getState().overlay.sessionId;
     if (sessionId) return sessionId;
 
-    sessionId = persistedSessionId();
+    sessionId = persistedSessionId(config);
     if (sessionId) {
       dispatch(overlaySlice.actions.setSessionId(sessionId));
       return sessionId;
@@ -97,7 +104,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     const data = await res.json() as { sessionId: string };
     sessionId = data.sessionId;
     dispatch(overlaySlice.actions.setSessionId(sessionId));
-    persistSessionId(sessionId);
+    persistSessionId(config, sessionId);
     return sessionId;
   }
 
@@ -175,7 +182,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     reset() {
       args.toolRuntime.cancelActiveFrontendTools();
       args.wsManager.disconnect();
-      persistSessionId(null);
+      persistSessionId(config, null);
       dispatch(overlaySlice.actions.reset());
       dispatch(timelineSlice.actions.clear());
     },
