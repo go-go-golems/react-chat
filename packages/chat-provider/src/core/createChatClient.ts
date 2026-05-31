@@ -32,6 +32,7 @@ export type ChatClientTools = ToolRegistry & {
 };
 
 export type ChatClient = {
+  connect: () => Promise<void>;
   send: (prompt: string) => Promise<void>;
   stop: () => Promise<void>;
   open: () => void;
@@ -150,6 +151,17 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   };
 
   return {
+    async connect() {
+      try {
+        dispatch(overlaySlice.actions.setError(null));
+        const sessionId = await ensureSession();
+        await ensureConnection(sessionId);
+        await syncToolManifest();
+      } catch (err) {
+        dispatch(overlaySlice.actions.setError(err instanceof Error ? err.message : String(err)));
+      }
+    },
+
     async send(prompt: string) {
       try {
         dispatch(overlaySlice.actions.setError(null));
