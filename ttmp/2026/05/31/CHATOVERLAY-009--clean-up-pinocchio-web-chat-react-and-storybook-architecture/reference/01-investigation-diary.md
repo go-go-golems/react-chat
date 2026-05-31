@@ -11,6 +11,16 @@ RelatedFiles:
       Note: Storybook discovery evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
       Note: Validation scripts and dependency/package-manager evidence
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/scripts/print-dev-url.mjs
+      Note: Phase 0 devctl URL helper (commit fe5b00f)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/MIGRATION_CHECKLIST.md
+      Note: Phase 0 path/deletion checklist (commit fe5b00f)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/README.md
+      Note: Phase 0 architecture guardrails (commit fe5b00f)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/App.tsx
+      Note: Phase 1 app route switch (commit bf3a98b)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/routeMode.ts
+      Note: Phase 1 typed route-mode parser (commit bf3a98b)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Canonical versus legacy export evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/vite.config.ts
@@ -21,6 +31,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -434,3 +445,148 @@ I updated both the ticket task list and the primary assessment. The task list no
   - `ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md`
   - `ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/design-doc/01-web-chat-react-and-storybook-cleanup-assessment.md`
   - `ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/reference/01-investigation-diary.md`
+
+## Step 7: Implement Phase 0 guardrails
+
+This step started the actual cleanup implementation with guardrails rather than runtime moves. I added source-tree documentation, a migration checklist, and a helper script for discovering the actual devctl URL when web-chat runs on ephemeral ports.
+
+The goal was to make the accepted decisions visible in the repository before code starts moving: provider-backed `ChatProvider` is canonical, provider capability demo code is temporary and should be deleted, and legacy Redux/WebSocket chat should be deleted after parity rather than preserved indefinitely.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do phase 0 + 1, keep a diary as you work, commit at appropriate intervals"
+
+**Assistant interpretation:** Implement CHATOVERLAY-009 Phase 0 and Phase 1, validate, commit focused changes, and update the ticket diary as work progresses.
+
+**Inferred user intent:** Begin the web-chat cleanup in small safe steps that make future refactors easier to review.
+
+**Commit (code):** fe5b00f — "docs: add web-chat cleanup guardrails"
+
+### What I did
+- Added `pinocchio/cmd/web-chat/web/src/README.md` documenting canonical boundaries and runtime decisions.
+- Added `pinocchio/cmd/web-chat/web/src/MIGRATION_CHECKLIST.md` mapping current paths to target paths and recording deletion gates.
+- Added `pinocchio/cmd/web-chat/web/scripts/print-dev-url.mjs` to read `.devctl/state.json` and print the real Vite/backend URLs.
+- Added `npm run dev:url` to `package.json`.
+- Validated with:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run dev:url`
+
+### Why
+- Phase 0 is about making architectural intent explicit before moving code.
+- The devctl URL helper addresses a concrete problem found earlier: smoke scripts can restart web-chat on free ephemeral ports, so `5174` is not always correct.
+
+### What worked
+- Typecheck and lint passed.
+- `npm run dev:url` prints the active Vite and backend URLs from the Pinocchio repo's `.devctl/state.json`.
+
+### What didn't work
+- The first version of `print-dev-url.mjs` walked only three directories up from `cmd/web-chat/web/scripts`, resolving to `pinocchio/cmd` instead of the Pinocchio repo root. It failed with:
+  - `Could not read devctl state at /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/.devctl/state.json.`
+- I fixed it by walking four directories up: `../../../..`.
+
+### What I learned
+- Small operational helpers belong in Phase 0 because they reduce confusion during later smoke validation.
+- Repository-level decisions need to live near the code, not only in docmgr.
+
+### What was tricky to build
+- The helper script runs from `cmd/web-chat/web/scripts`, but devctl state lives at the Pinocchio repository root. The relative path is easy to get wrong because `web-chat` is nested under `cmd/`.
+
+### What warrants a second pair of eyes
+- Review whether `src/README.md` is the right location or whether it should become `src/architecture/README.md` later.
+- Review the migration checklist for any missing path categories before Phase 2 starts.
+
+### What should be done in the future
+- Add a devctl command for URL discovery if `devctl` itself supports custom commands for this profile.
+
+### Code review instructions
+- Start with `cmd/web-chat/web/src/README.md` and `src/MIGRATION_CHECKLIST.md`.
+- Then inspect `scripts/print-dev-url.mjs` and `package.json`.
+- Validate with `cd cmd/web-chat/web && npm run dev:url` while devctl is running.
+
+### Technical details
+- Validation output included:
+  - `npm run typecheck` passed.
+  - `npm run lint` passed.
+  - `npm run dev:url` printed `web-chat: http://127.0.0.1:5174/` and backend profile URL when default ports were active.
+
+## Step 8: Implement Phase 1 app route-mode split
+
+This step moved root app routing out of the monolithic top-level `src/App.tsx` into a small typed `src/app/` layer. Runtime behavior is intentionally unchanged: `?debug=1`, `?providerDemo=1`, `?providerMultiDemo=1`, and default production chat still render the same screens as before.
+
+The difference is that each route mode now has a named root component, and query parsing is unit-tested. This creates a safe landing zone for later phases where provider demo roots will be deleted and production web-chat files move into feature folders.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Implement the Phase 1 route/app-shell cleanup without changing runtime behavior.
+
+**Inferred user intent:** Make the app shell easier for an intern to understand before deeper file moves begin.
+
+**Commit (code):** bf3a98b — "refactor: split web-chat app route modes"
+
+### What I did
+- Added `src/app/routeMode.ts` with typed `WebChatRouteMode` and `routeModeFromSearch(...)` / `routeModeFromLocation(...)`.
+- Added `src/app/routeMode.test.ts` covering default, debug, provider demo, provider multi-demo, disabled flags, and deterministic priority.
+- Added named root components:
+  - `src/app/MainWebChatRoot.tsx`
+  - `src/app/DebugUiRoot.tsx`
+  - `src/app/ProviderDemoRoot.tsx`
+  - `src/app/ProviderMultiDemoRoot.tsx`
+- Added `src/app/App.tsx` to switch on the typed route mode.
+- Replaced top-level `src/App.tsx` with a compatibility re-export from `src/app`.
+- Validated with:
+  - `npx vitest run src/app/routeMode.test.ts`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - main web-chat devctl Playwright smoke
+  - capabilities showcase smoke
+  - provider demo smoke
+  - provider multi-instance smoke
+
+### Why
+- Route-mode parsing was duplicated inline in `src/App.tsx`, making temporary demo/debug routes look like normal root application structure.
+- Named root components give Phase 5 a clear place to delete provider demo scaffolding later.
+
+### What worked
+- Route mode tests passed: 7 tests.
+- Typecheck, lint, build, Storybook build, and all four web-chat smokes passed.
+- The compatibility top-level `src/App.tsx` kept `main.tsx` unchanged.
+
+### What didn't work
+- No code blocker in this step.
+- Build still emits the existing Vite warnings:
+  - non-module `app-config.js` note,
+  - large chunk warning.
+- Storybook still emits the existing warnings about Storybook runtime `eval` and large chunks.
+
+### What I learned
+- Separating route parsing first is a low-risk way to start the cleanup: it changes file organization but not user-visible behavior.
+- Keeping `ProviderDemoRoot` and `ProviderMultiDemoRoot` explicitly temporary documents the future deletion path in code comments.
+
+### What was tricky to build
+- The priority order had to preserve old behavior. The previous app checked `debug`, then `providerDemo`, then `providerMultiDemo`, then default. The new parser keeps the same order and has tests for multiple flags.
+
+### What warrants a second pair of eyes
+- Review whether route-mode priority should remain debug > provider demo > provider multi-demo. It preserves existing behavior, but once demo routes are removed this becomes less important.
+- Review whether `ProviderDemoRoot` and `ProviderMultiDemoRoot` should move to a `demos/` folder before deletion or simply be deleted in Phase 5.
+
+### What should be done in the future
+- Phase 2 should create `features/web-chat/` and move provider-backed production files under that boundary.
+- Phase 5 should delete the provider demo roots and their associated demo capability code.
+
+### Code review instructions
+- Start with `cmd/web-chat/web/src/app/routeMode.ts` and `routeMode.test.ts`.
+- Then inspect `src/app/App.tsx` and the four root components.
+- Confirm top-level `src/App.tsx` is only a compatibility re-export.
+- Validate with the commands listed above.
+
+### Technical details
+- Smoke commands run from the chat-overlay repo:
+  - `03-pinocchio-webchat-devctl-playwright.js`
+  - `01-webchat-capabilities-showcase-smoke.js`
+  - `02-webchat-chatprovider-demo-smoke.js`
+  - `03-webchat-provider-multi-instance-smoke.js`

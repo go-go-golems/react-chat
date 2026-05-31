@@ -44,3 +44,14 @@ Re-uploaded updated CHATOVERLAY-009 bundle after adding detailed phases/tasks an
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md — Updated task backlog included in reMarkable bundle
 
+
+## 2026-05-31
+
+Implemented Phase 0 guardrails and Phase 1 route-mode split for Pinocchio web-chat (commits fe5b00f, bf3a98b).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/README.md — Architecture guardrails
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/App.tsx — Named root route composition
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/routeMode.ts — Typed route-mode parser
+

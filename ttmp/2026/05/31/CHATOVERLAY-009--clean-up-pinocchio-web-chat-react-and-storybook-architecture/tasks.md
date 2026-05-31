@@ -15,26 +15,26 @@
 
 Goal: make the cleanup executable without changing runtime behavior accidentally.
 
-- [ ] Add a `src/architecture/README.md` or `src/README.md` explaining canonical app boundaries: `app/`, `features/`, `shared/`, `generated/`, and `legacy/`.
-- [ ] Add a decision note stating that provider-backed `ChatProvider` runtime is canonical for production web-chat.
-- [ ] Add a decision note stating that provider demo/capability showcase code is temporary and should be deleted, not polished.
-- [ ] Add a decision note stating that legacy Redux/WebSocket chat code will be deleted after parity, not kept indefinitely.
-- [ ] Add a migration checklist document that maps old paths to target paths.
-- [ ] Capture the current validation baseline in the ticket: `npm run typecheck`, `npm run lint`, `npm run build`, `npm run build-storybook`, and the four Playwright smokes.
-- [ ] Add a small script or documented command to print the actual devctl Vite URL from `.devctl/state.json`.
+- [x] Add a `src/architecture/README.md` or `src/README.md` explaining canonical app boundaries: `app/`, `features/`, `shared/`, `generated/`, and `legacy/`.
+- [x] Add a decision note stating that provider-backed `ChatProvider` runtime is canonical for production web-chat.
+- [x] Add a decision note stating that provider demo/capability showcase code is temporary and should be deleted, not polished.
+- [x] Add a decision note stating that legacy Redux/WebSocket chat code will be deleted after parity, not kept indefinitely.
+- [x] Add a migration checklist document that maps old paths to target paths.
+- [x] Capture the current validation baseline in the ticket: `npm run typecheck`, `npm run lint`, `npm run build`, `npm run build-storybook`, and the four Playwright smokes.
+- [x] Add a small script or documented command to print the actual devctl Vite URL from `.devctl/state.json`.
 
 ## Phase 1 — App shell and route-mode cleanup
 
 Goal: make app entrypoints and dev/demo routes explicit before moving components.
 
-- [ ] Create `src/app/routeMode.ts` with a typed route-mode parser for `debug`, `providerDemo`, `providerMultiDemo`, and normal chat.
-- [ ] Move root app composition from `src/App.tsx` into `src/app/App.tsx`.
-- [ ] Create `src/app/MainWebChatRoot.tsx` for the production web-chat route.
-- [ ] Create `src/app/DebugUiRoot.tsx` for the debug UI route.
-- [ ] Create temporary `src/app/ProviderDemoRoot.tsx` and `src/app/ProviderMultiDemoRoot.tsx` wrappers so demo deletion is isolated later.
-- [ ] Keep `src/App.tsx` as a short compatibility re-export or wrapper during the move.
-- [ ] Add unit tests for `routeMode.ts` covering all query modes and default behavior.
-- [ ] Validate app shell move with `npm run typecheck`, `npm run lint`, and main web-chat smoke.
+- [x] Create `src/app/routeMode.ts` with a typed route-mode parser for `debug`, `providerDemo`, `providerMultiDemo`, and normal chat.
+- [x] Move root app composition from `src/App.tsx` into `src/app/App.tsx`.
+- [x] Create `src/app/MainWebChatRoot.tsx` for the production web-chat route.
+- [x] Create `src/app/DebugUiRoot.tsx` for the debug UI route.
+- [x] Create temporary `src/app/ProviderDemoRoot.tsx` and `src/app/ProviderMultiDemoRoot.tsx` wrappers so demo deletion is isolated later.
+- [x] Keep `src/App.tsx` as a short compatibility re-export or wrapper during the move.
+- [x] Add unit tests for `routeMode.ts` covering all query modes and default behavior.
+- [x] Validate app shell move with `npm run typecheck`, `npm run lint`, and main web-chat smoke.
 
 ## Phase 2 — Establish feature-folder layout
 
