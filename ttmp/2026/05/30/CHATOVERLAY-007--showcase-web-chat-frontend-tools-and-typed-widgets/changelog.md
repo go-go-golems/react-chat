@@ -77,3 +77,13 @@ Added provider debug observer parity, a provider-safe export menu, and a repeata
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/03-webchat-provider-multi-instance-smoke.js — Smoke script
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ProviderMultiDemoPage.tsx — Multi-instance validation route
 
+
+## 2026-05-31
+
+Restored provider projection for reasoning/thinking WebSocket events and split provider-backed web-chat components into src/chat/provider/ (commits 721d9e2, e029808).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/ws/timelineEvents.ts — Reasoning event projection
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/chat/provider/ProviderBackedChatWidgetInner.tsx — Split provider widget implementation
+

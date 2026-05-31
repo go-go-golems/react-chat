@@ -14,6 +14,12 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/showcase_tools.go
       Note: Showcase prompt detection and result endpoint (commits 004ebc5
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/ProviderBackedChatWidget.tsx
+      Note: Provider-backed widget outer shell after component split (commit e029808)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/ProviderBackedChatWidgetInner.tsx
+      Note: Provider-backed widget inner runtime/chrome integration after split (commit e029808)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/ProviderStatusbar.tsx
+      Note: Provider-safe statusbar/export component after split (commit e029808)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ProviderBackedChatWidget.tsx
       Note: Provider-backed main ChatWidget implementation (commit 61fb547)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ProviderDemoPage.tsx
@@ -36,6 +42,8 @@ RelatedFiles:
       Note: Added SubmitCommand helper (commit 004ebc5)
     - Path: packages/chat-provider/src/core/createChatClient.ts
       Note: Generic session configuration and connect API for the main web-chat provider port (commits 3040510
+    - Path: packages/chat-provider/src/ws/timelineEvents.ts
+      Note: Restored reasoning/thinking UI event projection for provider-backed web-chat (commit 721d9e2)
     - Path: packages/chat-provider/src/ws/wsManager.ts
       Note: Generic provider debug observer events (commit 5b4e777)
     - Path: ttmp/2026/05/30/CHATOVERLAY-007--showcase-web-chat-frontend-tools-and-typed-widgets/scripts/01-webchat-capabilities-showcase-smoke.js
@@ -48,6 +56,7 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -715,3 +724,85 @@ I also added a dedicated two-provider smoke page. It renders two independent `Ch
 - `ChatDebugEvent` is exported from `@go-go-golems/chat-provider` and `@go-go-golems/chat-provider/ws`.
 - Pinocchio maps provider debug events into the existing `recordStreamDebug(...)` sink.
 - `ExportMenuForSession` builds the same `/api/chat/sessions/{id}/...` download URLs as the legacy export menu.
+
+## Step 10: Restore reasoning projection and split provider UI files
+
+This step fixed a regression in the provider-backed web-chat migration: the generic `chat-provider` timeline projector handled normal text, widgets, and frontend tools, but it did not yet handle Pinocchio reasoning UI events. As a result, `ChatReasoningPatch` frames could arrive over the WebSocket without becoming visible `thinking` timeline rows in the provider-backed widget.
+
+I also split the provider-backed web-chat UI out of the large monolithic file into `src/chat/provider/`. Each React component now has its own file, and the old `webchat/ProviderBackedChatWidget.tsx` and `webchat/ProviderMultiDemoPage.tsx` paths are thin re-exports so existing imports keep working while the provider implementation is easier to inspect.
+
+### Prompt Context
+
+**User prompt (verbatim):** "the thinking streaming events over websocket don't seem to be working anymore.\n\nTO make this all a bit omre clear, make a new subdirectory chat/provider/ and split out each component into its own file."
+
+**Assistant interpretation:** Fix provider-backed thinking/reasoning WebSocket projection and reorganize the provider web-chat implementation into a clearer component directory.
+
+**Inferred user intent:** Make the new provider-backed architecture easier to debug and restore streaming reasoning visibility.
+
+**Commit (code):** 721d9e2 — "fix: project reasoning events in chat provider"; e029808 — "refactor: split provider web-chat components"
+
+### What I did
+- Added provider timeline mutations for:
+  - `ChatReasoningSegmentStarted`
+  - `ChatReasoningPatch`
+  - `ChatReasoningSegmentFinished`
+- Preserved reasoning correlation metadata where available.
+- Created `pinocchio/cmd/web-chat/web/src/chat/provider/`.
+- Split provider-backed web-chat code into focused files:
+  - `ProviderBackedChatWidget.tsx`
+  - `ProviderBackedChatWidgetInner.tsx`
+  - `ProviderStatusbar.tsx`
+  - `ProviderToolCallRenderer.tsx`
+  - `ProviderWidgetRenderer.tsx`
+  - `ProviderMultiDemoPage.tsx`
+  - `ProviderMultiDemoInstance.tsx`
+  - `ProviderMultiDemoPanel.tsx`
+  - helper files for debug, session, and timeline conversion.
+- Left compatibility re-exports under `src/webchat/`.
+
+### Why
+- The provider-backed main widget now depends on `chat-provider` for all WebSocket timeline projection, so reasoning events must be supported in the generic projector.
+- Splitting the provider shell makes it much easier to see which code belongs to provider runtime integration versus generic web-chat rendering/chrome.
+
+### What worked
+- Provider package typecheck passed.
+- Web-chat typecheck, lint, and build passed.
+- Backend reasoning feature tests passed.
+- Main web-chat and multi-instance Playwright smokes passed.
+
+### What didn't work
+- Running existing frontend Vitest files exposed a pre-existing expectation mismatch in the legacy web-chat `src/ws/wsManager.test.ts`: the test expects `ChatReasoningPatch` to put text directly in `props.content`, while the reducer path uses `contentPatch` for streaming merge semantics.
+  - Command: `npx vitest run src/ws/wsManager.test.ts src/ws/timelineProtocol.test.ts`
+  - Failure: `AssertionError: expected undefined to be 'draft plan'` at `src/ws/wsManager.test.ts:131:45`.
+  - I did not change that legacy test in this step because the provider regression fix is in `@go-go-golems/chat-provider`.
+
+### What I learned
+- The provider migration made missing UI-event cases more visible because the old web-chat projector had more Pinocchio-specific event coverage than the generic provider projector.
+- The old monolithic provider-backed widget obscured which pieces were runtime adapters, component renderers, or smoke-only multi-instance UI.
+
+### What was tricky to build
+- Reasoning deltas should stream via `contentPatch`, not by replacing `content` directly. That keeps append/snapshot/replace merge behavior centralized in the provider timeline slice.
+- The component split had to preserve imports from the existing web-chat package without creating a second app-level route API. Thin re-export shims avoided touching unrelated import sites.
+
+### What warrants a second pair of eyes
+- Review whether `ChatProvider` should also absorb the remaining Pinocchio-specific event types from legacy `src/ws/timelineEvents.ts`, such as agent-mode and backend tool-call entities.
+- Review the legacy Vitest expectation for reasoning patches and decide whether to update it to assert reducer-merged content rather than raw mutation shape.
+
+### What should be done in the future
+- Add a provider-package unit test harness so reasoning projection is tested directly in `@go-go-golems/chat-provider`.
+- Consider moving shared Pinocchio event projection fixtures into a common place consumed by both legacy and provider projectors.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/ws/timelineEvents.ts` to review reasoning event coverage.
+- Then review `pinocchio/cmd/web-chat/web/src/chat/provider/` to verify the file split and component boundaries.
+- Validate with the commands listed in this step's `What worked` section.
+
+### Technical details
+- Validation commands run:
+  - `pnpm --filter @go-go-golems/chat-provider typecheck`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `go test ./cmd/web-chat -run TestReasoning -count=1`
+  - `node .../03-pinocchio-webchat-devctl-playwright.js`
+  - `node .../03-webchat-provider-multi-instance-smoke.js`

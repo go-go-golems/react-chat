@@ -154,3 +154,11 @@ LastUpdated: 2026-05-31T03:55:00-04:00
 - [x] T13.7 Commit provider parity code and smoke.
 - [x] T13.8 Update diary/changelog/relations and run docmgr doctor.
 - [x] T13.9 Commit provider parity docs.
+
+## Phase 14: Reasoning projection fix and provider component split
+
+- [x] T14.1 Restore `ChatProvider` projection for `ChatReasoningSegmentStarted`, `ChatReasoningPatch`, and `ChatReasoningSegmentFinished` UI events.
+- [x] T14.2 Move provider-backed web-chat components into `src/chat/provider/`, with one React component per file.
+- [x] T14.3 Leave compatibility re-export shims for the previous `webchat/ProviderBackedChatWidget.tsx` and `webchat/ProviderMultiDemoPage.tsx` paths.
+- [x] T14.4 Validate provider typecheck, web-chat typecheck/lint/build, reasoning backend tests, main web-chat smoke, and multi-instance smoke.
+- [x] T14.5 Commit the provider reasoning fix and component split.
