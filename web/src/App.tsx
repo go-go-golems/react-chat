@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { z } from 'zod';
 import { useFrontendTool, useHumanTool } from '@go-go-golems/chat-provider';
 import { ChatOverlayProvider, ChatPanel, ChatBubble } from '@go-go-golems/chat-overlay';
-import './ecommerce'; // register ecommerce widgets
+import { ecommerceExtensions } from './ecommerce';
 
 type DemoCartItem = {
   sku: string;
@@ -37,7 +37,7 @@ const CheckoutConfirmResultSchema = z.object({
   approvalCount: z.number().int().nonnegative().optional(),
 });
 
-const CHAT_OVERLAY_CONFIG = { basePrefix: '' };
+const CHAT_OVERLAY_CONFIG = { basePrefix: '', extensions: [ecommerceExtensions] };
 
 function DemoTools() {
   const [items, setItems] = useState<DemoCartItem[]>([]);

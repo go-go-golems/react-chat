@@ -1,8 +1,7 @@
+import { ChatProvider, WidgetOutlet } from '@go-go-golems/chat-provider';
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { WidgetOutlet } from '@go-go-golems/chat-provider';
-import '../ecommerce';
-
+import { ecommerceExtensions } from '../../../web/src/ecommerce';
 import '../theme/retro-mac.css';
 
 const meta: Meta<typeof WidgetOutlet> = {
@@ -11,9 +10,11 @@ const meta: Meta<typeof WidgetOutlet> = {
   decorators: [
     (Story) => {
       return (
-        <div className="chat-overlay-root" style={{ width: '384px' }}>
-          <Story />
-        </div>
+        <ChatProvider config={{ extensions: [ecommerceExtensions] }}>
+          <div className="chat-overlay-root" style={{ width: '384px' }}>
+            <Story />
+          </div>
+        </ChatProvider>
       );
     },
   ],
