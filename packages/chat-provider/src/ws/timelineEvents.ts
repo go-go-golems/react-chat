@@ -23,6 +23,20 @@ function definedProps(props: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
+function correlationProps(correlation: unknown): Record<string, unknown> {
+  if (!correlation || typeof correlation !== 'object' || Array.isArray(correlation)) return {};
+  const c = correlation as Record<string, unknown>;
+  return definedProps({
+    correlation,
+    sessionId: c.sessionId,
+    runId: c.runId,
+    turnId: c.turnId,
+    providerCallId: c.providerCallId,
+    segmentId: c.segmentId,
+    toolCallId: c.toolCallId,
+  });
+}
+
 function parentMessageId(messageId: string, marker: string): string | undefined {
   const idx = messageId.lastIndexOf(marker);
   return idx > 0 ? messageId.slice(0, idx) : undefined;
@@ -89,6 +103,47 @@ export function timelineMutationFromUIEvent(frame: CanonicalFrame): TimelineMuta
         ...(content ? { upsert } : { upsertIfExists: upsert }),
         status: (payload.status as string) || 'finished',
       };
+    }
+    case 'ChatReasoningSegmentStarted': {
+      const messageId = payload.messageId as string;
+      if (!messageId) return null;
+      return { status: 'streaming' };
+    }
+    case 'ChatReasoningPatch': {
+      const messageId = payload.messageId as string;
+      if (!messageId) return null;
+      return {
+        upsert: messageEntity(messageId, {
+          role: 'thinking',
+          contentPatch: payload.text || payload.content || '',
+          patchMode: patchModeName(payload.mode),
+          status: payload.status || 'streaming',
+          streaming: !(payload as any).final,
+          parentMessageId: payload.parentMessageId,
+          source: payload.source,
+          ...correlationProps(payload.correlation),
+        }),
+        status: 'streaming',
+      };
+    }
+    case 'ChatReasoningSegmentFinished': {
+      const messageId = payload.messageId as string;
+      if (!messageId) return null;
+      const content = payload.content || payload.text;
+      const upsert = messageEntity(
+        messageId,
+        definedProps({
+          role: 'thinking',
+          ...(content ? { content } : {}),
+          status: payload.status || 'finished',
+          streaming: false,
+          parentMessageId: payload.parentMessageId,
+          source: payload.source,
+          finishReason: payload.finishReason,
+          ...correlationProps(payload.correlation),
+        }),
+      );
+      return content ? { upsert } : { upsertIfExists: upsert };
     }
     case 'ChatWidgetInstanceStarted': {
       const instanceId = payload.instanceId as string;
