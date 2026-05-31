@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	widgetv1 "github.com/go-go-golems/chat-overlay/internal/pb/proto/chatoverlay/widgets/v1"
 	toolv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/frontendtools/v1"
 	chatappv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/v1"
+	widgetv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/widgets/v1"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
 )
 
