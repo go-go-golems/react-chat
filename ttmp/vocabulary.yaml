@@ -27,6 +27,10 @@ topics:
       description: Frontend application architecture and browser-side implementation
     - slug: web-chat
       description: Pinocchio web-chat frontend and backend integration
+    - slug: architecture
+      description: Software architecture, subsystem boundaries, and design decisions
+    - slug: storybook
+      description: Storybook component documentation and frontend workbench
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
