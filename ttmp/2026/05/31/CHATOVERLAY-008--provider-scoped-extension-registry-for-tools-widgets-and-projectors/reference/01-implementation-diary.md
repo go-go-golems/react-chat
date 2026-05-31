@@ -13,6 +13,12 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/projectors/pinocchioProjectors.ts
       Note: Pinocchio-owned provider projectors (commit 5f9e80d)
+    - Path: packages/chat-overlay/src/overlay/ChatBubble.tsx
+      Note: Launcher semantic class (commit 9f06509)
+    - Path: packages/chat-overlay/src/overlay/ChatPanel.tsx
+      Note: Dialog semantic classes (commit 9f06509)
+    - Path: packages/chat-overlay/src/theme/retro-mac.css
+      Note: Overlay chrome CSS regression fix (commit 9f06509)
     - Path: packages/chat-provider/src/react/ChatProvider.tsx
       Note: Provider-scoped registry construction and extension installation (commit d614a71)
     - Path: packages/chat-provider/src/widgets/widgetRegistry.ts
@@ -29,6 +35,7 @@ LastUpdated: 2026-05-31T11:42:28.8357862-04:00
 WhatFor: Track research, design, validation, and delivery of the extension registry design package.
 WhenToUse: Read before implementing CHATOVERLAY-008 or resuming the design discussion.
 ---
+
 
 
 
@@ -325,3 +332,73 @@ The important architectural outcome is that custom live UI event support no long
 ### Technical details
 - `pinocchioWebChatProjectors` is installed through `extensions: [pinocchioWebChatProjectors]` in provider config.
 - The projector extension is static and therefore available before child components call `client.connect()`.
+
+## Step 5: Stabilize chat-overlay launcher and dialog CSS
+
+This step fixed a visual regression in the ecommerce chat-overlay demo. The launcher and panel were relying on Tailwind utility classes declared inside the workspace package source; after the recent package split/refactor, the app build did not reliably emit critical utilities such as fixed positioning, right/bottom offsets, flex column layout, overflow, and arbitrary height classes.
+
+The fix moves the critical overlay chrome layout into explicit component CSS classes in `retro-mac.css`. The bubble and panel now have stable fixed positioning, z-index, sizing, border, shadow, header, scroll area, and composer layout independent of Tailwind utility extraction.
+
+### Prompt Context
+
+**User prompt (verbatim):** "the CSS for the chat overlay bubble seems broken now, it's a weird bar at the bottom of the screen and when I open it it's also not really a chatbot dialog."
+
+**Assistant interpretation:** The chat-overlay demo's floating launcher and opened dialog layout regressed and need to be inspected and repaired.
+
+**Inferred user intent:** Restore the demo to a recognizable floating chatbot bubble and anchored dialog.
+
+**Commit (code):** 9f06509 — "fix: stabilize chat overlay chrome styles"
+
+### What I did
+- Reproduced the issue at `http://127.0.0.1:15173` after starting the demo with `devctl up --force`.
+- Captured closed/open browser state and confirmed the launcher/panel had collapsed into normal page-flow/footer-like bars.
+- Replaced Tailwind utility-only overlay chrome on `ChatBubble`, `ChatPanel`, and `ChatComposer` with semantic classes.
+- Added explicit CSS rules in `packages/chat-overlay/src/theme/retro-mac.css` for:
+  - `.chat-overlay-bubble`,
+  - `.chat-overlay-panel`,
+  - panel header/actions/close button,
+  - message scroll region,
+  - composer/input/buttons,
+  - mobile viewport adjustment.
+- Validated with:
+  - `pnpm --filter @go-go-golems/chat-overlay typecheck`
+  - `pnpm --filter @go-go-golems/chat-overlay-ecommerce-demo build`
+  - `devctl up --force`
+  - browser inspection via Playwright snapshot
+  - `devctl widget-smoke`
+
+### Why
+- The overlay chrome must not depend on Tailwind discovering class strings inside a consumed workspace package.
+- Fixed positioning and panel flex layout are correctness-critical; if those utilities are missing, the UI stops being an overlay entirely.
+
+### What worked
+- The closed launcher now appears as a 48x48 fixed bubble at bottom-right.
+- The opened panel now appears as a 384x512 fixed chatbot dialog above the launcher.
+- `devctl widget-smoke` passed after the fix.
+
+### What didn't work
+- The initial screenshot analysis showed the symptom correctly, but the underlying root cause required inspecting generated CSS. The built CSS was missing several critical utilities (`fixed`, `bottom-*`, `right-*`, `flex-col`, `overflow-y-auto`, `h-[32rem]`).
+
+### What I learned
+- Tailwind utilities inside source-exported workspace packages can be brittle unless the app's Tailwind source scanning is configured perfectly.
+- Package-owned UI primitives should put must-have chrome rules in package CSS, not only in utility class strings.
+
+### What was tricky to build
+- The panel did not just need positioning; it also needed a flex column container and a scrollable middle region. Without both, the composer/header behave like a shallow footer strip rather than a dialog.
+- Keeping the retro Mac visual style while restoring overlay behavior required explicit monochrome borders and offset shadows rather than modern rounded-card styling.
+
+### What warrants a second pair of eyes
+- Review whether the rest of `chat-overlay` package components still rely on utility classes that may be absent from consumer builds.
+- Review whether `@import "tailwindcss"` should remain in the package theme or be replaced by fully explicit package CSS.
+
+### What should be done in the future
+- Add a visual smoke assertion for the launcher bounding box and panel bounding box so a bottom-bar regression fails automatically.
+
+### Code review instructions
+- Start with `packages/chat-overlay/src/theme/retro-mac.css`.
+- Then review `ChatBubble.tsx`, `ChatPanel.tsx`, and `ChatComposer.tsx` to confirm semantic class usage.
+- Validate with `devctl up --force && devctl widget-smoke`.
+
+### Technical details
+- Closed-state launcher observed after fix: bottom-right fixed button with bounding box roughly `48x48`.
+- Open-state panel observed after fix: bottom-right fixed dialog with bounding box roughly `384x512`.

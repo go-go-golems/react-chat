@@ -51,3 +51,14 @@ Uploaded updated implementation bundle to reMarkable at /ai/2026/05/31/CHATOVERL
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-008--provider-scoped-extension-registry-for-tools-widgets-and-projectors/reference/01-implementation-diary.md — Updated implementation diary included in upload
 
+
+## 2026-05-31
+
+Fixed chat-overlay demo CSS regression by moving launcher and panel chrome from package-local Tailwind utility strings to explicit package CSS (commit 9f06509).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-overlay/src/overlay/ChatBubble.tsx — Semantic launcher class
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-overlay/src/overlay/ChatPanel.tsx — Semantic dialog classes
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-overlay/src/theme/retro-mac.css — Explicit overlay chrome styles
+
