@@ -38,3 +38,14 @@ Uploaded final CHATOVERLAY-005 documentation bundle to reMarkable at /ai/2026/05
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/reference/01-investigation-diary.md — Final implementation diary included in uploaded bundle
 
+
+## 2026-05-30
+
+Added reusable devctl-backed Playwright smoke scripts for chat-overlay, Pinocchio web-chat, and CoinVault; validated all three scripts successfully.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/scripts/02-chatoverlay-devctl-playwright.js — Starts chat-overlay with devctl and validates widget/tool flow
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/scripts/03-pinocchio-webchat-devctl-playwright.js — Starts Pinocchio web-chat with devctl and validates send/finish flow
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/scripts/04-coinvault-devctl-playwright.js — Starts CoinVault with devctl and validates dashboard/query flow
+
