@@ -11,14 +11,25 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/projectors/pinocchioProjectors.ts
+      Note: Pinocchio-owned provider projectors (commit 5f9e80d)
+    - Path: packages/chat-provider/src/react/ChatProvider.tsx
+      Note: Provider-scoped registry construction and extension installation (commit d614a71)
+    - Path: packages/chat-provider/src/widgets/widgetRegistry.ts
+      Note: Provider-scoped widget registry and pure defineWidget descriptor (commit d614a71)
+    - Path: packages/chat-provider/src/ws/projectorRegistry.ts
+      Note: Provider-scoped projector registry (commit d614a71)
     - Path: ttmp/2026/05/31/CHATOVERLAY-008--provider-scoped-extension-registry-for-tools-widgets-and-projectors/design-doc/01-provider-scoped-extension-registry-design-and-implementation-guide.md
       Note: Primary design deliverable for this ticket
+    - Path: web/src/ecommerce/extensions.ts
+      Note: Ecommerce explicit widget extension (commit b0ecb03)
 ExternalSources: []
 Summary: Chronological diary for the provider-scoped extension registry design ticket.
 LastUpdated: 2026-05-31T11:42:28.8357862-04:00
 WhatFor: Track research, design, validation, and delivery of the extension registry design package.
 WhenToUse: Read before implementing CHATOVERLAY-008 or resuming the design discussion.
 ---
+
 
 
 # Diary
@@ -109,3 +120,208 @@ The resulting design recommends provider-scoped extension registries: hook/compo
 ### Technical details
 - Ticket path: `ttmp/2026/05/31/CHATOVERLAY-008--provider-scoped-extension-registry-for-tools-widgets-and-projectors`.
 - Primary design doc: `design-doc/01-provider-scoped-extension-registry-design-and-implementation-guide.md`.
+
+## Step 2: Provider-scoped extension primitives
+
+This step implemented the core `chat-provider` cutover from global widget lookup and incomplete toolkit installation to provider-scoped extension registries. The provider now constructs a widget registry and a timeline projector registry alongside the existing tool registry, then installs configured extensions before any child component connects the WebSocket.
+
+The implementation intentionally removes the public toolkit vocabulary from exports in favor of `ChatExtension`, `defineChatExtensions`, and `useChatExtensions`. `defineWidget(...)` is now a pure descriptor factory; widget registration is performed through provider config or `useWidget(...)`, not through module import side effects.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Implement the clean provider-scoped extension API planned in the ticket.
+
+**Inferred user intent:** Make tools, widgets, and projectors explicit, provider-local, and deterministic without compatibility shims.
+
+**Commit (code):** d614a71 — "feat: add provider scoped extension registries"
+
+### What I did
+- Replaced the module-level widget registry with `createWidgetRegistry()` and `ChatWidgetRegistry`.
+- Changed `defineWidget(...)` into a pure descriptor factory.
+- Added `useWidget(...)` for React lifecycle-scoped widget registration.
+- Added `TimelineProjector`, `defineTimelineProjector(...)`, and `createTimelineProjectorRegistry()`.
+- Converted the provider's built-in timeline mapper into `coreChatProjector`.
+- Added `ChatExtension`, `defineChatExtensions(...)`, `installChatExtension(...)`, `installChatExtensions(...)`, and `useChatExtensions(...)`.
+- Extended `ChatProviderConfig` with `extensions`, `tools`, `widgets`, and `projectors`.
+- Updated `ChatProvider` to create tool/widget/projector registries per runtime instance and install configured extensions.
+- Removed public `defineToolkit`/`useToolkit` exports from the package entrypoints.
+
+### Why
+- Global widget registration made provider behavior depend on import order and broke provider isolation.
+- Projectors need to be installed before WebSocket frames arrive, so provider config is the safest default path.
+- The existing `ChatToolkit` shape already hinted at grouped extensions, but it only installed tools.
+
+### What worked
+- `pnpm --filter @go-go-golems/chat-provider typecheck` passed after fixing context naming and debug-event typing.
+- The new registries fit naturally into the existing provider runtime construction flow.
+
+### What didn't work
+- Initial provider typecheck failed because `useChatExtensions(...)` passed `ChatRuntimeContextValue` directly to `installChatExtension(...)`, but the latter expects the shorter runtime API shape:
+  - `src/core/useChatExtensions.ts(9,33): error TS2345: Argument of type 'ChatRuntimeContextValue' is not assignable to parameter of type 'ChatRuntimeApi'.`
+- Initial provider typecheck also failed because debug events did not include the new projector name field:
+  - `src/ws/wsManager.ts(188,9): error TS2353: Object literal may only specify known properties, and 'projectorName' does not exist in type ...`
+- I fixed both by adapting context fields into `{ client, tools, widgets, projectors }` and adding `projectorName?: string` to the UI debug event type.
+
+### What I learned
+- The provider runtime context should expose the concrete registries, but the public extension installer should receive a smaller semantic runtime API.
+- Returning the projector name in debug events is useful and cheap once projection is registry-based.
+
+### What was tricky to build
+- The main subtlety was avoiding circular lifecycle problems. `ChatProvider` has to create registries first, create the client, then install configured extensions. That order lets extensions refer to the client while still guaranteeing projectors are installed before children call `client.connect()`.
+- Another sharp edge was preserving manifest sync. Extension installation now syncs the tool manifest just like individual tool hooks do.
+
+### What warrants a second pair of eyes
+- Review the runtime recreation semantics when `config` object identity changes. This was already true before the refactor, but configured extensions make memoized config more important.
+- Review whether `priority` sorting for projectors should be stable by insertion order or name. The current implementation breaks priority ties by name.
+
+### What should be done in the future
+- Add provider-level unit tests for widget registry isolation and projector ordering.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/react/ChatProvider.tsx`.
+- Then review `packages/chat-provider/src/core/extensions.ts`, `widgets/widgetRegistry.ts`, and `ws/projectorRegistry.ts`.
+- Validate with `pnpm --filter @go-go-golems/chat-provider typecheck`.
+
+### Technical details
+- The default projector is registered as `chat-provider.core`.
+- Static extension arrays can be passed through `ChatProviderConfig` as `extensions`, `tools`, `widgets`, or `projectors`.
+
+## Step 3: Migrate consumers away from import-side-effect widgets
+
+This step migrated the known frontend consumers to the new extension vocabulary. The ecommerce app now explicitly passes its widget set to the provider via `ecommerceExtensions`, and the Storybook widget stories wrap `WidgetOutlet` in a `ChatProvider` configured with those extensions.
+
+Pinocchio's provider demo was updated from `defineToolkit`/`useToolkit` to `defineChatExtensions`/`useChatExtensions`. Stateful browser tools still use React lifecycle registration, matching the intended API split.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Update real consumers to the new provider-scoped registration APIs.
+
+**Inferred user intent:** Prove the API is usable by apps and remove the old side-effect registration pattern from active code.
+
+**Commit (code):** b0ecb03 — "refactor: register ecommerce widgets via provider extensions"; 6cceee4 — "refactor: use chat extensions in provider demo"
+
+### What I did
+- Added `web/src/ecommerce/extensions.ts` with `ecommerceExtensions`.
+- Removed the side-effect-only ecommerce index imports.
+- Changed ecommerce `App.tsx` to pass `extensions: [ecommerceExtensions]` through `ChatOverlayProvider` config.
+- Changed `WidgetOutlet.stories.tsx` to wrap stories in `ChatProvider config={{ extensions: [ecommerceExtensions] }}`.
+- Updated Pinocchio `ProviderDemoPage.tsx` to use `defineChatExtensions` and `useChatExtensions`.
+
+### Why
+- `import './ecommerce'; // register ecommerce widgets` was exactly the pattern this ticket removes.
+- `WidgetOutlet` now depends on provider runtime context, so stories need an explicit provider wrapper.
+- The Pinocchio demo should use the final extension vocabulary before app code starts copying old toolkit examples.
+
+### What worked
+- `pnpm -r typecheck` passed for provider and overlay packages.
+- `pnpm --filter @go-go-golems/chat-overlay-ecommerce-demo build` passed.
+- Pinocchio `npm run typecheck`, `npm run lint`, and `npm run build` passed after organizing imports.
+
+### What didn't work
+- Pinocchio lint initially failed because the modified `ProviderDemoPage.tsx` import order did not satisfy Biome:
+  - `src/webchat/ProviderDemoPage.tsx:1:1 assist/source/organizeImports FIXABLE The imports and exports are not sorted.`
+- I fixed it with:
+  - `npx --yes @biomejs/biome@2.3.8 check --write src/webchat/ProviderDemoPage.tsx`
+
+### What I learned
+- Storybook stories are an important consumer of provider context too. A provider-scoped registry means even isolated visual examples must be explicit about installed widgets.
+- The ecommerce app's stateful tools remain cleaner as component hooks, while static widgets fit well in provider config.
+
+### What was tricky to build
+- The story package imports ecommerce code across workspace/package boundaries. The migration kept that pattern but made the registration explicit by importing `ecommerceExtensions` rather than relying on import side effects.
+
+### What warrants a second pair of eyes
+- Review whether `ChatOverlayProvider` should expose a top-level `extensions` prop instead of only accepting them through `config`.
+- Review whether Storybook should define local fake widgets instead of importing ecommerce widgets from the demo app.
+
+### What should be done in the future
+- Add a story/smoke that deliberately renders the same widget name with different provider-local registries.
+
+### Code review instructions
+- Start with `web/src/App.tsx` and `web/src/ecommerce/extensions.ts`.
+- Then review `packages/chat-overlay/src/stories/WidgetOutlet.stories.tsx`.
+- Validate ecommerce with `pnpm --filter @go-go-golems/chat-overlay-ecommerce-demo build`.
+
+### Technical details
+- `defineWidget(...)` calls in ecommerce files now only create descriptors; they do not register globally.
+
+## Step 4: Move Pinocchio projectors into provider config
+
+This step moved Pinocchio-specific projection out of generic provider core and into Pinocchio web-chat configuration. `chat-provider` keeps a generic core projector for protocol-generic text, widget, and frontend-tool events. Pinocchio owns reasoning, agent-mode, and backend-tool projection through a `pinocchio.web-chat.projectors` extension.
+
+The important architectural outcome is that custom live UI event support no longer requires editing `@go-go-golems/chat-provider`. Apps can define projector descriptors and install them through provider config before the WebSocket connects.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the projector portion of the clean extension cutover and validate that Pinocchio still renders its specialized events.
+
+**Inferred user intent:** Ensure custom assistant messages, thinking, widgets, and tool events have an explicit extension path rather than hard-coded provider patches.
+
+**Commit (code):** 3dd56fd — "refactor: move reasoning projection out of provider core"; 5f9e80d — "feat: install pinocchio chat provider projectors"
+
+### What I did
+- Removed the Pinocchio reasoning cases from the generic provider core projector.
+- Added `pinocchio/cmd/web-chat/web/src/chat/provider/projectors/pinocchioProjectors.ts`.
+- Defined projectors for:
+  - `ChatReasoningSegmentStarted`, `ChatReasoningPatch`, `ChatReasoningSegmentFinished`,
+  - `ChatAgentModePreviewUpdated`, `ChatAgentModeCommitted`, `ChatAgentModePreviewCleared`,
+  - `ChatToolCallStarted`, `ChatToolArgumentsPatch`, `ChatToolExecutionStarted`, `ChatToolCallFinished`, `ChatToolResultReady`.
+- Installed `pinocchioWebChatProjectors` through `ChatProvider` config in:
+  - main provider-backed web-chat,
+  - `?providerDemo=1` page.
+- Ran validation:
+  - `pnpm -r typecheck`
+  - `pnpm --filter @go-go-golems/chat-overlay-ecommerce-demo build`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run build`
+  - `devctl widget-smoke`
+  - `03-pinocchio-webchat-devctl-playwright.js`
+  - `01-webchat-capabilities-showcase-smoke.js`
+  - `02-webchat-chatprovider-demo-smoke.js`
+  - `03-webchat-provider-multi-instance-smoke.js`
+
+### Why
+- Reasoning is Pinocchio-specific enough to be owned by Pinocchio web-chat rather than generic provider core.
+- Agent-mode and backend-tool timeline events were still legacy-projector capabilities; this gives them a provider-backed path.
+- Projectors must be configured before connect, so provider config is the right installation point.
+
+### What worked
+- All validation commands listed above passed.
+- Existing browser smokes still pass after moving reasoning out of generic provider core.
+- Ecommerce widgets still render after moving widget registration into config.
+
+### What didn't work
+- No new code blocker in this step. The only lint fix needed was import organization, handled before committing.
+
+### What I learned
+- Provider projector priority works as intended: Pinocchio projectors use priority `-10`, so they get first chance to map app-specific frames before the generic core projector.
+- The same extension descriptor model can carry static projectors while hook components carry dynamic tools/widgets.
+
+### What was tricky to build
+- Backend tool events can be partial patches. The projector preserves streaming argument patches with `inputRawPatch` and `patchMode` so the existing timeline slice can merge them.
+- App-owned projectors cannot rely on provider-internal entity helpers, so the Pinocchio projector file defines small local entity constructors. This keeps package boundaries clean.
+
+### What warrants a second pair of eyes
+- Review whether any additional Pinocchio event types from legacy `src/ws/timelineEvents.ts` still need provider-backed projectors.
+- Review whether generic provider core should keep widget/frontend-tool projection or whether those should also become default bundled extensions.
+- Review backend tool projection UI: backend tools currently render through the provider `ToolCallOutlet` fallback unless a backend tool UI is registered.
+
+### What should be done in the future
+- Add unit tests for `pinocchioProjectors.ts` with representative raw sessionstream frames.
+- Add a dedicated browser smoke for reasoning output if a deterministic reasoning demo prompt/profile is available.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/ws/timelineEvents.ts` to confirm provider core is generic.
+- Then review `pinocchio/cmd/web-chat/web/src/chat/provider/projectors/pinocchioProjectors.ts` for Pinocchio-owned cases.
+- Validate with the smoke commands listed above.
+
+### Technical details
+- `pinocchioWebChatProjectors` is installed through `extensions: [pinocchioWebChatProjectors]` in provider config.
+- The projector extension is static and therefore available before child components call `client.connect()`.

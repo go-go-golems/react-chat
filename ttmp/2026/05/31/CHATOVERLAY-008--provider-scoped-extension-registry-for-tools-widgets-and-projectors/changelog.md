@@ -31,3 +31,14 @@ Added detailed implementation task phases for provider-scoped tools, widgets, an
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-008--provider-scoped-extension-registry-for-tools-widgets-and-projectors/tasks.md — Implementation task plan
 
+
+## 2026-05-31
+
+Implemented provider-scoped extension registries, migrated ecommerce/widgets and Pinocchio demo consumers, and moved Pinocchio-specific projectors into provider config (commits d614a71, b0ecb03, 6cceee4, 3dd56fd, 5f9e80d).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/react/ChatProvider.tsx — Provider extension installation
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/web/src/ecommerce/extensions.ts — Ecommerce extension migration
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/chat/provider/projectors/pinocchioProjectors.ts — Pinocchio projector extension
+
