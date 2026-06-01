@@ -78,3 +78,14 @@ Published new React chat 0.1.1 packages and go-go-os os-core 0.1.3 through token
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/package.json — Version bumped to 0.1.1 and published via run 26778779490
 - /home/manuel/workspaces/2026-05-29/chatbot-react/go-go-os-frontend/packages/os-core/package.json — Version bumped to 0.1.3 and published via run 26778852213
 
+
+## 2026-06-01
+
+Removed obsolete Vault npm token material for react-chat and go-go-os-frontend, added npm publishing playbooks, and marked Vault-token design sections as historical.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/docs/npm-publishing-playbook.md — React chat trusted publishing operator playbook
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/design-doc/01-publishing-react-chat-packages-to-npm.md — Marked Vault-token sections as historical
+- /home/manuel/workspaces/2026-05-29/chatbot-react/go-go-os-frontend/docs/npm-publishing-playbook.md — go-go-os-frontend trusted publishing operator playbook
+

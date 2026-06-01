@@ -22,6 +22,8 @@ RelatedFiles:
       Note: Public runtime API and backend endpoint contract
     - Path: 2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/react/ChatProvider.tsx
       Note: Provider composition of store registries client and websocket runtime
+    - Path: docs/npm-publishing-playbook.md
+      Note: Current repository-local trusted publishing playbook
     - Path: go-go-os-frontend/.github/workflows/publish-npm.yml
       Note: Reference npm publish workflow to adapt
     - Path: go-go-os-frontend/scripts/packages/build-dist.mjs
@@ -36,9 +38,12 @@ WhenToUse: Before renaming the repository, editing package metadata, copying pub
 ---
 
 
+
 # Publishing React Chat Packages to npm
 
 ## Executive summary
+
+> **Current-state note (2026-06-01):** The original design below started from the older `go-go-os-frontend` Vault-backed npm token model. The implemented and verified final state uses npm Trusted Publishing instead: `.github/workflows/publish-npm.yml` no longer reads `NODE_AUTH_TOKEN` from Vault, both React chat packages have npm trusted publishers configured for `go-go-golems/react-chat`, and package token publishing has been disabled. Treat Vault-token sections in this design as historical investigation context, not the current operating model. The current operator guide is `docs/npm-publishing-playbook.md`.
 
 This ticket prepares the packages under `2026-05-29--chatbot-overlay-glm/packages/` for public npm publication. The current workspace already has two publishable package candidates, `@go-go-golems/chat-provider` and `@go-go-golems/chat-overlay`, but both are still marked `private: true`, export TypeScript source files directly, and only run `tsc --noEmit` builds. The target state is a repository renamed and transferred to `go-go-golems/react-chat`, with stable package metadata, generated `dist/` publish artifacts, a pack smoke test, and a GitHub Actions workflow based on the already-proven `go-go-os-frontend` npm publishing pipeline.
 

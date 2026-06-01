@@ -735,3 +735,82 @@ Observed npm dist-tags after publishing:
 @go-go-golems/chat-overlay: latest=0.1.0, next=0.1.1
 @go-go-golems/os-core: latest=0.1.2, next=0.1.3
 ```
+
+## Step 7: Clean up legacy Vault-token material and add release playbooks
+
+I removed the obsolete Vault npm-token credentials for the repositories that now publish through npm Trusted Publishing and added short operator playbooks to both `react-chat` and `go-go-os-frontend`. I also marked the older Vault-oriented design material as historical so future readers do not mistake it for the current publishing path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "clean up docs. remove vault token. add short playbook to each repo. no need to bump for the other packages"
+
+**Assistant interpretation:** Remove now-obsolete npm token infrastructure, update documentation to describe the trusted-publishing final state, and add practical publishing runbooks to both repositories without bumping more package versions.
+
+**Inferred user intent:** Finish the migration by reducing stale guidance and eliminating long-lived token material that is no longer needed.
+
+**Commit (code):** Pending at time of diary entry.
+
+### What I did
+
+- Added `docs/npm-publishing-playbook.md` to `go-go-golems/react-chat`.
+- Added `docs/npm-publishing-playbook.md` to `go-go-golems/go-go-os-frontend`.
+- Added a current-state note to the CHATOVERLAY-013 design doc explaining that Vault-token sections are historical and that the current operating model is npm Trusted Publishing.
+- Removed obsolete Vault material for the two repositories whose workflows are now tokenless:
+  - `kv/ci/github/react-chat/npm-token`
+  - `auth/github-actions/role/react-chat-npm-publish`
+  - `gha-react-chat-npm-publish`
+  - `kv/ci/github/go-go-os-frontend/npm-token`
+  - `auth/github-actions/role/go-go-os-frontend-npm-publish`
+  - `gha-go-go-os-frontend-npm-publish`
+- Left `dmeta` / PBUI Vault material intact because PBUI was not part of the verified tokenless publish sequence in this work.
+
+### Why
+
+- The final publishing system should not retain unused long-lived npm token paths for repositories that no longer need them.
+- Future operators need a short repository-local playbook, not only the long-form ticket diary and Obsidian article.
+- Historical docs should remain readable, but they need explicit supersession notes when the operating model changes.
+
+### What worked
+
+- Vault confirmed deletion of the obsolete KV metadata paths, roles, and policies.
+- The new playbooks document `next` publishes, `latest` promotion, new-package bootstrap, trusted publishing setup, token lockdown, and common failure modes.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- It is useful to keep the Vault-backed article and original design document as historical material because they explain the migration path and failure modes. Deleting them would remove context. Marking them as superseded is the safer documentation cleanup.
+
+### What was tricky to build
+
+The cleanup had to distinguish repositories that were fully migrated from repositories that were not part of the final verification. `react-chat` and `go-go-os-frontend` were verified with real tokenless publishes. PBUI/dmeta was discussed in source material, but it was not migrated and verified in this session, so its Vault material should not be removed as part of this cleanup.
+
+### What warrants a second pair of eyes
+
+- Confirm whether any remaining non-public workflows or future packages still depend on the deleted Vault token roles. The public npm workflows for `react-chat` and `go-go-os-frontend` do not.
+
+### What should be done in the future
+
+- If PBUI is migrated to trusted publishing, repeat the same cleanup for its Vault token path, role, and policy after a real tokenless publish succeeds.
+- Consider adding an organization-level checklist for npm package creation and trusted publisher setup.
+
+### Code review instructions
+
+- Review `docs/npm-publishing-playbook.md` in both repositories.
+- Verify `.github/workflows/publish-npm.yml` in both repositories contains no Vault action and no `NODE_AUTH_TOKEN`.
+- Verify Vault deletion with metadata/role reads, not secret reads.
+
+### Technical details
+
+Vault cleanup commands were equivalent to:
+
+```bash
+vault kv metadata delete kv/ci/github/react-chat/npm-token
+vault kv metadata delete kv/ci/github/go-go-os-frontend/npm-token
+vault delete auth/github-actions/role/react-chat-npm-publish
+vault delete auth/github-actions/role/go-go-os-frontend-npm-publish
+vault policy delete gha-react-chat-npm-publish
+vault policy delete gha-go-go-os-frontend-npm-publish
+```
