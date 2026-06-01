@@ -170,18 +170,6 @@ Goal: align web-chat rendering extension points with provider-scoped extension d
 - [x] Remove `getDefaultMiddleware: any` in `src/store/store.ts`.
 - [x] Add unit tests for renderer factory override precedence.
 
-## Phase 9 — Pinocchio projector hardening
-
-Goal: keep app-specific live event projection explicit and well-tested.
-
-- [ ] Move `pinocchioProjectors.ts` into `src/features/web-chat/extensions/pinocchio-projectors/`.
-- [ ] Split reasoning, agent-mode, and backend-tool projectors into separate files.
-- [ ] Add fixtures for representative sessionstream frames.
-- [ ] Add unit tests for reasoning patch append, snapshot, and finish behavior.
-- [ ] Add unit tests for agent-mode preview, commit, and clear behavior.
-- [ ] Add unit tests for backend tool argument patch merge and result projection.
-- [ ] Document projector priority and first-match behavior.
-- [ ] Validate projectors against at least one captured real event sequence if available.
 
 ## Phase 10 — CSS/theming modularization
 
@@ -199,12 +187,12 @@ Goal: keep the good `data-pwchat`/`data-part` design but make CSS easier to own.
 
 Goal: keep debug UI useful but prevent it from leaking types/state into production web-chat.
 
-- [ ] Move debug UI to `src/features/debug-ui/` or add README boundaries if moving is too noisy.
-- [ ] Fix `src/debug-ui/ws/debugWsManager.ts` if it imports main app store types instead of debug store types.
-- [ ] Add stories for `AppShell`, `TimelineLanes`, `EventTrackLane`, `ProjectionLane`, and `NowMarker`.
-- [ ] Ensure debug UI CSS is imported only by debug UI or Storybook debug stories.
-- [ ] Decide whether `?debug=1` remains in production app or becomes dev-only build/routing behavior.
-- [ ] Validate debug route manually and with a lightweight smoke if feasible.
+- [x] Move debug UI to `src/features/debug-ui/` or add README boundaries if moving is too noisy.
+- [x] Fix `src/debug-ui/ws/debugWsManager.ts` if it imports main app store types instead of debug store types.
+- [x] Add stories for `AppShell`, `TimelineLanes`, `EventTrackLane`, `ProjectionLane`, and `NowMarker`.
+- [x] Ensure debug UI CSS is imported only by debug UI or Storybook debug stories.
+- [x] Decide whether `?debug=1` remains in production app or becomes dev-only build/routing behavior.
+- [x] Validate debug route manually and with a lightweight smoke if feasible.
 
 ## Phase 12 — Generated code and package-management cleanup
 

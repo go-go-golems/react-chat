@@ -207,3 +207,15 @@ Phase 10 styling cleanup: modularized web-chat CSS under features/web-chat/style
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/components/StreamDebugPanel.tsx — Moved debug panel inline styles to scoped parts
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/types.ts — Expanded ChatPart data-part contract and typed render entities
 
+
+## 2026-05-31
+
+Removed obsolete Phase 9 projector hardening and completed Phase 11 debug UI boundary cleanup with README, store-type fix, Storybook stories, and debug route smoke (Pinocchio commit 44faae3).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/.storybook/preview.tsx — Debug CSS no longer globally imported for all stories
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/debug-ui/README.md — Debug UI ownership rules and route decision
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/debug-ui/components/AppShell.stories.tsx — Debug UI shell Storybook coverage
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/debug-ui/ws/debugWsManager.ts — Uses debug store AppDispatch instead of production store type
+

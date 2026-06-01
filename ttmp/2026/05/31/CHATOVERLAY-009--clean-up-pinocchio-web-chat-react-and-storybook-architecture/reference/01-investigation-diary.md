@@ -19,6 +19,8 @@ RelatedFiles:
       Note: Profile API exposes/selects mock_parity (commit aee7029)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/.storybook/main.ts
       Note: Storybook discovery evidence
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/.storybook/preview.tsx
+      Note: Debug CSS no longer globally imported for all stories
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
       Note: Validation scripts and dependency/package-manager evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/scripts/print-dev-url.mjs
@@ -39,6 +41,12 @@ RelatedFiles:
         Provider demo flags now fall back to production chat (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/chat/provider/index.ts
       Note: Temporary compatibility export for old provider path (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/debug-ui/README.md
+      Note: Debug UI ownership rules and route decision
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/debug-ui/components/AppShell.stories.tsx
+      Note: Debug UI shell Storybook coverage
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/debug-ui/ws/debugWsManager.ts
+      Note: Uses debug store AppDispatch instead of production store type
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatComposer/ChatComposer.tsx
       Note: Phase 3 composer component folder (commit 0c897b1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/ChatHeader/ChatHeader.tsx
@@ -118,6 +126,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1718,3 +1727,76 @@ The pass also removed production inline styles from cards, export menu, and stre
 
 ### Technical details
 - Code commit: `a3decd9`.
+
+## Step 23: Remove stale projector phase and clarify debug UI boundaries
+
+This step removed the stale Phase 9 projector-hardening section because CHATOVERLAY-010 replaced projectors with timeline adapters. The work then moved to Phase 11: documenting the debug UI boundary, fixing a store-type leak, and adding Storybook coverage for the main debug UI components.
+
+The debug UI remains available through `?debug=1` for operator/developer use, but it now has explicit ownership rules. Its WebSocket manager uses the debug store dispatch type, and debug CSS is no longer globally imported for every Storybook story.
+
+### Prompt Context
+
+**User prompt (verbatim):** "remove it. go on to phase 11"
+
+**Assistant interpretation:** Delete the obsolete Phase 9 projector tasks and proceed with Phase 11 debug UI boundary cleanup.
+
+**Inferred user intent:** Avoid spending time on obsolete projector work and keep cleanup focused on still-relevant boundaries.
+
+**Commit (code):** 44faae3 — "refactor: clarify debug ui boundary"
+
+### What I did
+- Removed the obsolete Phase 9 projector-hardening section from `tasks.md`.
+- Added `src/debug-ui/README.md` documenting ownership rules and the `?debug=1` route decision.
+- Fixed `src/debug-ui/ws/debugWsManager.ts` to import `AppDispatch` from `src/debug-ui/store/store.ts` instead of the production app store.
+- Removed the global debug CSS import from `.storybook/preview.tsx`.
+- Added debug-only Storybook stories and fixtures for:
+  - `AppShell`
+  - `TimelineLanes`
+  - `EventTrackLane`
+  - `ProjectionLane`
+  - `NowMarker`
+- Validated `?debug=1` with a lightweight Playwright smoke against the actual devctl Vite URL.
+
+### Why
+- Phase 9 referred to deleted projector concepts and would be misleading if left in the active plan.
+- The debug UI should not leak production app store types or CSS into web-chat paths.
+- Storybook coverage makes the debug UI maintainable without requiring a live sessionstream backend.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm test` passed: 9 files, 32 tests.
+- `npm run lint` passed after import ordering was fixed.
+- `npm run build` passed with the known Vite `app-config.js` note and large-chunk warning.
+- `npm run build-storybook` passed with the known Storybook `eval` warnings and large-chunk warning.
+- Lightweight debug route smoke passed with the actual devctl URL: `http://127.0.0.1:39069/?debug=1`.
+- Pinocchio pre-commit web-check passed.
+
+### What didn't work
+- First debug route smoke attempted `http://127.0.0.1:5174/?debug=1`, but `devctl up --force` had selected a temporary Vite port (`39069`) because the default port was not available. The browser failed with `net::ERR_CONNECTION_REFUSED`. Re-running against `.devctl/state.json` fixed the target URL.
+- The second debug route smoke used `getByText('Debug UI')` and failed strict mode because both the shell heading and overview heading matched. Re-running with `getByRole('heading', { name: /Debug UI/ }).first()` fixed the assertion.
+- First lint after fixing the store import failed because Biome wanted imports sorted in `debugWsManager.ts`; reordering the imports fixed it.
+
+### What I learned
+- Debug UI already had its own store; the main leak was a type import in the WebSocket manager.
+- Storybook global imports should stay minimal because debug CSS otherwise affects non-debug stories.
+
+### What was tricky to build
+- `AppShell` needs router context and debug store context in Storybook. The existing Debug UI Storybook decorator supplies those for `Debug UI/*` stories, and the story adds nested routes so `<Outlet />` renders representative lane content.
+- The debug route smoke must use devctl-discovered URLs rather than assuming default ports during validation runs.
+
+### What warrants a second pair of eyes
+- Review whether `?debug=1` should remain production-accessible long term or become dev-only before a public deployment.
+- Review whether debug UI should eventually move under `src/features/debug-ui`; for now the README boundary avoids a noisy move.
+
+### What should be done in the future
+- If debug UI grows, add route-level smoke scripts under the ticket scripts directory.
+- Continue Phase 12 generated/package-management cleanup.
+
+### Code review instructions
+- Start with `src/debug-ui/README.md` and `src/debug-ui/ws/debugWsManager.ts`.
+- Review the new stories in `src/debug-ui/components/*.stories.tsx`.
+- Validate with `npm run typecheck`, `npm test`, `npm run lint`, and `npm run build-storybook`.
+
+### Technical details
+- Code commit: `44faae3`.
+- Successful debug route smoke used the devctl state URL rather than the default port.
