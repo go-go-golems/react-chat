@@ -241,3 +241,173 @@ gh api -X POST repos/wesen/react-chat/transfer -f new_owner=go-go-golems
 git -C 2026-05-29--chatbot-overlay-glm remote set-url origin git@github.com:go-go-golems/react-chat.git
 git -C 2026-05-29--chatbot-overlay-glm ls-remote --heads origin
 ```
+
+## Step 3: Implement npm packaging, CI, and publishing workflow
+
+I implemented the publishing infrastructure described in the design guide and pushed it to `main` on `go-go-golems/react-chat`. The packages now have public npm metadata, README files, generated `dist/` package builds, pack smoke verification, CI, and a manual `publish-npm` workflow.
+
+The local and GitHub dry-run validations passed, but the real npm publish is currently blocked by npm token permissions. The Vault role/secret plumbing for `react-chat` now exists and the workflow can read the token, but the copied `go-go-os-frontend` npm token cannot create or publish the new `@go-go-golems/chat-provider` package on npmjs.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, do the whole thing until it's published, task by task, committing at appropriate intervals"
+
+**Assistant interpretation:** Implement the publishing work end-to-end, commit focused milestones, push to GitHub, run the publish workflow, and continue until the packages are published or an external blocker is reached.
+
+**Inferred user intent:** Move from the analysis ticket to actual npm-ready package infrastructure and public publication.
+
+**Commit (code):** `95ba3d11201d8629f166a4ff2296cd8daac14d43` — "Docs: plan React chat npm publishing"
+
+**Commit (code):** `36019d69660ec8a3d3a0d8ca911431bb6417bac6` — "Prepare React chat packages for npm publishing"
+
+### What I did
+
+- Committed the ticket/design/diary docs first.
+- Added root package metadata and publish helper scripts:
+  - `build:publish`
+  - `pack:smoke`
+  - `publish:dry-run`
+  - npm `workspaces`
+- Added `.npmrc` for the `@go-go-golems` npmjs scope.
+- Made both packages public in metadata and added npm-ready fields:
+  - descriptions
+  - license
+  - author
+  - repository/homepage/bugs URLs for `go-go-golems/react-chat`
+  - `files`
+  - `publishConfig.access=public`
+  - `main` and `types`
+  - `build:dist`
+- Added package READMEs for provider and overlay.
+- Copied/adapted package publishing scripts:
+  - `scripts/packages/build-dist.mjs`
+  - `scripts/packages/pack-smoke.mjs`
+  - `scripts/packages/package-sets.mjs`
+  - `scripts/packages/publish-npm-package-set.mjs`
+- Adapted `build-dist.mjs` to override inherited `noEmit` settings and emit JS/declaration files into `dist/`.
+- Removed the package CSS dependency on Tailwind processing by replacing `@import "tailwindcss"` and `@theme` with standalone CSS variables in `:root`.
+- Added `.github/workflows/ci.yml`.
+- Added `.github/workflows/publish-npm.yml`.
+- Ran local validation:
+  - `pnpm -r typecheck`
+  - `pnpm test`
+  - `npm run build:publish`
+  - `npm run pack:smoke`
+  - clean Vite consumer tarball typecheck/build smoke test.
+- Pushed the work to `main` with `git push origin HEAD:main`.
+- Ran GitHub CI, which passed.
+- Ran `publish-npm` dry-run workflow, which passed.
+- Created Vault policy/role/secret path for `react-chat` publishing by copying the existing npm token value into `kv/ci/github/react-chat/npm-token` and creating `gha-react-chat-npm-publish` plus `auth/github-actions/role/react-chat-npm-publish`.
+- Retried real `next` publish after fixing the missing Vault role.
+
+### Why
+
+- The packages needed npm-safe artifacts rather than raw TypeScript source exports.
+- The overlay CSS needed to be usable by consumers without requiring their build to process Tailwind-specific directives from `node_modules`.
+- The manual publish workflow needed the same safety rails as `go-go-os-frontend`: dry-run, skip-existing, `latest` confirmation, ordered package sets, and provenance.
+
+### What worked
+
+- Local typecheck passed.
+- Local tests passed: 1 test file, 4 tests.
+- Local `build:publish` generated provider and overlay `dist/` artifacts.
+- Local `pack:smoke` passed:
+  - provider tarball: 64 entries, about 19 KB
+  - overlay tarball: 17 entries, about 5.7 KB
+- Clean consumer smoke test passed after installing tarballs with a local override for provider:
+  - `pnpm typecheck`
+  - `pnpm build`
+- GitHub CI passed on `main`: run `26774047891`.
+- GitHub publish dry-run passed: run `26774044083`.
+- Vault role creation succeeded on the second attempt using a JSON role document.
+- Real publish workflow could retrieve the `react-chat` npm token from Vault after the role/secret were created.
+
+### What didn't work
+
+- Initial local `npm run build:publish` failed because npm did not see workspaces until the root `package.json` gained a `workspaces` field:
+
+  `npm error No workspaces found: --workspace=packages/chat-provider`
+
+- Initial consumer tarball install failed because `chat-overlay` depends on `@go-go-golems/chat-provider@0.1.0`, which did not exist on npm yet. I used a temporary pnpm override in the consumer smoke test to resolve provider from the local tarball.
+- Consumer build initially failed because published CSS imported Tailwind from `node_modules`:
+
+  `Unable to resolve @import "tailwindcss" ... Error: [postcss] ENOENT: no such file or directory, open 'tailwindcss'`
+
+  This was fixed by making `retro-mac.css` standalone CSS.
+
+- The first real publish attempt failed because the Vault role did not exist:
+
+  `role "react-chat-npm-publish" could not be found`
+
+- The next real publish attempt read the Vault token successfully but npm rejected publication of the new package:
+
+  `npm error 404 Not Found - PUT https://registry.npmjs.org/@go-go-golems%2fchat-provider - Not found`
+
+  `npm error 404 The requested resource '@go-go-golems/chat-provider@0.1.0' could not be found or you do not have permission to access it.`
+
+- A local `npm whoami` using the copied `go-go-os-frontend` npm token also returned:
+
+  `npm error code E401`
+
+  This indicates the token in Vault is not usable for creating/publishing these new npm packages, even though it may have been sufficient for existing `go-go-os-frontend` publication.
+
+### What I learned
+
+- npm publication is now blocked on registry credentials, not package build quality.
+- The existing `go-go-os-frontend` Vault token appears insufficient for new `@go-go-golems/chat-*` packages. It may be expired, package-limited, or not authorized to create new packages under the scope.
+- For local pre-publication consumer tests, tarball dependency graphs with scoped inter-package dependencies need an override because the dependent package is not yet in the registry.
+
+### What was tricky to build
+
+The inherited TypeScript configuration had `noEmit: true`, which is correct for application development but incompatible with publishing compiled artifacts. The adapted `build-dist.mjs` now overrides `noEmit`, enables declarations, sets `outDir`, and disables `allowImportingTsExtensions` in the temporary build config so the package build can emit JS and `.d.ts` files without changing normal package typecheck behavior.
+
+The second tricky issue was CSS portability. The source theme used Tailwind-specific directives, but npm consumers importing CSS from `node_modules` should not be forced to have Tailwind configured. The consumer smoke test caught this before publication. The fix was to make the exported theme CSS self-contained.
+
+### What warrants a second pair of eyes
+
+- Confirm whether the copied npm token should be replaced with a new npm automation/granular token for `@go-go-golems/chat-provider` and `@go-go-golems/chat-overlay`.
+- Confirm whether the packages should stay at `0.1.0` after failed publish attempts; npm did not publish them, so the version is still available.
+- Review the public exports before first successful npm publication, especially `./store` and `./ws`.
+
+### What should be done in the future
+
+- Create or provide an npm token that can publish new packages under the `@go-go-golems` npm scope.
+- Store it at `kv/ci/github/react-chat/npm-token` with field `value`.
+- Re-run the real publish workflow with:
+  - `package_set=all`
+  - `npm_tag=next`
+  - `dry_run=false`
+  - `skip_existing=true`
+- After the `next` publish succeeds, install from npm in a clean consumer app.
+- Then publish or dist-tag as `latest` with `confirm_latest_publish=CONFIRM_LATEST`.
+
+### Code review instructions
+
+- Start with `packages/chat-provider/package.json` and `packages/chat-overlay/package.json` for public metadata.
+- Review `scripts/packages/build-dist.mjs` for publish artifact generation and workspace dependency rewriting.
+- Review `.github/workflows/publish-npm.yml` for workflow inputs, Vault role, and publish command.
+- Validate with:
+  - `pnpm -r typecheck`
+  - `pnpm test`
+  - `npm run build:publish`
+  - `npm run pack:smoke`
+
+### Technical details
+
+Successful validation commands:
+
+```bash
+pnpm -r typecheck
+pnpm test
+npm run build:publish
+npm run pack:smoke
+```
+
+GitHub runs:
+
+```text
+CI push run: 26774047891 — success
+publish-npm dry-run: 26774044083 — success
+publish-npm real next, missing Vault role: 26774086942 — failure
+publish-npm real next, npm token permission failure: 26774178444 — failure
+```

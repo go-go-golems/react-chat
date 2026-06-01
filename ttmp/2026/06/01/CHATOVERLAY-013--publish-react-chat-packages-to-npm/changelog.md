@@ -34,3 +34,16 @@ Renamed and transferred GitHub repository from wesen/2026-05-29--chatbot-overlay
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.git/config — Local origin now points at git@github.com:go-go-golems/react-chat.git
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/reference/01-investigation-diary.md — Recorded repository transfer commands and validation
 
+
+## 2026-06-01
+
+Implemented npm package metadata, dist builds, CI, publish workflow, pushed to main, and reached npm token permission blocker during real publish.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.github/workflows/publish-npm.yml — Manual npm publish workflow
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-overlay/package.json — Public overlay package metadata
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-overlay/src/theme/retro-mac.css — Made exported CSS standalone for consumers
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/package.json — Public provider package metadata
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/scripts/packages/build-dist.mjs — Publish artifact builder
+
