@@ -154,3 +154,13 @@ Phase 7 complete: split internal/profiles/api.go into schema, profile, current-p
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_current_profile.go — Current profile route split
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_current_profile_test.go — Cookie behavior coverage
 
+
+## 2026-06-01
+
+Phase 8 complete: refreshed cmd/web-chat backend README for the new internal package structure and linked the frontend README back to it (Pinocchio commit 82274c9391d8b7a549dabd47eaaa6976b313244e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/README.md — Intern-facing backend guide
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/README.md — Frontend README cross-reference
+

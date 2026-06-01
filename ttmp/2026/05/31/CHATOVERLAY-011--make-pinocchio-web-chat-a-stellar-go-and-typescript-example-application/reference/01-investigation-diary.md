@@ -7,6 +7,8 @@ DocType: ""
 Intent: ""
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/README.md
+      Note: Updated intern-facing backend architecture guide in commit 82274c9
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server.go
       Note: Removed debug recorder server state and Sessionstream observer installation (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server_test.go
@@ -52,6 +54,8 @@ RelatedFiles:
         Thin Glazed/Cobra command entrypoint after commit cf040ad
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/README.md
+      Note: Frontend README now points readers to backend package/API guide in commit 82274c9
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/knip.json
       Note: Documents generated-code ignore policy for unused-file audit (commit fd438a1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
@@ -80,6 +84,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1206,3 +1211,84 @@ This step also explicitly reviewed current profile cookie behavior by testing de
   - `/api/chat/profiles/{slug}/default`
   - `/api/chat/profile`
 - New current-profile tests assert the current cookie format and browser attributes.
+
+## Step 13: Refresh intern-facing web-chat README documentation
+
+I updated the `cmd/web-chat` README so it matches the new internal Go package structure. The document now explains the command-owned backend architecture, request flow, route map, runtime composition, middleware/plugin boundaries, durable stores, devctl workflow, validation commands, and generated frontend protobuf bindings.
+
+I also added a pointer from the frontend README back to the backend README so new contributors know where to start before working inside the React package.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Complete Phase 8 by making the backend/frontend README material match the refactored package layout.
+
+**Inferred user intent:** The user wants intern-facing documentation that stays useful after the code moved into `internal/...` packages.
+
+**Commit (code):** `82274c9391d8b7a549dabd47eaaa6976b313244e` — "docs: update web-chat intern guide"
+
+### What I did
+- Rewrote `cmd/web-chat/README.md` around the new architecture:
+  - high-level browser/backend flow
+  - backend directory map
+  - canonical API routes
+  - message contracts
+  - profile/runtime composition notes
+  - middleware/plugin responsibilities
+  - durable store flags
+  - run/devctl/validation instructions
+  - generated frontend protobuf notes
+- Added a short cross-reference in `cmd/web-chat/web/README.md` pointing readers to `../README.md` for backend package maps and API/runtime context.
+- Ran focused backend validation before commit:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the documentation change. The Pinocchio pre-commit hook ran web-check for the staged web README change:
+  - `npm run typecheck`
+  - `npm run lint`
+
+### Why
+- The old README still described `cmd/web-chat/app`, `agentmode_chat_feature.go`, and `profile_policy.go`, which no longer match the refactored structure.
+- New contributors need the package map to understand which code is reusable (`pkg/chatapp/...`) versus app-owned (`cmd/web-chat/internal/...`).
+- The frontend README should point back to the backend README because the frontend route/provider behavior depends on backend routes and timeline contracts.
+
+### What worked
+- `go test ./cmd/web-chat/... -count=1` passed before commit.
+- The pre-commit web-check passed `typecheck` and `lint`.
+- The README now names the active internal packages and canonical routes.
+
+### What didn't work
+- No failures in this step.
+
+### What I learned
+- The old README had become stale enough that a targeted rewrite was clearer than small patch edits.
+- The pre-commit hook treats the frontend README as a web-check-triggering change, so even documentation edits under `web/` run TypeScript and lint checks.
+
+### What was tricky to build
+- The tricky part was keeping the README helpful without turning it into the full design document. I kept the README operational and navigational, while the ticket design doc remains the exhaustive implementation guide.
+
+### What warrants a second pair of eyes
+- Review whether the route list should include any additional export query parameters or whether those belong in a later API reference document.
+- Review whether the README should mention browser parity smoke scripts explicitly after final acceptance validation.
+
+### What should be done in the future
+- Phase 9: run the full final acceptance suite and update the ticket inventory.
+
+### Code review instructions
+- Start with Pinocchio commit `82274c9391d8b7a549dabd47eaaa6976b313244e`.
+- Review:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/README.md`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/README.md`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web && npm run typecheck && npm run lint`
+
+### Technical details
+- The README now describes these internal packages:
+  - `internal/webchatcmd`
+  - `internal/webapp`
+  - `internal/appserver`
+  - `internal/profiles`
+  - `internal/runtime`
+  - `internal/middlewaredefs`
+  - `internal/plugins/agentmode`
+  - `internal/mockruntime`
