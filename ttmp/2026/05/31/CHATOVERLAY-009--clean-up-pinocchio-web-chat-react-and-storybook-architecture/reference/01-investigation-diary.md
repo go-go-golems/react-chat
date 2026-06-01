@@ -1293,3 +1293,57 @@ The first mock scenario covers reasoning/thinking streaming, backend tool-call l
 ### Technical details
 - The committed mock runtime currently emits provider call, reasoning, backend tool-call, agent-mode, and text events through Geppetto event sinks.
 - `go generate ./...` produced `cmd/web-chat/mockruntime/logcopter.go`, committed separately.
+
+## Step 17: Render backend tool calls with web-chat card layout
+
+This step fixed a UI mismatch in the provider-backed tool-call renderer. Backend tool calls such as `mock.search` were being routed through `ToolCallOutlet`, whose fallback UI uses chat-provider/Tailwind-style classes instead of the web-chat `data-part="card"` layout used by the other timeline cards.
+
+The renderer now distinguishes frontend tool requests from backend tool-call entities. Frontend tool requests still use `ToolCallOutlet` so human/browser tools can render registered provider UI, while backend tool calls use the app-owned `ToolCallCard` and therefore match the rest of web-chat.
+
+### Prompt Context
+
+**User prompt (verbatim):** "for some reason the tool call block is not using the same card layout as the other: <div data-part=\"turn\" data-role=\"tool\"><div data-part=\"bubble\"><div data-part=\"content\"><div class=\"border border-mac-black p-2 bg-mac-gray-5 text-xs space-y-1\" data-testid=\"tool-call-card\"><div class=\"flex items-center justify-between gap-2\"><span class=\"font-bold uppercase\">browser tool</span><span class=\"border border-mac-black px-1\" data-testid=\"tool-call-status\">completed</span></div><div class=\"font-mono\" data-testid=\"tool-call-name\">mock.search</div><div class=\"font-mono text-mac-gray-2\" data-testid=\"tool-call-id\">mock-backend-tool-1</div><pre class=\"whitespace-pre-wrap break-words border border-mac-gray-4 p-1 bg-mac-white\" data-testid=\"tool-call-input\">{\n  \"query\": \"mock parity\",\n  \"limit\": 3\n}</pre></div></div></div></div>"
+
+**Assistant interpretation:** Backend tool-call cards are accidentally using the provider fallback outlet UI instead of the web-chat card renderer.
+
+**Inferred user intent:** Make mock/backend tool calls visually consistent with the app-owned web-chat timeline card layout.
+
+**Commit (code):** cc83b14 — "fix: render backend tools as web-chat cards"
+
+### What I did
+- Updated `ProviderToolCallRenderer` to use `ToolCallCard` for non-frontend tool calls.
+- Kept `ToolCallOutlet` only for frontend tool requests, detected by `mode` containing `FRONTEND`.
+- Updated the mock-profile Playwright smoke to assert the backend tool appears inside `[data-part="card"]`.
+
+### Why
+- `ToolCallOutlet` is appropriate for registered frontend/human/backend tool UI supplied to `ChatProvider`.
+- Pinocchio backend tool-call stream entities are app-owned timeline cards and should use the same `data-part` card layout as messages, agent mode cards, and widget cards.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `04-phase6-mock-profile-parity-smoke.js` passed and now checks card layout for `mock.search`.
+- Pinocchio pre-commit web-check passed.
+
+### What didn't work
+- Initial lint failed because Biome required import sorting in `ProviderToolCallRenderer.tsx`; sorting the type import before the local card import fixed it.
+
+### What I learned
+- The provider renderer override was too broad: it sent both frontend tool requests and backend tool-call entities to `ToolCallOutlet`.
+- The `mode` property is a good enough discriminator for now because frontend tool requests carry `TOOL_EXECUTION_MODE_FRONTEND_*`, while Pinocchio backend tool projectors do not set `mode`.
+
+### What was tricky to build
+- The renderer still needs to preserve future frontend human-tool support. The fix avoids deleting `ToolCallOutlet`; it only narrows when it is used.
+
+### What warrants a second pair of eyes
+- Review whether `mode.includes('FRONTEND')` is sufficiently explicit or should become a helper such as `isFrontendToolEntity(e)`.
+
+### What should be done in the future
+- Add a focused renderer unit/story case for backend tool-call versus frontend human-tool rendering.
+
+### Code review instructions
+- Start with `cmd/web-chat/web/src/features/web-chat/WebChatApp/ProviderToolCallRenderer.tsx`.
+- Validate with `npm run typecheck`, `npm run lint`, and `node .../scripts/04-phase6-mock-profile-parity-smoke.js`.
+
+### Technical details
+- The mock smoke now uses `page.locator('[data-part="card"]').filter({ hasText: 'mock.search' })` so it catches this layout regression.

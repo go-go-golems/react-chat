@@ -142,3 +142,13 @@ Implemented the first mock_parity profile shortcut and deterministic mock engine
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/canonical_runtime_resolver.go — Profile shortcut
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/mockruntime/engine.go — Mock parity engine
 
+
+## 2026-05-31
+
+Fixed provider-backed backend tool calls to render with the web-chat ToolCallCard layout instead of the chat-provider fallback outlet (commit cc83b14).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js — Smoke asserts backend tool card layout
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/ProviderToolCallRenderer.tsx — Renderer now routes backend tools to ToolCallCard
+

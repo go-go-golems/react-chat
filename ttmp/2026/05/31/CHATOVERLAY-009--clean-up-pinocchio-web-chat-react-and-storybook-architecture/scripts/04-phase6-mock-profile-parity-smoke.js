@@ -56,8 +56,8 @@ async function main() {
     await page.getByText('Inspecting deterministic inputs', { exact: false }).waitFor({ timeout: 15000 });
     evidence.checks.push('reasoning stream rendered');
 
-    await page.getByTestId('tool-call-name').filter({ hasText: 'mock.search' }).first().waitFor({ timeout: 15000 });
-    evidence.checks.push('backend tool call rendered');
+    await page.locator('[data-part="card"]').filter({ hasText: 'mock.search' }).first().waitFor({ timeout: 15000 });
+    evidence.checks.push('backend tool call rendered with web-chat card layout');
 
     await page.getByText(/mock profile selected/i).waitFor({ timeout: 15000 });
     evidence.checks.push('agent-mode special event rendered');
