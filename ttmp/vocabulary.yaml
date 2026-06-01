@@ -39,6 +39,12 @@ topics:
       description: Go language and backend implementation topics
     - slug: typescript
       description: TypeScript language and frontend implementation topics
+    - slug: cicd
+      description: Continuous integration and delivery workflow automation
+    - slug: npm
+      description: npm package registry publishing and package metadata
+    - slug: publishing
+      description: Release and artifact publication workflows
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
