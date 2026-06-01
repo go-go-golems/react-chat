@@ -26,3 +26,13 @@ Implemented strict timeline adapter API and migrated Pinocchio web-chat adapters
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-010--create-unified-timeline-adapter-api/scripts/01-mock-profile-hydration-smoke.js — Repeatable hydration parity smoke
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.ts — Pinocchio app timeline adapters for reasoning
 
+
+## 2026-05-31
+
+Added bare baseline unit tests for timeline adapter misuse prevention and Pinocchio hydration parity (overlay commit 5e2c704, Pinocchio commit 1a005b0).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts — Provider adapter registry and ChatMessage parity baseline tests
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts — Pinocchio AgentMode and backend tool hydration parity baseline tests
+

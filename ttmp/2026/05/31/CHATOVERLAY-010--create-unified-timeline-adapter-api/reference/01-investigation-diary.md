@@ -11,8 +11,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts
+      Note: Pinocchio AgentMode and backend tool hydration parity baseline tests
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.ts
       Note: Pinocchio app-owned timeline adapters
+    - Path: packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts
+      Note: Provider adapter registry and ChatMessage parity baseline tests
     - Path: packages/chat-provider/src/ws/timelineAdapterRegistry.ts
       Note: New provider adapter registry and validation API
     - Path: packages/chat-provider/src/ws/timelineEvents.ts
@@ -27,6 +31,7 @@ LastUpdated: 2026-05-31T20:35:09.274152988-04:00
 WhatFor: Track design and implementation work for CHATOVERLAY-010.
 WhenToUse: Before resuming timeline adapter API implementation.
 ---
+
 
 
 # Diary
@@ -171,3 +176,75 @@ Pinocchio web-chat moved its app-owned reasoning, agent-mode, and backend tool m
 - Pinocchio web-chat commit: `322fa70`.
 - Hydration smoke evidence path: `/tmp/pinocchio-chatprovider-timeline-adapter-hydration.json`.
 - Mock parity smoke evidence path: `/tmp/pinocchio-phase6-mock-profile-parity-smoke.json`.
+
+## Step 3: Add a bare baseline unit-test safety net
+
+This step added the minimal useful unit tests requested after the adapter cutover. The scope is intentionally small: it protects duplicate registration, accidental live-only hydration omissions, adapter precedence, the provider `ChatMessage` live/hydration contract, and the two Pinocchio snapshot regressions that would visibly break cards after reload.
+
+The tests are not exhaustive. They are a focused baseline so future refactors get fast feedback before relying on Playwright smokes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok do it."
+
+**Assistant interpretation:** Add the six-test baseline we just agreed on for the timeline adapter API.
+
+**Inferred user intent:** Get practical unit-level coverage for the adapter regression class without expanding into a large testing effort.
+
+**Commit (code):** 5e2c704 — "test: add timeline adapter baseline coverage"
+
+**Commit (code):** 1a005b0 — "test: add web-chat adapter parity coverage"
+
+### What I did
+- Added Vitest to the chat-overlay workspace and a root `test` script.
+- Added `packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts` covering:
+  - duplicate adapter name rejection,
+  - live-only adapter missing/empty hydration reason rejection,
+  - priority ordering and stable same-priority registration order,
+  - built-in `ChatMessage` live and snapshot projection to `kind: message`.
+- Added a Pinocchio web-chat `test` script.
+- Added `pinocchioTimelineAdapters.test.ts` covering:
+  - live and hydrated `AgentMode` projection to `kind: agent_mode`,
+  - hydrated `ChatToolCall` and `ChatToolResult` projection to `tool_call`/`tool_result`.
+- Updated CHATOVERLAY-010 task status for the baseline tests.
+
+### Why
+- The adapter API should fail fast for the core misuse patterns that caused live/hydration drift.
+- Unit tests make the expected render-contract parity explicit without requiring a browser reload for every small refactor.
+
+### What worked
+- `pnpm test packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts` passed: 1 file, 4 tests.
+- `npm test -- src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts` passed: 1 file, 2 tests.
+- `pnpm typecheck` passed in `packages/chat-provider`.
+- `npm run typecheck` and `npm run lint` passed in Pinocchio web-chat.
+- Pinocchio pre-commit hook reran web typecheck/lint and passed.
+
+### What didn't work
+- N/A; the baseline tests passed on the first run after writing them.
+
+### What I learned
+- The baseline can stay compact while still exercising the provider registry and Pinocchio app adapters through the real public `createTimelineAdapterRegistry()` flow.
+- The existing Pinocchio web package already had Vitest installed; only the overlay workspace needed Vitest added for provider tests.
+
+### What was tricky to build
+- The provider package previously had only typecheck/build scripts, so the smallest non-invasive setup was adding Vitest at the overlay workspace root and running the provider test by path.
+- The Pinocchio backend-tool test focuses on snapshot hydration because the browser regression was specifically reload-time card fallback. Live backend tool coverage remains available through the Playwright smoke and can be expanded later if needed.
+
+### What warrants a second pair of eyes
+- Review whether the chat-overlay root `test` script should eventually be split into package-level scripts or workspace filters.
+- Review whether the `ChatMessage` built-in parity test should include finished events in addition to the minimal patch event.
+
+### What should be done in the future
+- Add cleanup/unregister tests and unsupported-hydration coverage reporting tests if the registry API evolves.
+- Add widget/frontend-tool parity tests when those mock scenarios are implemented.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts` for the provider baseline.
+- Then review `pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts` for app adapter parity.
+- Validate with:
+  - `cd 2026-05-29--chatbot-overlay-glm && pnpm test packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts`
+  - `cd pinocchio/cmd/web-chat/web && npm test -- src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts`
+
+### Technical details
+- Chat-provider test commit: `5e2c704`.
+- Pinocchio test commit: `1a005b0`.

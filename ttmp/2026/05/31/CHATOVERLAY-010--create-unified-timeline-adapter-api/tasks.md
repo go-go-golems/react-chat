@@ -24,9 +24,9 @@ Goal: add the new API surface in chat-provider without migrating call sites yet.
 - [x] Add `defineLiveOnlyAdapter` helper requiring non-empty `hydrationUnsupportedReason`.
 - [x] Add `defineHydrateOnlyAdapter` helper.
 - [ ] Add tests rejecting adapters with neither live nor hydrate support.
-- [ ] Add tests rejecting live adapters with missing/empty hydration policy.
-- [ ] Add tests rejecting duplicate adapter names in a registry.
-- [ ] Add tests for priority ordering and registration order stability.
+- [x] Add tests rejecting live adapters with missing/empty hydration policy.
+- [x] Add tests rejecting duplicate adapter names in a registry.
+- [x] Add tests for priority ordering and registration order stability.
 
 ## Phase 2 — Build adapter registry mechanics
 
@@ -57,7 +57,7 @@ Goal: remove the split between `coreChatProjector` and hardcoded snapshot mapper
 - [x] Add an explicit unknown-snapshot fallback adapter if fallback rendering remains desired.
 - [x] Delete or stop exporting `coreChatProjector`.
 - [x] Delete or stop using direct `timelineEntityFromSnapshotEntity` hardcoded kind checks outside adapters.
-- [ ] Add tests proving generic built-ins render the same normalized kinds after live and hydration paths.
+- [x] Add tests proving generic built-ins render the same normalized kinds after live and hydration paths.
 
 ## Phase 4 — Replace extension API with timeline adapters
 
@@ -89,8 +89,8 @@ Goal: Pinocchio app-specific live and hydration mappings are registered together
 - [x] Implement `pinocchio.backend-tool` hydration handler for `ChatToolResult` entities.
 - [x] Update `WebChatProviderShell` to register `timelineAdapters`.
 - [x] Remove app extension usage of `projectors` entirely.
-- [ ] Add tests for live and hydrated `AgentMode` producing `kind: agent_mode`.
-- [ ] Add tests for live and hydrated backend tool calls producing `kind: tool_call` and `kind: tool_result`.
+- [x] Add tests for live and hydrated `AgentMode` producing `kind: agent_mode`.
+- [x] Add tests for live and hydrated backend tool calls producing `kind: tool_call` and `kind: tool_result`.
 
 ## Phase 6 — Remove temporary hydration normalization and legacy assumptions
 
@@ -108,9 +108,9 @@ Goal: ensure there is only one source of truth for timeline normalization.
 
 Goal: prove live and hydrated paths cannot drift for registered adapters.
 
-- [ ] Add chat-provider unit tests for built-in live/hydration parity.
-- [ ] Add Pinocchio unit tests for agent-mode live/hydration parity.
-- [ ] Add Pinocchio unit tests for backend tool live/hydration parity.
+- [x] Add chat-provider unit tests for built-in live/hydration parity.
+- [x] Add Pinocchio unit tests for agent-mode live/hydration parity.
+- [x] Add Pinocchio unit tests for backend tool live/hydration parity.
 - [x] Add a hydration Playwright smoke under CHATOVERLAY-010 `scripts/`.
 - [x] The smoke should select `mock_parity`, send a prompt, capture `sessionId`, reload, and assert `AgentModeCard` layout.
 - [x] The smoke should assert hydrated backend tool calls render in `[data-part="card"]` layout.
@@ -122,7 +122,7 @@ Goal: prove live and hydrated paths cannot drift for registered adapters.
 
 Goal: make CHATOVERLAY-010 safe to land before CHATOVERLAY-009 legacy deletion.
 
-- [ ] Run chat-provider tests.
+- [x] Run chat-provider tests.
 - [x] Run Pinocchio web-chat typecheck.
 - [x] Run Pinocchio web-chat lint.
 - [x] Run Pinocchio web-chat build.
