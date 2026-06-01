@@ -11,7 +11,7 @@
 - [x] Implement Phase 3: move TypeScript support modules out of the misleading src/webchat namespace
 - [x] Implement Phase 4: tighten TypeScript public contracts and remove remaining avoidable any casts
 - [x] Implement Phase 5: split cmd/web-chat Go command composition into smaller files
-- [ ] Implement Phase 6: rename/split app server route files, especially production frontend-tool endpoints
+- [x] Implement Phase 6: rename/split app server route files, especially production frontend-tool endpoints
 - [ ] Implement Phase 7: split profile API files by responsibility and review profile cookie behavior
 - [ ] Implement Phase 8: add intern-facing backend/frontend README and package docs
 - [ ] Implement Phase 9: run final frontend, Go, Storybook, and browser acceptance validations

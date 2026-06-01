@@ -11,8 +11,14 @@ RelatedFiles:
       Note: Removed debug recorder server state and Sessionstream observer installation (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server_test.go
       Note: Removed backend debug endpoint and reconcile export tests (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/appserver/routes_frontend_tools.go
+      Note: Renamed production frontend-tool routes from showcase_tools.go in commit 44db06d
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/appserver/routes_sessions.go
+      Note: Session routing and message submission split out of server.go in commit 44db06d
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/appserver/server.go
-      Note: Moved command-owned chat HTTP server under internal/appserver in commit 986350b
+      Note: |-
+        Moved command-owned chat HTTP server under internal/appserver in commit 986350b
+        Reduced to appserver state and construction in commit 44db06d
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/middlewaredefs/registry.go
       Note: Web-chat middleware catalog moved out of main package in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/mockruntime/engine.go
@@ -68,6 +74,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1024,3 +1031,87 @@ This is the point where Phase 5 reaches its intended architecture: `main.go` is 
   - profile runtime resolution
   - middleware/runtimes/appserver/frontend-tool manager construction
   - webapp mux/root/server startup
+
+## Step 11: Split appserver routes and rename frontend-tool endpoints
+
+I moved the appserver from one large mixed `server.go` into smaller files grouped by responsibility. The important semantic rename in this step is `showcase_tools.go` to `routes_frontend_tools.go`, because those endpoints are production frontend-tool manifest/result endpoints, not a temporary showcase.
+
+The server constructor and state now stay in `server.go`, while options, hydration storage, session routes, export routes, frontend-tool routes, WebSocket handling, snapshot encoding, and JSON response helpers each have their own files. This keeps the appserver package as a command-owned internal adapter but makes it much easier to navigate.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Continue Phase 6 by splitting appserver files and fixing misleading route file names, while preserving behavior.
+
+**Inferred user intent:** The user wants the backend example to be readable at the file level, not only at the package level.
+
+**Commit (code):** `44db06d3e2f68c63fb169a406c8e66a0b041cc19` — "refactor: split web-chat appserver routes"
+
+### What I did
+- Renamed route files:
+  - `internal/appserver/server_export.go` -> `internal/appserver/routes_exports.go`
+  - `internal/appserver/showcase_tools.go` -> `internal/appserver/routes_frontend_tools.go`
+- Split `internal/appserver/server.go` into focused files:
+  - `options.go` for `Option` and `With...` configuration helpers.
+  - `hydration.go` for SQLite/in-memory hydration store setup.
+  - `routes_sessions.go` for session creation, session subrouting, submit-message handling, and session-path parsing.
+  - `routes_ws.go` for the WebSocket handler.
+  - `snapshot.go` for snapshot provider/encoding/status logic.
+  - `response.go` for the package JSON response helper.
+- Kept `server.go` focused on `Server` state, `NewServer`, and `Close`.
+- Included the generated `internal/webchatcmd/logcopter.go` file that appeared after the previous command-runner extraction.
+- Ran focused validation:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the code change; the Pinocchio pre-commit hook passed full validation, including `go test ./...`.
+
+### Why
+- `server.go` had grown into a mixed file containing options, construction, hydration setup, all route handlers, snapshot logic, and response helpers.
+- The frontend-tool endpoints are production mechanics used by the current app/provider flow, so `showcase_tools.go` was misleading.
+- Splitting by route group makes the next profile API split easier to follow because appserver no longer hides similar mixed-file problems.
+
+### What worked
+- Focused `go test ./cmd/web-chat/... -count=1` passed after the split.
+- The final pre-commit hook passed full validation.
+- `server.go` is now 86 lines and mostly reads as constructor/state code.
+- The old `showcase_tools.go` filename is gone from active source.
+
+### What didn't work
+- No failing validation in this step.
+- The known Vite `app-config.js` warning appeared again during pre-commit frontend build and remains non-blocking.
+
+### What I learned
+- `parseWebChatSessionPath` was living in the old frontend-tool file even though it is the session subrouter parser. Moving it into `routes_sessions.go` makes ownership clearer.
+- Splitting server files exposed that the functional options are still a little verbose, but keeping them unchanged avoided bundling an API rewrite into a file-organization commit.
+
+### What was tricky to build
+- The main tricky part was avoiding duplicate helper definitions while moving route handlers. `parseWebChatSessionPath`, snapshot helpers, and `writeJSON` are shared across route files, so I placed them in `routes_sessions.go`, `snapshot.go`, and `response.go` respectively.
+- Another tricky point was import trimming after the split. `server.go` lost many HTTP/path/string imports, while the new route files gained only the imports they need.
+
+### What warrants a second pair of eyes
+- Review the route file boundaries and confirm whether `routes_sessions.go` should be split again later into `routes_sessions.go` and `routes_messages.go`.
+- Review whether `Option` should stay as functional options or become an explicit `Options` struct in a future readability pass.
+
+### What should be done in the future
+- Phase 7: split `internal/profiles/api.go` by route group and review current-profile cookie behavior.
+- Consider adding focused tests for `parseWebChatSessionPath` if future route changes touch it.
+
+### Code review instructions
+- Start with Pinocchio commit `44db06d3e2f68c63fb169a406c8e66a0b041cc19`.
+- Review:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/server.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/routes_sessions.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/routes_frontend_tools.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/routes_exports.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/snapshot.go`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+
+### Technical details
+- File sizes after the split:
+  - `server.go`: 86 lines
+  - `routes_sessions.go`: 129 lines
+  - `routes_frontend_tools.go`: 148 lines
+  - `routes_exports.go`: 168 lines
+  - `snapshot.go`: 85 lines
+- The route behavior and public endpoints were not intentionally changed.

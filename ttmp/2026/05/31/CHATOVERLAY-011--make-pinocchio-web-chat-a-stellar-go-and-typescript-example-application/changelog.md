@@ -134,3 +134,13 @@ Phase 5 complete: moved web-chat app assembly into internal/webchatcmd so main.g
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webchatcmd/run.go — New app assembly runner
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go — Thin command entrypoint
 
+
+## 2026-06-01
+
+Phase 6 complete: split internal/appserver route, option, hydration, snapshot, and response files; renamed showcase_tools.go to routes_frontend_tools.go (Pinocchio commit 44db06d3e2f68c63fb169a406c8e66a0b041cc19).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/routes_frontend_tools.go — Production frontend-tool routes
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/server.go — Reduced constructor/state file
+
