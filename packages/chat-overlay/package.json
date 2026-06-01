@@ -1,20 +1,24 @@
 {
   "name": "@go-go-golems/chat-overlay",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
-  "sideEffects": ["**/*.css"],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./theme/retro-mac.css": "./src/theme/retro-mac.css"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.json --noEmit"
+    "build": "tsc -p tsconfig.json --noEmit",
+    "build:dist": "node ../../scripts/packages/build-dist.mjs",
+    "test": "vitest run src --passWithNoTests"
   },
   "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
   },
   "dependencies": {
     "@go-go-golems/chat-provider": "workspace:*",
@@ -24,5 +28,37 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "typescript": "~6.0.2"
-  }
+  },
+  "description": "Floating React chat overlay UI and retro theme for @go-go-golems/chat-provider.",
+  "license": "MIT",
+  "author": "Manuel Odendahl",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/go-go-golems/react-chat.git",
+    "directory": "packages/chat-overlay"
+  },
+  "homepage": "https://github.com/go-go-golems/react-chat/tree/main/packages/chat-overlay#readme",
+  "bugs": {
+    "url": "https://github.com/go-go-golems/react-chat/issues"
+  },
+  "files": [
+    "**/*.js",
+    "**/*.d.ts",
+    "**/*.css",
+    "**/*.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "keywords": [
+    "react",
+    "chat",
+    "overlay",
+    "assistant",
+    "theme",
+    "go-go-golems"
+  ]
 }

@@ -1,15 +1,22 @@
 {
-  "name": "chat-overlay-workspace",
+  "name": "react-chat",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:publish": "npm run build:dist -w packages/chat-provider && npm run build:dist -w packages/chat-overlay",
+    "pack:smoke": "node scripts/packages/pack-smoke.mjs packages/chat-provider packages/chat-overlay",
+    "publish:dry-run": "npm run build:publish && npm run pack:smoke && node scripts/packages/publish-npm-package-set.mjs all --dry-run --skip-existing"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vitest": "^4.1.7"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "web"
+  ]
 }

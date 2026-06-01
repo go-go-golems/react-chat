@@ -1,0 +1,198 @@
+name: publish-npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_set:
+        description: Package set to publish to npmjs
+        required: true
+        default: all
+        type: choice
+        options:
+          - single
+          - provider
+          - overlay
+          - all
+      package_name:
+        description: Package name or dir when package_set=single, e.g. @go-go-golems/chat-provider or packages/chat-provider
+        required: false
+        default: ''
+        type: string
+      npm_tag:
+        description: npm dist-tag to publish under
+        required: true
+        default: latest
+        type: string
+      dry_run:
+        description: Run npm publish with --dry-run
+        required: true
+        default: true
+        type: boolean
+      skip_existing:
+        description: Skip package versions that already exist on npmjs
+        required: true
+        default: true
+        type: boolean
+      confirm_latest_publish:
+        description: Required for real latest publishes; type CONFIRM_LATEST to publish with tag=latest and dry_run=false
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    environment: npm-production
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: react-chat-npm-publish-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+          pnpm --version
+
+      - name: Validate workflow inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.package_set }}" = "single" ] && [ -z "${{ inputs.package_name }}" ]; then
+            echo "package_name is required when package_set=single" >&2
+            exit 1
+          fi
+          if [ "${{ inputs.dry_run }}" = "false" ] && [ "${{ inputs.npm_tag }}" = "latest" ] && [ "${{ inputs.confirm_latest_publish }}" != "CONFIRM_LATEST" ]; then
+            echo "Real latest publishes require confirm_latest_publish=CONFIRM_LATEST" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve package dirs
+        id: packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.package_set }}" = "single" ]; then
+            node - <<'NODE' >> "$GITHUB_OUTPUT"
+          import { readFileSync, readdirSync } from 'node:fs';
+          import path from 'node:path';
+          const input = process.env.PACKAGE_NAME;
+          const packageDirs = readdirSync('packages', { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => `packages/${entry.name}`);
+          const matches = packageDirs.filter((packageDir) => {
+            const pkg = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
+            return input === packageDir || input === `./${packageDir}` || input === pkg.name;
+          });
+          if (matches.length !== 1) {
+            throw new Error(`Could not resolve package_name=${input}; matches=${matches.join(', ')}`);
+          }
+          console.log(`package_dirs=${matches[0]}`);
+          NODE
+          else
+            node - <<'NODE' >> "$GITHUB_OUTPUT"
+          import { getPackageSet } from './scripts/packages/package-sets.mjs';
+          console.log(`package_dirs=${getPackageSet(process.env.PACKAGE_SET).join(',')}`);
+          NODE
+          fi
+        env:
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          PACKAGE_SET: ${{ inputs.package_set }}
+
+      - name: Typecheck selected packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a PACKAGE_DIRS <<< "${{ steps.packages.outputs.package_dirs }}"
+          for package_dir in "${PACKAGE_DIRS[@]}"; do
+            echo "::group::Typecheck $package_dir"
+            npm run typecheck -w "$package_dir"
+            echo "::endgroup::"
+          done
+
+      - name: Test selected packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a PACKAGE_DIRS <<< "${{ steps.packages.outputs.package_dirs }}"
+          for package_dir in "${PACKAGE_DIRS[@]}"; do
+            echo "::group::Test $package_dir"
+            if node -e "const pkg=require('./'+process.argv[1]+'/package.json'); process.exit(pkg.scripts && pkg.scripts.test ? 0 : 1)" "$package_dir"; then
+              npm run test -w "$package_dir"
+            else
+              echo "Skipping tests for $package_dir (no test script)"
+            fi
+            echo "::endgroup::"
+          done
+
+      - name: Build selected publish artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a PACKAGE_DIRS <<< "${{ steps.packages.outputs.package_dirs }}"
+          for package_dir in "${PACKAGE_DIRS[@]}"; do
+            echo "::group::Build dist $package_dir"
+            npm run build:dist -w "$package_dir"
+            echo "::endgroup::"
+          done
+
+      - name: Pack smoke selected packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a PACKAGE_DIRS <<< "${{ steps.packages.outputs.package_dirs }}"
+          node scripts/packages/pack-smoke.mjs "${PACKAGE_DIRS[@]}"
+
+      - name: Read NPM token from Vault
+        id: vault-npm
+        if: ${{ inputs.dry_run == false }}
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.yolo.scapegoat.dev
+          method: jwt
+          path: github-actions
+          role: react-chat-npm-publish
+          jwtGithubAudience: https://vault.yolo.scapegoat.dev
+          exportEnv: false
+          secrets: |
+            kv/data/ci/github/react-chat/npm-token value | NODE_AUTH_TOKEN
+
+      - name: Publish selected packages to npmjs
+        shell: bash
+        env:
+          CONFIRM_LATEST_PUBLISH: ${{ inputs.confirm_latest_publish == 'CONFIRM_LATEST' && 'true' || 'false' }}
+          NODE_AUTH_TOKEN: ${{ steps.vault-npm.outputs.NODE_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          PUBLISH_ARGS=(--tag "${{ inputs.npm_tag }}")
+          if [ "${{ inputs.skip_existing }}" = "true" ]; then
+            PUBLISH_ARGS+=(--skip-existing)
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            PUBLISH_ARGS+=(--dry-run)
+          fi
+          if [ "${{ inputs.package_set }}" = "single" ]; then
+            node scripts/packages/publish-npm-package-set.mjs --package "${{ inputs.package_name }}" "${PUBLISH_ARGS[@]}"
+          else
+            node scripts/packages/publish-npm-package-set.mjs "${{ inputs.package_set }}" "${PUBLISH_ARGS[@]}"
+          fi
