@@ -3,7 +3,7 @@ import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
 import type { ToolRegistry } from '../tools/toolRegistry';
 import type { ToolRuntime } from '../tools/toolRuntime';
-import type { TimelineProjectorRegistry } from '../ws/projectorRegistry';
+import type { TimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
 import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
 import type { ChatExtensionConfig } from './extensions';
 
@@ -50,7 +50,7 @@ export type CreateChatClientArgs = {
   store: ChatStore;
   toolRegistry: ToolRegistry;
   toolRuntime: ToolRuntime;
-  projectorRegistry: TimelineProjectorRegistry;
+  adapterRegistry: TimelineAdapterRegistry;
   wsManager: WsManager;
 };
 
@@ -117,7 +117,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       basePrefix,
       dispatch,
       toolRuntime: args.toolRuntime,
-      projectorRegistry: args.projectorRegistry,
+      adapterRegistry: args.adapterRegistry,
       onStatus: (s) => dispatch(overlaySlice.actions.setWsStatus(s)),
       onDebugEvent: config.onDebugEvent,
     });

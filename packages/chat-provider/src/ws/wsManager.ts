@@ -9,7 +9,7 @@ import {
 } from './protocol';
 import { applyUIEvent } from './timelineEvents';
 import type { ToolRuntime } from '../tools/toolRuntime';
-import type { TimelineProjectorRegistry } from './projectorRegistry';
+import type { TimelineAdapterRegistry } from './timelineAdapterRegistry';
 import { applySnapshot } from './timelineSnapshot';
 
 export type ChatDebugEvent =
@@ -17,7 +17,7 @@ export type ChatDebugEvent =
   | { type: 'raw-ws'; sessionId: string; size: number; preview: string; raw: string }
   | { type: 'parsed-frame'; sessionId: string; frameType?: unknown; name?: unknown; ordinal?: unknown; frame: CanonicalFrame }
   | { type: 'snapshot'; sessionId: string; ordinal?: unknown; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
-  | { type: 'ui-event'; sessionId: string; ordinal?: unknown; name?: unknown; messageId?: unknown; mutation: unknown; projectorName?: string };
+  | { type: 'ui-event'; sessionId: string; ordinal?: unknown; name?: unknown; messageId?: unknown; mutation: unknown; adapterName?: string };
 
 export type ChatDebugHandler = (event: ChatDebugEvent) => void;
 
@@ -27,7 +27,7 @@ type ConnectArgs = {
   dispatch: AppDispatch;
   onStatus?: (s: string) => void;
   toolRuntime?: ToolRuntime;
-  projectorRegistry?: TimelineProjectorRegistry;
+  adapterRegistry?: TimelineAdapterRegistry;
   onDebugEvent?: ChatDebugHandler;
 };
 
@@ -144,7 +144,7 @@ export class WsManager {
     }
     if (type === 'snapshot') {
       if (nonce !== this.connectNonce) return;
-      const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId);
+      const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId, args.adapterRegistry);
       args.onDebugEvent?.({
         type: 'snapshot',
         sessionId: args.sessionId,
@@ -156,6 +156,7 @@ export class WsManager {
           rawId: entity.raw.id,
           mappedId: entity.mapped?.id,
           mappedKind: entity.mapped?.kind,
+          adapterName: entity.adapterName,
           dropped: !entity.mapped,
         })),
       });
@@ -164,7 +165,7 @@ export class WsManager {
       const buffered = this.buffered;
       this.buffered = [];
       for (const next of buffered) {
-        applyUIEvent(next, args.dispatch, args.sessionId, args.toolRuntime);
+        applyUIEvent(next, args.dispatch, args.sessionId, args.toolRuntime, args.adapterRegistry);
       }
       return;
     }
@@ -177,7 +178,7 @@ export class WsManager {
         this.buffered.push(frame);
         return;
       }
-      const projection = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime, args.projectorRegistry);
+      const projection = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime, args.adapterRegistry);
       args.onDebugEvent?.({
         type: 'ui-event',
         sessionId: args.sessionId,
@@ -185,7 +186,7 @@ export class WsManager {
         name: frame.name,
         messageId: (frame.payload as any)?.messageId,
         mutation: projection?.mutation ?? null,
-        projectorName: projection?.projectorName,
+        adapterName: projection?.adapterName,
       });
     }
   }

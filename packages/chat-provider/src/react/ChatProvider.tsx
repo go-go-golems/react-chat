@@ -6,8 +6,8 @@ import { installChatExtensions, normalizeChatExtensions } from '../core/extensio
 import { createChatStore } from '../store/store';
 import { createToolRegistry } from '../tools/toolRegistry';
 import { createToolRuntime } from '../tools/toolRuntime';
-import { coreChatProjector } from '../ws/timelineEvents';
-import { createTimelineProjectorRegistry } from '../ws/projectorRegistry';
+import { createTimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
+import { coreTimelineAdapters } from '../ws/timelineEvents';
 import { createWidgetRegistry } from '../widgets/widgetRegistry';
 import { createWsManager } from '../ws/wsManager';
 
@@ -21,8 +21,8 @@ export function ChatProvider({ children, config }: ChatProviderProps) {
     const store = createChatStore();
     const toolRegistry = createToolRegistry();
     const widgetRegistry = createWidgetRegistry();
-    const projectorRegistry = createTimelineProjectorRegistry();
-    projectorRegistry.register(coreChatProjector);
+    const adapterRegistry = createTimelineAdapterRegistry();
+    for (const adapter of coreTimelineAdapters) adapterRegistry.register(adapter);
 
     let submitToolResult: Parameters<typeof createToolRuntime>[0]['submitToolResult'] = async () => {
       throw new Error('chat client is not initialized');
@@ -36,14 +36,14 @@ export function ChatProvider({ children, config }: ChatProviderProps) {
       store,
       toolRegistry,
       toolRuntime,
-      projectorRegistry,
+      adapterRegistry,
       wsManager: createWsManager(),
     });
     submitToolResult = client.tools.submitResult;
 
-    const context = { client, toolRuntime, toolRegistry, widgetRegistry, projectorRegistry };
+    const context = { client, toolRuntime, toolRegistry, widgetRegistry, adapterRegistry };
     installChatExtensions(
-      { client, tools: toolRegistry, widgets: widgetRegistry, projectors: projectorRegistry },
+      { client, tools: toolRegistry, widgets: widgetRegistry, timelineAdapters: adapterRegistry },
       normalizeChatExtensions(config),
     );
     return { store, context };

@@ -1,6 +1,9 @@
-import { type TimelineEntity, timelineSlice } from '../store/timelineSlice';
-import { type AppDispatch } from '../store/store';
-import { type CanonicalFrame, type SnapshotEntityFrame, asString, unwrapAnyPayload } from './protocol';
+import type { TimelineEntity } from '../store/timelineSlice';
+import { timelineSlice } from '../store/timelineSlice';
+import type { AppDispatch } from '../store/store';
+import { asString, type CanonicalFrame, type SnapshotEntityFrame, unwrapAnyPayload } from './protocol';
+import { applyTimelineMutation } from './timelineEvents';
+import type { TimelineAdapterRegistry } from './timelineAdapterRegistry';
 
 export function messageEntity(id: string, props: Record<string, unknown>): TimelineEntity {
   return { id, kind: 'message', createdAt: Date.now(), updatedAt: Date.now(), props };
@@ -14,60 +17,33 @@ export function toolCallEntity(id: string, props: Record<string, unknown>): Time
   return { id, kind: 'tool_call', createdAt: Date.now(), updatedAt: Date.now(), props };
 }
 
-export function timelineEntityFromSnapshotEntity(entity: SnapshotEntityFrame): TimelineEntity | null {
-  const kind = asString(entity?.kind);
-  const id = asString(entity?.id);
-  const payload = unwrapAnyPayload(entity?.payload);
-  if (!id) return null;
+export type SnapshotDebugEntity = { raw: SnapshotEntityFrame; mapped: TimelineEntity | null; adapterName?: string };
 
-  if (kind === 'ChatMessage') {
-    const messageId = asString(payload.messageId) || id;
-    return messageEntity(messageId, {
-      role: asString(payload.role) || 'assistant',
-      prompt: asString(payload.prompt),
-      content: asString(payload.content) || asString(payload.text),
-      status: asString(payload.status) || 'idle',
-      streaming: payload.streaming === true,
-    });
-  }
-
-  if (kind === 'ChatWidgetInstance') {
-    return widgetEntity(id, {
-      instanceId: asString(payload.instanceId) || id,
-      widgetName: asString(payload.widgetName),
-      parentMessageId: asString(payload.parentMessageId),
-      status: asString(payload.status) || 'READY',
-      props: payload.props || {},
-    });
-  }
-
-  if (kind === 'ChatFrontendToolCall') {
-    return toolCallEntity(id, {
-      toolCallId: asString(payload.toolCallId) || id,
-      toolName: asString(payload.toolName),
-      parentMessageId: asString(payload.parentMessageId),
-      mode: asString(payload.mode),
-      status: asString(payload.status) || 'requested',
-      input: payload.input || {},
-      result: payload.result || undefined,
-      error: asString(payload.error),
-    });
-  }
-
-  return { id, kind: kind || 'system', createdAt: Date.now(), updatedAt: Date.now(), props: payload };
+export function normalizeSnapshotEntity(entity: SnapshotEntityFrame): SnapshotEntityFrame {
+  return {
+    ...entity,
+    kind: asString(entity?.kind),
+    id: asString(entity?.id),
+    payload: unwrapAnyPayload(entity?.payload),
+  };
 }
 
-export type SnapshotDebugEntity = { raw: SnapshotEntityFrame; mapped: TimelineEntity | null };
-
-export function applySnapshot(frame: CanonicalFrame, dispatch: AppDispatch, _sessionId = ''): SnapshotDebugEntity[] {
+export function applySnapshot(
+  frame: CanonicalFrame,
+  dispatch: AppDispatch,
+  sessionId = '',
+  adapterRegistry?: TimelineAdapterRegistry,
+): SnapshotDebugEntity[] {
   dispatch(timelineSlice.actions.clear());
   const entities = Array.isArray(frame.entities) ? (frame.entities as SnapshotEntityFrame[]) : [];
   const debugEntities: SnapshotDebugEntity[] = [];
-  for (const entity of entities) {
-    const mapped = timelineEntityFromSnapshotEntity(entity);
-    debugEntities.push({ raw: entity, mapped });
-    if (!mapped) continue;
-    dispatch(timelineSlice.actions.upsertEntity(mapped));
+  for (const raw of entities) {
+    const entity = normalizeSnapshotEntity(raw);
+    const projection = adapterRegistry?.projectSnapshot(entity, { sessionId, snapshotOrdinal: frame.ordinal }) ?? null;
+    const mapped = projection?.mutation.upsert ?? projection?.mutation.upsertIfExists ?? null;
+    debugEntities.push({ raw, mapped, adapterName: projection?.adapterName });
+    if (!projection) continue;
+    applyTimelineMutation(dispatch, projection.mutation);
   }
   return debugEntities;
 }

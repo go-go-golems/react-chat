@@ -11,7 +11,7 @@ export function useChatExtensions(extension: ChatExtension, deps: unknown[] = []
         client: runtime.client,
         tools: runtime.toolRegistry,
         widgets: runtime.widgetRegistry,
-        projectors: runtime.projectorRegistry,
+        timelineAdapters: runtime.adapterRegistry,
       },
       extension,
     );
