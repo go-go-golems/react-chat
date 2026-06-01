@@ -28,6 +28,7 @@ The provider-backed app is the production route. The legacy widget may be delete
 - Provider statusbar uses provider session id for export.
 - Provider debug observer feeds the existing stream debug panel.
 - Capability demo routes/tools/widgets were removed; frontend tool endpoint support remains generic and backend-tested.
+- Deterministic `mock_parity` profile now exercises provider-backed reasoning, backend tool-call, agent-mode, and assistant text rendering without a live LLM.
 
 ## Parity areas
 
@@ -47,6 +48,7 @@ The provider-backed app is the production route. The legacy widget may be delete
 | Frontend tools | Pass, generic only | Demo tools were deleted. Generic manifest/result endpoints remain covered by `cmd/web-chat/app` tests using `app.confirm_action`; `ToolCallCard` can submit a human result when a real app supplies confirm metadata. |
 | Export menu | Pass | `ProviderStatusbar` renders `ExportMenuForSession` using provider `overlay.sessionId`. |
 | Stream debug panel | Pass | `onDebugEvent: recordProviderDebugEvent` records provider debug events into the existing stream debug store; `WebChatApp` renders `StreamDebugPanel`. |
+| Deterministic mock profile | Pass, partial | `mock_parity` short-circuits normal runtime resolution to a mock Geppetto engine. It currently covers reasoning, backend tool calls/results, agent-mode special events, and assistant chat streaming. Widget/frontend-tool browser round-trip coverage remains a Phase 6A follow-up. |
 
 ## Validation commands
 
@@ -63,7 +65,7 @@ npx vitest run src/app/routeMode.test.ts
 Run from `pinocchio`:
 
 ```bash
-go test ./cmd/web-chat/app ./pkg/chatapp -count=1
+go test ./cmd/web-chat/mockruntime ./cmd/web-chat ./cmd/web-chat/app ./cmd/web-chat/profiles ./pkg/chatapp -count=1
 go test ./...
 ```
 
@@ -71,6 +73,7 @@ Run from the overlay repo:
 
 ```bash
 node ttmp/2026/05/30/CHATOVERLAY-005--move-typed-widget-plugin-support-into-pinocchio-chatapp/scripts/03-pinocchio-webchat-devctl-playwright.js
+node ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js
 ```
 
 ## Review gate for Phase 7

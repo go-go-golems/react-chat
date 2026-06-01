@@ -131,3 +131,14 @@ Simplified the mock inference plan to a hardcoded mock_parity profile shortcut b
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/design-doc/02-deterministic-mock-inference-profile-guide.md — Simplified mock profile design
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md — Simplified Phase 6A tasks
 
+
+## 2026-05-31
+
+Implemented the first mock_parity profile shortcut and deterministic mock engine for reasoning/backend-tool/agent-mode/text parity (commits aee7029, 1c66abe).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js — Browser validation
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/canonical_runtime_resolver.go — Profile shortcut
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/mockruntime/engine.go — Mock parity engine
+

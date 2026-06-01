@@ -9,6 +9,14 @@ Owners: []
 RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server.go
       Note: Removed special capabilities prompt branch (commit 1a76cbe)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server_test.go
+      Note: Mock runtime integration snapshot test (commit aee7029)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/canonical_runtime_resolver.go
+      Note: mock_parity resolver shortcut (commit aee7029)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/mockruntime/engine.go
+      Note: Deterministic mock parity engine (commit aee7029)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/profiles/api.go
+      Note: Profile API exposes/selects mock_parity (commit aee7029)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/.storybook/main.ts
       Note: Storybook discovery evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
@@ -75,12 +83,15 @@ RelatedFiles:
       Note: Repeatable route flag regression smoke
     - Path: ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/03-phase6-validation-suite.js
       Note: Repeatable Phase 6 validation suite
+    - Path: ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js
+      Note: Mock profile Playwright smoke
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1208,3 +1219,77 @@ The simplified plan removes the unnecessary generalized mock-runtime schema from
 ### Technical details
 - No Pinocchio source changes were made.
 - The revised design explicitly keeps prompt text irrelevant to mock activation.
+
+## Step 16: Implement the first mock_parity profile shortcut
+
+This step implemented the simplified mock profile path. Selecting `mock_parity` now bypasses normal profile runtime composition and returns a deterministic mock Geppetto engine; normal profiles still delegate to the existing resolver/composer path.
+
+The first mock scenario covers reasoning/thinking streaming, backend tool-call lifecycle events, an agent-mode special event, and assistant text streaming. Widget and frontend-tool browser round-trip coverage remains a follow-up because that requires app/sessionstream publisher context beyond the plain Geppetto engine interface.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead"
+
+**Assistant interpretation:** Implement the simplified `mock_parity` profile shortcut described in the updated ticket.
+
+**Inferred user intent:** Move from planning to a working deterministic mock profile that improves parity testing without a live LLM.
+
+**Commit (code):** aee7029 — "test: add mock parity web-chat profile"
+
+**Commit (code):** 1c66abe — "chore: add mockruntime logcopter package"
+
+### What I did
+- Added `cmd/web-chat/mockruntime` with a deterministic Geppetto-compatible `engine.Engine`.
+- Added `profiles.MockParityProfile` and `profiles.IsMockParityProfile`.
+- Added `canonical_runtime_resolver.go` shortcut: `profile=mock_parity` returns the mock runtime before normal profile resolution/composition.
+- Added `mock_parity` to the profile API list and current-profile POST/GET flow.
+- Added unit/integration coverage:
+  - mock runtime event-order test,
+  - resolver shortcut test,
+  - app/server snapshot integration test.
+- Added ticket Playwright script `scripts/04-phase6-mock-profile-parity-smoke.js`.
+- Updated the parity checklist and Phase 6A tasks.
+
+### Why
+- Deterministic parity evidence should not depend on prompt hacks, live provider credentials, or probabilistic model output.
+- A special profile is the simplest explicit activation mechanism and keeps normal profiles unchanged.
+
+### What worked
+- `mock_parity` appears in the profile selector.
+- Selecting it and sending a normal prompt renders deterministic reasoning text, `mock.search` backend tool output, agent-mode event text, and final assistant text.
+- The new Playwright smoke passed and wrote evidence to `/tmp/pinocchio-phase6-mock-profile-parity-smoke.json`.
+- Go tests and frontend checks passed.
+
+### What didn't work
+- An ad-hoc Playwright probe initially failed because `getByText('mock.search')` matched both the tool name and a pill, causing a strict-mode violation. The ticket script uses `getByTestId('tool-call-name').filter({ hasText: 'mock.search' }).first()` instead.
+- Widget/frontend-tool round-trip coverage is not part of the first implementation. It remains in Phase 6A as a follow-up.
+
+### What I learned
+- The selected profile reaches `canonical_runtime_resolver.Resolve`, making it the clean shortcut point.
+- The existing Geppetto event sink path is enough to exercise reasoning, backend tool calls, agent-mode, and chat text without touching `chatapp` demo inference.
+
+### What was tricky to build
+- The mock engine must emit Geppetto event types, not sessionstream timeline entities, so the same plugins/projectors are exercised as real inference.
+- Profile API support had to include list and current-profile handling; otherwise the frontend selector could not reliably choose `mock_parity`.
+
+### What warrants a second pair of eyes
+- Confirm `mock_parity` should always be listed by the profile API, rather than being dev-only behind a flag.
+- Confirm whether Phase 6A should next add widget/frontend-tool coverage with a minimal context bridge.
+
+### What should be done in the future
+- Add hydration smoke for `mock_parity`.
+- Add optional widget/frontend-tool mock coverage if reviewers require it before legacy deletion.
+
+### Code review instructions
+- Start with `cmd/web-chat/canonical_runtime_resolver.go` to verify the shortcut is isolated.
+- Review `cmd/web-chat/mockruntime/engine.go` for deterministic event sequence and stable IDs.
+- Review `cmd/web-chat/profiles/api.go` and `cmd/web-chat/profiles/mock.go` for profile selector support.
+- Validate with:
+  - `go test ./cmd/web-chat/mockruntime ./cmd/web-chat ./cmd/web-chat/app ./cmd/web-chat/profiles ./pkg/chatapp -count=1`
+  - `npm run typecheck`
+  - `npm run lint`
+  - `node ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js`
+
+### Technical details
+- The committed mock runtime currently emits provider call, reasoning, backend tool-call, agent-mode, and text events through Geppetto event sinks.
+- `go generate ./...` produced `cmd/web-chat/mockruntime/logcopter.go`, committed separately.

@@ -119,23 +119,24 @@ Goal: prove provider-backed web-chat covers required behavior before removing le
 
 Goal: make provider parity testable without a live LLM by selecting an explicit `mock_parity` profile that short-circuits normal runtime composition and returns a deterministic mock engine.
 
-- [ ] Add `mock_parity` to the dev/test profile list or profile fixture loaded by web-chat devctl.
-- [ ] Add `cmd/web-chat/mockruntime` with a small Geppetto-compatible mock `engine.Engine`.
-- [ ] Add a hardcoded resolver shortcut in `cmd/web-chat/canonical_runtime_resolver.go`: `profile=mock_parity` returns the mock engine; all other profiles use the existing resolver/composer path.
-- [ ] Keep prompt text irrelevant to mock activation; remove/avoid `/mock` or `mock:all` prompt checks.
-- [ ] Implement a first text-streaming mock scenario with deterministic assistant chunks and stable IDs.
-- [ ] Add resolver tests proving `mock_parity` uses the mock engine and normal profiles still delegate to normal runtime composition.
-- [ ] Add mock engine tests asserting deterministic event order for text streaming.
-- [ ] Extend the mock scenario to emit reasoning/thinking Geppetto events.
-- [ ] Extend the mock scenario to emit backend tool-call Geppetto events for started, args, requested, execution, result, and finished states.
-- [ ] Extend the mock scenario to emit app-owned special events such as agent-mode commit if straightforward through existing plugin paths.
-- [ ] Add app/server integration tests that submit a message with `profile=mock_parity` and assert deterministic timeline entities.
-- [ ] Decide whether widget/frontend-tool coverage is needed in the first mock pass or can be Phase 6A follow-up.
+- [x] Add `mock_parity` to the dev/test profile list or profile fixture loaded by web-chat devctl.
+- [x] Add `cmd/web-chat/mockruntime` with a small Geppetto-compatible mock `engine.Engine`.
+- [x] Add a hardcoded resolver shortcut in `cmd/web-chat/canonical_runtime_resolver.go`: `profile=mock_parity` returns the mock engine; all other profiles use the existing resolver/composer path.
+- [x] Keep prompt text irrelevant to mock activation; remove/avoid `/mock` or `mock:all` prompt checks.
+- [x] Implement a first text-streaming mock scenario with deterministic assistant chunks and stable IDs.
+- [x] Add resolver tests proving `mock_parity` uses the mock engine and normal profiles still delegate to normal runtime composition.
+- [x] Add mock engine tests asserting deterministic event order for text streaming.
+- [x] Extend the mock scenario to emit reasoning/thinking Geppetto events.
+- [x] Extend the mock scenario to emit backend tool-call Geppetto events for started, args, requested, execution, result, and finished states.
+- [x] Extend the mock scenario to emit app-owned special events such as agent-mode commit if straightforward through existing plugin paths.
+- [x] Add app/server integration tests that submit a message with `profile=mock_parity` and assert deterministic timeline entities.
+- [x] Decide whether widget/frontend-tool coverage is needed in the first mock pass or can be Phase 6A follow-up.
 - [ ] If widget/frontend-tool coverage is included, add only a minimal context bridge using the existing `PromptRequest.RuntimeContext` hook.
 - [ ] If widget/frontend-tool coverage is included, add app-owned `mockParityExtension` with `app.confirm_action`, optional `app.mock_echo`, and `mock.progress`.
-- [ ] Add Playwright scripts under this ticket's `scripts/` folder for mock profile parity and hydration.
-- [ ] Update `reference/02-provider-parity-checklist.md` with mock-profile evidence.
-- [ ] Re-run Phase 6 validation and block Phase 7 legacy deletion until mock-profile parity passes.
+- [x] Add a Playwright script under this ticket's `scripts/` folder for mock profile parity.
+- [ ] Add a Playwright script under this ticket's `scripts/` folder for mock profile hydration.
+- [x] Update `reference/02-provider-parity-checklist.md` with mock-profile evidence.
+- [x] Re-run Phase 6 validation and block Phase 7 legacy deletion until mock-profile parity passes.
 
 ## Phase 7 — Delete legacy Redux/WebSocket chat code after parity
 
