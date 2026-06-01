@@ -1,20 +1,31 @@
 ---
-title: "Investigation Diary"
-ticket: CHATOVERLAY-011
-doc_type: reference
-status: active
-intent: long-term
-topics:
-  - chat-overlay
-  - pinocchio
-  - web-chat
-  - react
-  - typescript
-  - go
-  - architecture
-created: 2026-05-31
-updated: 2026-06-01
+Title: ""
+Ticket: ""
+Status: ""
+Topics: []
+DocType: ""
+Intent: ""
+Owners: []
+RelatedFiles:
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server.go
+      Note: Removed debug recorder server state and Sessionstream observer installation (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server_test.go
+      Note: Removed backend debug endpoint and reconcile export tests (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
+      Note: Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
+      Note: Removed devctl debug-api configuration plumbing (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
+      Note: Removed debug-only frontend dependencies (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/App.tsx
+      Note: Production app now renders chat-only root without debug route mode (commit e829689)
+ExternalSources: []
+Summary: ""
+LastUpdated: 0001-01-01T00:00:00Z
+WhatFor: ""
+WhenToUse: ""
 ---
+
 
 # Diary
 
@@ -184,3 +195,98 @@ The validation step also completed the ticket task list and recorded the reMarka
 - reMarkable dry-run command used `remarquee upload bundle ... --dry-run --non-interactive`.
 - reMarkable upload command used `remarquee upload bundle ... --non-interactive`.
 - Remote destination: `/ai/2026/06/01/CHATOVERLAY-011`.
+
+## Step 3: Remove the debug app from both frontend and backend
+
+I switched from planning to implementation and removed the separate web-chat debug application instead of keeping it as a parallel route. The production browser entry now always renders the provider-backed chat root, Storybook no longer wraps stories in debug router/store plumbing, and the debug-only frontend dependencies were removed from the npm package lock.
+
+After the frontend deletion, I also removed the Go side of the debug app: the `--debug-api` flag, debug recorder, pipeline/transport/Geppetto observer hooks, `/api/debug/sessions/*` handlers, SQLite reconcile export, devctl debug flag plumbing, and the backend tests that existed only to exercise those endpoints. This keeps the web-chat example focused on the actual chat API rather than a second diagnostics product.
+
+### Prompt Context
+
+**User prompt (verbatim):** "make sure to also remove all the go side of the debug app"
+
+**Assistant interpretation:** Finish the ruthless debug-app cleanup by deleting backend debug API/recorder/reconcile code in addition to the already-started frontend debug-ui deletion.
+
+**Inferred user intent:** The user wants no debug app leftovers in the polished web-chat example, including hidden backend routes, flags, observers, tests, devctl config, and frontend upload panels that depended on those routes.
+
+**Commit (code):** `e829689fb8e76671d658cb75fc45a9919990c393` — "refactor: remove web-chat debug app"
+
+### What I did
+- Removed the frontend debug route mode and made `src/app/App.tsx` always render `MainWebChatRoot`.
+- Deleted `src/debug-ui/**`, `src/app/DebugUiRoot.tsx`, `src/app/routeMode.ts`, and `src/app/routeMode.test.ts`.
+- Simplified `.storybook/preview.tsx` so stories use the regular chat Redux store without debug router/store handling.
+- Removed debug-only npm dependencies with `npm uninstall react-router-dom @redux-devtools/remote @redux-devtools/cli yaml`.
+- Deleted frontend stream-debug capture/upload code: `src/ws/streamDebug.ts`, `src/ws/streamDebug.test.ts`, `StreamDebugPanel`, `providerDebug.ts`, and `debug-panel.css`.
+- Removed backend debug recorder/reconcile files under `cmd/web-chat/app/debug_*` and `cmd/web-chat/app/server_debug.go`.
+- Removed `WithDebugRecorder`, `debugRecorder` server state, Sessionstream pipeline observers, WebSocket transport observers, and Geppetto observer wiring.
+- Removed the CLI `--debug-api` flag, `debugApiEnabled` runtime config field, devctl `PINOCCHIO_WEBCHAT_DEBUG_API`/`webchat.debug_api` plumbing, and README examples that referenced debug routes.
+- Removed backend debug endpoint tests and updated route/runtime tests for the smaller `runtimeConfigScript` and `buildAppMux` signatures.
+- Added and checked the ticket tasks for frontend debug-ui deletion, chat-only routing/dependency cleanup, and Go debug API/recorder deletion.
+
+### Why
+- A polished example application should not carry an unused second app, route mode selector, debug-specific dependency stack, or backend-only diagnostics API.
+- Keeping the debug recorder would continue to shape the production server constructor, CLI, devctl plugin, and package graph around a tool that the user explicitly wants removed.
+
+### What worked
+- Focused Go validation passed:
+  - `go test ./cmd/web-chat ./cmd/web-chat/app ./cmd/web-chat/mockruntime ./cmd/web-chat/profiles ./pkg/chatapp -count=1`
+- Frontend validation passed:
+  - `npm run typecheck`
+  - `npm test` — 7 files / 25 tests
+  - `npm run lint`
+  - `npm run build`
+  - `npm run check:storybook`
+- The Pinocchio pre-commit hook passed on the final commit, including `go generate ./...`, frontend build/typecheck/lint, `go build ./...`, `golangci-lint`, custom vet tools, and `go test ./...`.
+- Post-cleanup search found no remaining active `cmd/web-chat` matches for `debug-ui`, `debug=1`, `--debug-api`, `/api/debug`, `DebugRecorder`, `StreamDebug`, `debugApiEnabled`, or `debug-panel`.
+
+### What didn't work
+- The first commit attempt failed because removing debug reconcile code made a helper unused:
+  - `cmd/web-chat/app/server.go:395:6: func encodeProtoJSON is unused (unused)`
+- I fixed this by deleting `encodeProtoJSON` and the now-unused `google.golang.org/protobuf/proto` import from `cmd/web-chat/app/server.go`, then reran focused Go tests and committed again.
+
+### What I learned
+- The frontend debug UI and backend debug recorder were more intertwined than the route mode suggested: removing one without the other left stream-debug upload code, `/api/debug` server hooks, devctl flags, runtime config fields, and observer construction paths behind.
+- The remaining production chat route does not need React Router, Redux DevTools remote support, YAML parsing, stream-debug local storage, or debug-specific CSS parts.
+
+### What was tricky to build
+- The sharp edge was avoiding a partial deletion. The TypeScript debug app, stream-debug panel, Go debug endpoints, Geppetto observer wiring, devctl config mutation, runtime `app-config.js` shape, package dependencies, and tests all had separate references to the same diagnostics feature.
+- I handled this by repeatedly searching for the feature surface (`debug-ui`, `debug=1`, `--debug-api`, `/api/debug`, `DebugRecorder`, `StreamDebug`, `debugApiEnabled`, `stream-debug`, and `debug-panel`) after each cleanup pass, then removing the next layer until only unrelated `MutationObserver` references remained.
+
+### What warrants a second pair of eyes
+- Confirm that no operator workflow still depends on the deleted `/api/debug/sessions/*` endpoints or SQLite reconcile export.
+- Review whether any future diagnostics should be rebuilt as external scripts against production chat/sessionstream APIs instead of being reintroduced as a bundled app route.
+- Review the `package-lock.json` shrink carefully because uninstalling debug-only dependencies removed a large transitive dependency tree.
+
+### What should be done in the future
+- If diagnostics are needed again, create a separate tool or ticket with explicit ownership instead of embedding a second app in the production web-chat example.
+- Continue CHATOVERLAY-011 cleanup with the remaining planned phases: inventory tooling, `src/webchat` namespace cleanup, contract tightening, and Go command/file splits.
+
+### Code review instructions
+- Start with the code commit `e829689fb8e76671d658cb75fc45a9919990c393`.
+- Review frontend entry and dependency cleanup first:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/App.tsx`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/.storybook/preview.tsx`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/package.json`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/package-lock.json`
+- Review backend removal next:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server_test.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/plugins/webchat.py`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat ./cmd/web-chat/app ./cmd/web-chat/mockruntime ./cmd/web-chat/profiles ./pkg/chatapp -count=1`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web && npm run typecheck && npm test && npm run lint && npm run build && npm run check:storybook`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && rg -n "debug-ui|DebugUi|debug=1|debug-api|/api/debug|DebugRecorder|StreamDebug|debugApiEnabled|debug-panel" cmd/web-chat -S`
+
+### Technical details
+- Deleted frontend dependency families:
+  - React Router (`react-router-dom`)
+  - Redux DevTools remote packages (`@redux-devtools/remote`, `@redux-devtools/cli`)
+  - YAML parser dependency used by the removed debug surface (`yaml`)
+- Deleted backend debug feature families:
+  - Sessionstream pipeline/transport record capture
+  - Geppetto observability record capture for the web-chat debug API
+  - Backend/frontend reconcile SQLite export
+  - `/api/debug/sessions/{sessionId}/{pipeline,transport,geppetto,reconcile}` and upload handlers
+- Active production APIs left in `cmd/web-chat` are the chat/profile/session/export surfaces, not the removed debug API namespace.
