@@ -35,6 +35,10 @@ topics:
       description: Generic React ChatProvider runtime package and extension APIs
     - slug: parity
       description: Validation that provider-backed behavior matches legacy or expected behavior
+    - slug: go
+      description: Go language and backend implementation topics
+    - slug: typescript
+      description: TypeScript language and frontend implementation topics
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
