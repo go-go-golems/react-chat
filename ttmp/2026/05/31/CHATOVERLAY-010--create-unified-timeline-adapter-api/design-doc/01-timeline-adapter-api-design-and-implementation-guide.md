@@ -412,6 +412,7 @@ Update Playwright:
 
 - Keep `04-phase6-mock-profile-parity-smoke.js`.
 - Add hydration smoke that sends `mock_parity`, reloads with `sessionId`, and asserts `agent_mode` and backend tool cards still render as cards, not generic raw JSON.
+- Current smoke path: `scripts/01-mock-profile-hydration-smoke.js`; it writes evidence to `/tmp/pinocchio-chatprovider-timeline-adapter-hydration.json` by default.
 
 ## API Misuse Prevention
 
