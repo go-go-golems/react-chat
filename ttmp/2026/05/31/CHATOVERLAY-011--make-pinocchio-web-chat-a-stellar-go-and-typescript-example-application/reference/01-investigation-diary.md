@@ -16,15 +16,22 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
-      Note: Removed debug-only frontend dependencies (commit e829689)
+      Note: |-
+        Removed debug-only frontend dependencies (commit e829689)
+        Added npm audit:unused helper (commit e15e234)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/App.tsx
       Note: Production app now renders chat-only root without debug route mode (commit e829689)
+    - Path: ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py
+      Note: Repeatable Phase 1 inventory generator
+    - Path: ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/01-web-chat-inventory.md
+      Note: Generated baseline inventory for future cleanup phases
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -290,3 +297,96 @@ After the frontend deletion, I also removed the Go side of the debug app: the `-
   - Backend/frontend reconcile SQLite export
   - `/api/debug/sessions/{sessionId}/{pipeline,transport,geppetto,reconcile}` and upload handlers
 - Active production APIs left in `cmd/web-chat` are the chat/profile/session/export surfaces, not the removed debug API namespace.
+
+## Step 4: Add repeatable web-chat inventory tooling
+
+I implemented the Phase 1 inventory tooling so future cleanup passes do not depend on memory or one-off shell commands. The ticket now has a checked-in script that regenerates a Markdown inventory plus raw `knip` and `go list` outputs under the ticket's `sources/` directory.
+
+I also added a local frontend `npm run audit:unused` command in Pinocchio so the inventory script and humans use the same unused-files/exports probe. The command is advisory and intentionally allowed to exit non-zero while cleanup candidates remain.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, do it. commit at appropriate intervals"
+
+**Assistant interpretation:** Implement the inventory tooling described in CHATOVERLAY-011 Phase 1, validate it, update ticket bookkeeping, and commit focused changes.
+
+**Inferred user intent:** The user wants the cleanup plan converted into repeatable tooling, with durable generated evidence and clean commits rather than another manual investigation pass.
+
+**Commit (code):** `e15e234d8f024e87671d3848e8ce47f5e425169d` — "chore: add web-chat unused audit script"
+
+### What I did
+- Added `npm run audit:unused` to `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/package.json`:
+  - `npx --yes knip --include files,exports --reporter compact`
+- Added ticket script:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py`
+- Generated ticket sources:
+  - `sources/01-web-chat-inventory.md`
+  - `sources/web-chat-knip.txt`
+  - `sources/web-chat-go-list.txt`
+- The inventory report includes frontend file counts, largest files, directory grouping, cleanup probes, npm scripts, raw/previewed `knip` output, Go package inventory, Go file sizes, CLI flags, server handlers, and a suggested review loop.
+- Checked CHATOVERLAY-011 task 5.
+
+### Why
+- Cleanup decisions need a fresh, repeatable baseline after each deletion/move.
+- `knip` findings are useful but noisy, so the script records them as evidence instead of making them a CI gate.
+- Keeping raw command outputs under `sources/` makes before/after comparisons possible during later phases.
+
+### What worked
+- The script successfully generated all three source artifacts.
+- Current inventory shows the post-debug-removal baseline:
+  - 105 TypeScript/TSX files under `cmd/web-chat/web/src`.
+  - 30 Go files under `cmd/web-chat`.
+  - 4 Go packages from `go list ./cmd/web-chat/...`.
+  - No active debug-app leftovers in the cleanup probes.
+- `npm run audit:unused` reports expected candidates and exits 1 without blocking the script.
+- Validations passed:
+  - `python3 -m py_compile scripts/01-web-chat-inventory.py`
+  - `npm run audit:unused || true`
+  - `npm run typecheck`
+  - `npm test`
+  - `go test ./cmd/web-chat/... -count=1`
+- The Pinocchio package-script commit passed the repository web-check pre-commit hook.
+
+### What didn't work
+- `knip` exits with code 1 because it found unused files/exports. This is expected for this cleanup phase, so the inventory script records the exit code and raw output instead of failing.
+- The current `knip` report still includes candidates that require review before deletion, including generated protobuf bindings, `src/webchat` barrel/shim files, `src/utils/guards.ts`, `src/utils/number.ts`, and `public/mockServiceWorker.js`.
+
+### What I learned
+- The debug-app removal reduced the frontend baseline to 105 TypeScript/TSX files and removed all debug probe matches from active `cmd/web-chat` code.
+- The main remaining TypeScript cleanup seam is now clear: many feature files still import support modules from `src/webchat`, which matches the next planned namespace cleanup phase.
+- The largest active Go files remain `profiles/api.go`, `app/server_test.go`, `profiles/resolver.go`, `app/server.go`, and `main.go`, which supports the planned Go split phases.
+
+### What was tricky to build
+- The script needed to be stable from different working directories. I made it infer the overlay root from its own path, then infer the sibling Pinocchio root, while still allowing `--pinocchio-root`, `--ticket-root`, `--output`, and `--skip-knip` overrides.
+- The tricky reporting detail was preserving non-zero advisory command output without making the whole script unusable. The script writes raw command output and includes the exit code in the Markdown report, then returns success so later cleanup loops can run it repeatedly.
+
+### What warrants a second pair of eyes
+- Review the cleanup regex probes before treating them as durable policy; they are intentionally simple and may need tuning as files move.
+- Review the `knip` candidates before deletion, especially generated protobuf files and public/barrel exports that may be intentionally preserved.
+- Decide whether `knip` should eventually become a real dependency/devDependency or remain `npx --yes` based to avoid lockfile churn.
+
+### What should be done in the future
+- Use the generated inventory as the baseline for Phase 2 deletion work.
+- Re-run `scripts/01-web-chat-inventory.py` after each cleanup phase and compare counts/probes.
+- If the report becomes too large, split raw outputs and summary into separate dated artifacts.
+
+### Code review instructions
+- Start with the inventory script:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py`
+- Then review the generated baseline:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/01-web-chat-inventory.md`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/web-chat-knip.txt`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/web-chat-go-list.txt`
+- Validate by running:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web && npm run audit:unused || true && npm run typecheck && npm test`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+
+### Technical details
+- Script options:
+  - `--pinocchio-root PATH`
+  - `--ticket-root PATH`
+  - `--output PATH`
+  - `--skip-knip`
+- Current raw `knip` output reports 8 unused files and 8 unused export groups.
+- The report intentionally records `knip exit code: 1` as a cleanup signal, not a script failure.

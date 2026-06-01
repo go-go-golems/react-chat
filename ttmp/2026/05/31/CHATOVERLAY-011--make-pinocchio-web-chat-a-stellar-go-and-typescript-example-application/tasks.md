@@ -6,7 +6,7 @@
 - [x] Inventory cmd/web-chat Go files and identify deprecated, unused, poorly organized, or confusing code
 - [x] Write intern-oriented cleanup analysis, design, and implementation guide
 - [x] Validate ticket documentation and publish bundle to reMarkable
-- [ ] Implement Phase 1: add repeatable TypeScript and Go inventory tooling for web-chat cleanup
+- [x] Implement Phase 1: add repeatable TypeScript and Go inventory tooling for web-chat cleanup
 - [ ] Implement Phase 2: remove confirmed unused TypeScript files or document intentional public/generated surfaces
 - [ ] Implement Phase 3: move TypeScript support modules out of the misleading src/webchat namespace
 - [ ] Implement Phase 4: tighten TypeScript public contracts and remove remaining avoidable any casts

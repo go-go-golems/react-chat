@@ -52,3 +52,13 @@ Removed Pinocchio web-chat debug app on both frontend and Go backend: deleted de
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go — Removed debug-api CLI/runtime config and backend observer wiring
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/App.tsx — Chat-only application entry
 
+
+## 2026-06-01
+
+Implemented Phase 1 inventory tooling: added web-chat npm audit:unused, checked-in ticket inventory script, and generated frontend/Go/knip baseline reports (Pinocchio commit e15e234).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py — Repeatable inventory generator
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/package.json — Added audit:unused script
+

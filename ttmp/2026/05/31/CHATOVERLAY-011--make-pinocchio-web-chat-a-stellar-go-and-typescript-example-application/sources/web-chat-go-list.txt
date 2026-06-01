@@ -1,0 +1,12 @@
+$ go list ./cmd/web-chat/...
+cwd: /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio
+exit: 0
+
+## stdout
+github.com/go-go-golems/pinocchio/cmd/web-chat
+github.com/go-go-golems/pinocchio/cmd/web-chat/app
+github.com/go-go-golems/pinocchio/cmd/web-chat/mockruntime
+github.com/go-go-golems/pinocchio/cmd/web-chat/profiles
+
+## stderr
+
