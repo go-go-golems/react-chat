@@ -65,6 +65,9 @@ jobs:
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.10.0
+
       - name: Show tool versions
         run: |
           node --version
@@ -163,25 +166,10 @@ jobs:
           IFS=',' read -r -a PACKAGE_DIRS <<< "${{ steps.packages.outputs.package_dirs }}"
           node scripts/packages/pack-smoke.mjs "${PACKAGE_DIRS[@]}"
 
-      - name: Read NPM token from Vault
-        id: vault-npm
-        if: ${{ inputs.dry_run == false }}
-        uses: hashicorp/vault-action@v3
-        with:
-          url: https://vault.yolo.scapegoat.dev
-          method: jwt
-          path: github-actions
-          role: react-chat-npm-publish
-          jwtGithubAudience: https://vault.yolo.scapegoat.dev
-          exportEnv: false
-          secrets: |
-            kv/data/ci/github/react-chat/npm-token value | NODE_AUTH_TOKEN
-
       - name: Publish selected packages to npmjs
         shell: bash
         env:
           CONFIRM_LATEST_PUBLISH: ${{ inputs.confirm_latest_publish == 'CONFIRM_LATEST' && 'true' || 'false' }}
-          NODE_AUTH_TOKEN: ${{ steps.vault-npm.outputs.NODE_AUTH_TOKEN }}
         run: |
           set -euo pipefail
           PUBLISH_ARGS=(--tag "${{ inputs.npm_tag }}")

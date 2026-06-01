@@ -47,3 +47,13 @@ Implemented npm package metadata, dist builds, CI, publish workflow, pushed to m
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/package.json — Public provider package metadata
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/scripts/packages/build-dist.mjs — Publish artifact builder
 
+
+## 2026-06-01
+
+Captured npm Trusted Publishing sources and updated React chat publish workflow to use tokenless npm OIDC instead of Vault NODE_AUTH_TOKEN.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.github/workflows/publish-npm.yml — Removed Vault npm token step and upgraded npm for trusted publishing
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/sources/00-source-pack-readme.md — Source pack index for trusted publishing migration
+

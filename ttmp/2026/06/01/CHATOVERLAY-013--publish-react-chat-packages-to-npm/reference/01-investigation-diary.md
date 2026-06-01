@@ -12,6 +12,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: .github/workflows/publish-npm.yml
+      Note: Tokenless trusted publishing workflow update
     - Path: 2026-05-29--chatbot-overlay-glm/packages/chat-provider/package.json
       Note: Evidence that provider package is private and source-exported today
     - Path: 2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/design-doc/01-publishing-react-chat-packages-to-npm.md
@@ -20,12 +22,15 @@ RelatedFiles:
       Note: Reference workflow inspected for the design
     - Path: go-go-os-frontend/scripts/packages/build-dist.mjs
       Note: Reference package builder inspected for the design
+    - Path: ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/sources/00-source-pack-readme.md
+      Note: Trusted publishing source pack index
 ExternalSources: []
 Summary: Chronological investigation diary for designing npm publication of the React chat packages.
 LastUpdated: 2026-06-01T13:19:39.681057165-04:00
 WhatFor: Use this to understand what was inspected, what decisions were made, and how to continue the publishing implementation.
 WhenToUse: Before resuming CHATOVERLAY-013 or reviewing the npm publishing design.
 ---
+
 
 
 # Diary
@@ -410,4 +415,104 @@ CI push run: 26774047891 — success
 publish-npm dry-run: 26774044083 — success
 publish-npm real next, missing Vault role: 26774086942 — failure
 publish-npm real next, npm token permission failure: 26774178444 — failure
+```
+
+## Step 4: Switch the React chat workflow toward npm Trusted Publishing
+
+I captured the npm trusted publishing references into the ticket `sources/` folder and updated the React chat publish workflow to stop reading an npm token from Vault. The workflow now relies on GitHub Actions OIDC directly to npm, which is the modern npm Trusted Publishing path once each package has a matching trusted publisher configured on npmjs.com.
+
+This does not by itself create the npm-side trust relationship. npm requires the package to exist before `npm trust github` can configure it from the CLI. For new packages, the practical bootstrap is still either a one-time package creation/publish by an npm org maintainer or a temporary valid token; after the packages exist, configure trusted publishers and set publishing access to disallow tokens.
+
+### Prompt Context
+
+**User prompt (verbatim):** "but actually i see that go-go-os-frontend has trusted publishing set up say for os-repl. .../tmp/pi-clipboard-60fea408-6c61-44ce-9009-fe54c18dabd8.png but it says it's using 2fa or a granular access      
+token with bypass 2fa enabled, but that was the one i now deleted. So OK, how do I properly set up trustede publishing on all my packages at this point, so it's all setup, and disallow tokens."
+
+**Assistant interpretation:** Investigate npm Trusted Publishing setup, preserve source references, compare to the existing npm-trust ticket, and move React chat toward tokenless trusted publishing instead of the Vault npm token path.
+
+**Inferred user intent:** Establish a safer publishing posture where npm packages publish through trusted OIDC publishers and package settings reject long-lived npm token publication.
+
+**Commit (code):** Pending at time of diary entry.
+
+### What I did
+
+- Read the existing NPM trusted publishing source pack under:
+  - `/home/manuel/workspaces/2026-05-27/rag-evaluation-system/2026-05-27--rag-evaluation-system/ttmp/2026/06/01/NPM-TRUST-001--npm-trusted-publishing-migration-and-token-lockdown/`
+- Captured relevant sources with `defuddle parse <url> --md` into this ticket's `sources/` directory:
+  - `01-npm-trusted-publishers.md`
+  - `02-npm-trust-cli.md`
+  - `03-npm-requiring-2fa-and-disallow-tokens.md`
+  - `04-npm-generating-provenance-statements.md`
+  - `05-github-changelog-npm-trusted-publishing-ga.md`
+- Updated `.github/workflows/publish-npm.yml` to remove the Vault npm token read step and `NODE_AUTH_TOKEN` publish environment.
+- Added an npm upgrade step so the workflow uses npm CLI `>=11.10.0`, which supports `npm trust` and trusted publishing behavior.
+- Re-ran local validation:
+  - `pnpm -r typecheck`
+  - `pnpm test`
+  - `npm run build:publish`
+  - `npm run pack:smoke`
+
+### Why
+
+- Trusted Publishing removes long-lived npm publishing tokens from the release path.
+- The npm docs recommend setting package Publishing access to `Require two-factor authentication and disallow tokens` after trusted publishers work.
+- The deleted granular token should not be replaced with another long-lived token if the package can instead publish through GitHub Actions OIDC.
+
+### What worked
+
+- Defuddle captures succeeded and are now stored in the ticket source pack.
+- Local package validation still passes after the workflow change.
+- The React chat workflow no longer depends on Vault for npm publication.
+
+### What didn't work
+
+- `npm trust list @go-go-golems/os-repl` and `npm trust list @go-go-golems/os-core` failed locally with `E401` because the current local npm session is not authenticated with an npm account that can inspect package trust settings.
+- Trusted Publishing cannot be fully completed from this shell without an npm-authenticated account that has write access to each package.
+
+### What I learned
+
+- `npm trust` requires npm CLI `>=11.10.0`, account 2FA enabled, write permissions on the package, and an already-existing package.
+- Granular access tokens with bypass 2FA are explicitly not supported for `npm trust` commands.
+- The package-level `Require two-factor authentication and disallow tokens` setting blocks granular tokens regardless of bypass-2FA settings, while trusted publishers continue to work.
+
+### What was tricky to build
+
+The tricky distinction is first-publish bootstrap versus steady-state trusted publishing. For existing packages like `os-repl`, you can configure a trusted publisher and then disallow tokens. For new packages like `@go-go-golems/chat-provider`, the CLI docs say the package must already exist before `npm trust github` can configure trust. That means first package creation may still need a one-time npm-side bootstrap unless npmjs.com allows pre-creation/trusted publisher setup in the package UI for scoped packages.
+
+### What warrants a second pair of eyes
+
+- Confirm whether npmjs.com can pre-create trusted publisher settings for not-yet-published `@go-go-golems/chat-provider` and `@go-go-golems/chat-overlay` through the organization UI. The CLI says the package must already exist.
+- Confirm whether to configure trusted publishers with `--allow-publish` or stage-only `--allow-stage-publish` for maximum control.
+- Confirm the exact GitHub environment name to bind in npm: current workflow uses `environment: npm-production`.
+
+### What should be done in the future
+
+- Configure trusted publishers on npm for each existing package.
+- After a tokenless publish succeeds, set package Publishing access to `Require two-factor authentication and disallow tokens`.
+- Revoke or leave unused old Vault npm token paths after all packages have migrated.
+- For React chat, bootstrap package existence if npm requires it, then configure trusted publishers for both packages.
+
+### Code review instructions
+
+- Review `.github/workflows/publish-npm.yml` and confirm no `NODE_AUTH_TOKEN`/Vault step remains.
+- Confirm `permissions.id-token: write` remains present.
+- Confirm `environment: npm-production` matches the npm trusted publisher environment field.
+- Review `sources/00-source-pack-readme.md` for the source map.
+
+### Technical details
+
+Trusted publisher CLI shape for GitHub Actions:
+
+```bash
+npm trust github @go-go-golems/chat-provider \
+  --repo go-go-golems/react-chat \
+  --file publish-npm.yml \
+  --env npm-production \
+  --allow-publish
+```
+
+Token lockdown after verification is done on npmjs.com package settings:
+
+```text
+Package → Settings → Publishing access → Require two-factor authentication and disallow tokens
 ```
