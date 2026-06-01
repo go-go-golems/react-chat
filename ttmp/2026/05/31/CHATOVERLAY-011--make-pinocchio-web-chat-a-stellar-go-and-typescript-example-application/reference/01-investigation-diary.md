@@ -13,10 +13,16 @@ RelatedFiles:
       Note: Removed backend debug endpoint and reconcile export tests (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/appserver/server.go
       Note: Moved command-owned chat HTTP server under internal/appserver in commit 986350b
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/middlewaredefs/registry.go
+      Note: Web-chat middleware catalog moved out of main package in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/mockruntime/engine.go
       Note: Moved app/test mock runtime under internal/mockruntime in commit 986350b
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/plugins/agentmode/plugin.go
+      Note: App-owned agent-mode chat plugin moved out of main package in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/profiles/api.go
       Note: Moved command-owned profile HTTP API under internal/profiles in commit 986350b
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/runtime/composer.go
+      Note: Profile runtime composer moved out of main package in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/routes.go
       Note: New HTTP mux package extracted from main.go in commit 9b4caa4
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/server.go
@@ -28,6 +34,7 @@ RelatedFiles:
         Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
         Updated imports to internal appserver/profiles in commit 986350b
         Shrunk by delegating HTTP shell helpers to internal/webapp in commit 9b4caa4
+        Now imports internal runtime/middleware/plugin constructors in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/knip.json
@@ -58,6 +65,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -838,3 +846,96 @@ This reduced `main.go` substantially while keeping command assembly there for no
   - `MiddlewareDefinitions`
   - `ExtensionSchemas`
 - `main.go` still owns the starter-suggestions schema literal; this is acceptable for now because command assembly has not yet been moved.
+
+## Step 9: Extract runtime, middleware, and agent-mode plugin internals
+
+I continued shrinking the command package by moving app-owned runtime construction and plugin catalog code into internal packages. The command now imports explicit internal packages for middleware definitions, runtime composition/resolution, and the agent-mode chat plugin instead of keeping those concerns in package `main`.
+
+This step still preserves behavior. It mainly turns previously unexported command helpers into narrowly exported constructors on internal packages, while moving their tests with the implementation so most package-private test coverage remains close to the code it exercises.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Continue implementing the intern-guide package split in staged commits, documenting validation and sharp edges.
+
+**Inferred user intent:** The user wants `main.go` to lose runtime/plugin/middleware responsibilities before the final command-composition extraction.
+
+**Commit (code):** `d1e1032c2d07dc18fff25fd42d9ff1775fa2054d` — "refactor: extract web-chat runtime internals"
+
+### What I did
+- Moved runtime composition code into `cmd/web-chat/internal/runtime`:
+  - `runtime_composer.go` -> `internal/runtime/composer.go`
+  - `canonical_runtime_resolver.go` -> `internal/runtime/canonical_resolver.go`
+  - `turn_persistence.go` -> `internal/runtime/turn_persistence.go`
+  - `agentmode_sink.go` -> `internal/runtime/agentmode_sink.go`
+  - `runtime_composer_test.go` -> `internal/runtime/composer_test.go`
+- Moved middleware catalog code into `cmd/web-chat/internal/middlewaredefs`:
+  - `middleware_definitions.go` -> `internal/middlewaredefs/registry.go`
+  - `middleware_definitions_test.go` -> `internal/middlewaredefs/registry_test.go`
+- Moved app-owned agent-mode chat plugin code into `cmd/web-chat/internal/plugins/agentmode`:
+  - `agentmode_chat_feature.go` -> `internal/plugins/agentmode/plugin.go`
+  - `agentmode_chat_feature_test.go` -> `internal/plugins/agentmode/plugin_test.go`
+- Exported only the constructors/constants needed by command assembly:
+  - `runtime.NewProfileRuntimeComposer`
+  - `runtime.NewCanonicalRuntimeResolver`
+  - `middlewaredefs.NewRegistry`
+  - `middlewaredefs.DependencyAgentModeServiceKey`
+  - `agentmodeplugin.NewPlugin`
+- Updated `main.go` to use those internal packages.
+- Updated `main_runtime_test.go` to use `runtime.NewCanonicalRuntimeResolver`.
+- Ran `go generate ./cmd/web-chat/...` proactively before committing.
+- Ran focused validation:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the code change; the Pinocchio pre-commit hook passed full validation, including `go test ./...`.
+
+### Why
+- Runtime composition, middleware catalog configuration, and app-owned agent-mode projection are not CLI concerns.
+- Keeping these packages under `cmd/web-chat/internal` makes the ownership explicit while avoiding a premature public `pkg/` API.
+- Moving the tests with the code keeps internal implementation details testable without exporting more surface area than command assembly needs.
+
+### What worked
+- `go test ./cmd/web-chat/... -count=1` passed after the moves.
+- The final commit pre-hook passed full validation, including `go generate`, `go build ./...`, `golangci-lint`, custom vet tools, and `go test ./...`.
+- `main.go` now reads more like application assembly: create middleware registry, create runtime composer, create canonical resolver, create plugin list.
+
+### What didn't work
+- No failing validation in the final implementation path.
+- The proactive `go generate ./cmd/web-chat/...` did not introduce new logger conflicts in these packages.
+- The known Vite non-module `app-config.js` warning appeared again during frontend build and remains non-blocking.
+
+### What I learned
+- Moving the agent-mode sink into `internal/runtime` required decoupling it from the middlewaredefs package's private config decoder. I added a small runtime-local decoder for the sink config to avoid an awkward dependency from runtime back into middleware catalog internals.
+- The plugin package uses package name `agentmodeplugin` even though the directory is `plugins/agentmode`, which avoids confusion with the reusable `pkg/middlewares/agentmode` package imported inside it.
+
+### What was tricky to build
+- The sharpest edge was dependency direction. The runtime composer needs the profile-specific event sink wrapper, but the middleware catalog also has agent-mode config decoding. Rather than making runtime depend on middlewaredefs for a private helper, I duplicated the tiny JSON decode logic in `agentmode_sink.go`. This keeps each package independently understandable.
+- Another subtle point was export discipline: the moved packages needed a few exported constructors for command assembly, but the rest of the helper types and constants stayed package-private or test-local.
+
+### What warrants a second pair of eyes
+- Review whether the package name `agentmodeplugin` is acceptable under directory `internal/plugins/agentmode`; it improves import clarity but differs from the directory basename.
+- Review whether the runtime-local agent-mode sink config decoder should stay duplicated or be replaced later by a shared small codec helper.
+
+### What should be done in the future
+- Extract command assembly into `internal/webchatcmd` next so `main.go` contains only executable bootstrapping.
+- Then split `internal/appserver` and `internal/profiles` by route group and rename `showcase_tools.go` to a production frontend-tool route name.
+
+### Code review instructions
+- Start with Pinocchio commit `d1e1032c2d07dc18fff25fd42d9ff1775fa2054d`.
+- Review moved runtime code:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/runtime/composer.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/runtime/canonical_resolver.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/runtime/agentmode_sink.go`
+- Review moved middleware/plugin code:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/middlewaredefs/registry.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/plugins/agentmode/plugin.go`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+
+### Technical details
+- Main command now imports:
+  - `cmd/web-chat/internal/middlewaredefs`
+  - `cmd/web-chat/internal/plugins/agentmode` as `agentmodeplugin`
+  - `cmd/web-chat/internal/runtime` as `webchatruntime`
+- The runtime package still uses `ProfileRuntimeComposer` as the main runtime builder type.
+- The middlewaredefs package owns the default web-chat agent mode constant and the agent-mode middleware schema.

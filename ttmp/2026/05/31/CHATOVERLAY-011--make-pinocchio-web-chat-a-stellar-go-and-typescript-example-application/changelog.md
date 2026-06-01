@@ -113,3 +113,14 @@ Phase 5 continued: extracted web-chat HTTP shell helpers from main.go into inter
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/routes.go — New mux composition package
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go — Delegates runtime config
 
+
+## 2026-06-01
+
+Phase 5 continued: extracted runtime composition, middleware definitions, turn persistence, canonical resolver, and agent-mode chat plugin into internal packages (Pinocchio commit d1e1032c2d07dc18fff25fd42d9ff1775fa2054d).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/middlewaredefs/registry.go — New internal middleware definition package
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/plugins/agentmode/plugin.go — New internal agent-mode plugin package
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/runtime/composer.go — New internal runtime composer package
+
