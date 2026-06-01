@@ -29,12 +29,15 @@ RelatedFiles:
       Note: Signal-aware HTTP server lifecycle extracted from main.go in commit 9b4caa4
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/static.go
       Note: Static UI and SPA fallback serving extracted from main.go in commit 9b4caa4
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webchatcmd/run.go
+      Note: New command composition root extracted from main.go in commit cf040ad
     - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
       Note: |-
         Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
         Updated imports to internal appserver/profiles in commit 986350b
         Shrunk by delegating HTTP shell helpers to internal/webapp in commit 9b4caa4
         Now imports internal runtime/middleware/plugin constructors in commit d1e1032
+        Thin Glazed/Cobra command entrypoint after commit cf040ad
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/knip.json
@@ -65,6 +68,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -939,3 +943,84 @@ This step still preserves behavior. It mainly turns previously unexported comman
   - `cmd/web-chat/internal/runtime` as `webchatruntime`
 - The runtime package still uses `ProfileRuntimeComposer` as the main runtime builder type.
 - The middlewaredefs package owns the default web-chat agent mode constant and the agent-mode middleware schema.
+
+## Step 10: Move web-chat app assembly out of main.go
+
+I finished the main command split by moving the app assembly body of `RunIntoWriter` into `internal/webchatcmd.Run`. `main.go` now keeps the Glazed/Cobra command definition and executable bootstrapping, while runtime profile resolution, middleware registry setup, turn-store opening, appserver construction, mux creation, and HTTP serving happen behind an internal command runner.
+
+This is the point where Phase 5 reaches its intended architecture: `main.go` is about command shape, flags, help/logging setup, static asset embedding, and delegating execution. The application wiring remains in the command subtree, but no longer lives in the top-level executable file.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Complete the `main.go` split so the file contains command/CLI concerns only, then commit and document the result.
+
+**Inferred user intent:** The user wants the web-chat executable to be a clean example where a newcomer can separate CLI definition from app/runtime assembly.
+
+**Commit (code):** `cf040ad435ff4968383af3157d269c666c53d1e5` — "refactor: move web-chat app assembly out of main"
+
+### What I did
+- Added `cmd/web-chat/internal/webchatcmd/run.go`.
+- Moved server settings decode and app assembly out of `cmd/web-chat/main.go` into `webchatcmd.Run`.
+- Added `webchatcmd.ServerSettings` for the decoded Glazed default section.
+- Moved the starter-suggestions extension schema literal into `webchatcmd.starterSuggestionExtensionSchemas`.
+- Changed `Command` to hold the embedded static filesystem so `RunIntoWriter` can delegate to `webchatcmd.Run(ctx, parsed, c.staticFS)`.
+- Updated `NewCommand` to accept `staticFS fs.FS`.
+- Updated `main_profile_registries_test.go` to call `NewCommand(staticFS)`.
+- Included generated logcopter files for the internal packages created by the previous extraction.
+- Ran focused validation:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the code change; the Pinocchio pre-commit hook passed full validation, including `go test ./...`.
+
+### Why
+- `main.go` should describe the executable and the Glazed/Cobra command, not contain the whole web application assembly graph.
+- Moving app assembly into `internal/webchatcmd` gives later refactors a single composition-root package to improve without growing the executable entrypoint again.
+- Passing `staticFS` into the command preserves the important `go:embed static` constraint while keeping static asset behavior out of main's run body.
+
+### What worked
+- `main.go` dropped from roughly the high hundreds of lines to 98 lines.
+- Focused `go test ./cmd/web-chat/... -count=1` passed before commit.
+- The final pre-commit hook passed full validation.
+- The known Vite `app-config.js` warning remained non-blocking.
+
+### What didn't work
+- No failing validation in this step.
+- I proactively used `zlog` in `webchatcmd` instead of importing zerolog as `log`, because Step 8 showed that generated logcopter files can introduce a package-level `log` variable.
+
+### What I learned
+- Keeping `NewCommand` in `main.go` is a good intermediate endpoint: it satisfies the user's request that main contain the Glazed command part, while avoiding a larger move of Cobra/help/logging setup into another package.
+- The static embed remains naturally in `main.go`, which avoids fighting Go's package-relative `go:embed` rules.
+
+### What was tricky to build
+- The main design constraint was getting `staticFS` into the internal runner without moving `//go:embed static`. The solution was to store an `fs.FS` on the command struct and pass it through `RunIntoWriter`.
+- Another subtle point was making the command tests compile after `NewCommand` gained an argument. Those tests only inspect command flags, so passing the package-level `staticFS` is sufficient and does not affect their intent.
+
+### What warrants a second pair of eyes
+- Review whether `NewCommand(staticFS fs.FS)` is the preferred shape, or whether a future `internal/webchatcmd.NewCommand(staticFS)` should own the whole Glazed command construction.
+- Review `webchatcmd.Run` for obvious smaller helper extraction opportunities before more behavior changes are made.
+
+### What should be done in the future
+- Phase 6: split and rename appserver route files, especially `showcase_tools.go` into a production frontend-tool route file.
+- Phase 7: split profile API files by responsibility and review current-profile cookie behavior.
+
+### Code review instructions
+- Start with Pinocchio commit `cf040ad435ff4968383af3157d269c666c53d1e5`.
+- Review the new composition root:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webchatcmd/run.go`
+- Review the now-thin command file:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+
+### Technical details
+- `main.go` still owns:
+  - `//go:embed static`
+  - `Command` and `NewCommand`
+  - Glazed flag/section declaration
+  - Cobra root/help/logging setup
+- `internal/webchatcmd.Run` now owns:
+  - decoded server settings
+  - profile runtime resolution
+  - middleware/runtimes/appserver/frontend-tool manager construction
+  - webapp mux/root/server startup

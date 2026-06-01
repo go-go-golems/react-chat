@@ -124,3 +124,13 @@ Phase 5 continued: extracted runtime composition, middleware definitions, turn p
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/plugins/agentmode/plugin.go — New internal agent-mode plugin package
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/runtime/composer.go — New internal runtime composer package
 
+
+## 2026-06-01
+
+Phase 5 complete: moved web-chat app assembly into internal/webchatcmd so main.go now contains Glazed/Cobra command wiring and execution delegation (Pinocchio commit cf040ad435ff4968383af3157d269c666c53d1e5).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webchatcmd/run.go — New app assembly runner
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go — Thin command entrypoint
+
