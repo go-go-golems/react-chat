@@ -11,8 +11,16 @@ RelatedFiles:
       Note: Removed debug recorder server state and Sessionstream observer installation (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server_test.go
       Note: Removed backend debug endpoint and reconcile export tests (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/appserver/server.go
+      Note: Moved command-owned chat HTTP server under internal/appserver in commit 986350b
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/mockruntime/engine.go
+      Note: Moved app/test mock runtime under internal/mockruntime in commit 986350b
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/profiles/api.go
+      Note: Moved command-owned profile HTTP API under internal/profiles in commit 986350b
     - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
-      Note: Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
+      Note: |-
+        Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
+        Updated imports to internal appserver/profiles in commit 986350b
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/knip.json
@@ -43,6 +51,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -627,3 +636,94 @@ Create  a detailed analysis / design / implementation guide that is for a new in
   - `cmd/web-chat/internal/mockruntime`
 - The guide keeps current HTTP API invariants explicit, including profile APIs, session APIs, export APIs, frontend-tool endpoints, websocket endpoint, and `app-config.js` root behavior.
 - reMarkable upload used `remarquee upload bundle ... --toc-depth 2 --non-interactive` after a dry-run.
+
+## Step 7: Internalize the web-chat Go subpackages
+
+I started the implementation with the lowest-risk package-boundary move from the guide. The goal was to make current command-specific packages private to `cmd/web-chat` without changing behavior: `app` became `internal/appserver`, `profiles` became `internal/profiles`, and `mockruntime` became `internal/mockruntime`.
+
+This step intentionally avoided splitting files or rewriting option APIs. It changed import paths and the `app` package name only, then let the existing tests and pre-commit hooks prove that route behavior and runtime construction still compile and pass.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6, followed by: "go ahead" and "commit at appropriat eintervals, and keep a detailed ddiary as you work")
+
+**Assistant interpretation:** Begin implementing the Go refactor plan in small commits, and maintain detailed diary/changelog documentation as the work proceeds.
+
+**Inferred user intent:** The user wants a safe multi-commit implementation trail with enough detail for review, rollback, and continuation.
+
+**Commit (code):** `986350b77dd6c7a6379b20bfc91961730a062e24` — "refactor: internalize web-chat Go packages"
+
+### What I did
+- Ran baseline focused tests before changing code:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+- Created `cmd/web-chat/internal`.
+- Moved packages with `git mv`:
+  - `cmd/web-chat/app` -> `cmd/web-chat/internal/appserver`
+  - `cmd/web-chat/profiles` -> `cmd/web-chat/internal/profiles`
+  - `cmd/web-chat/mockruntime` -> `cmd/web-chat/internal/mockruntime`
+- Updated Go imports from old command package paths to new `internal/...` paths.
+- Renamed package declarations in the moved app package from `package app` to `package appserver`.
+- Updated the comment in `pkg/chatapp/runner.go` so it points at `cmd/web-chat/internal/appserver.Server`.
+- Ran `gofmt -w cmd/web-chat`.
+- Ran focused validation:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the code change. The Pinocchio pre-commit hook also ran:
+  - `go generate ./...`
+  - frontend install/build for web-chat static assets
+  - `go build ./...`
+  - `golangci-lint run`
+  - `go vet` with Geppetto/Glazed linters
+  - `go test ./...`
+
+### Why
+- These packages are app-specific command internals, not stable reusable APIs.
+- Moving them under `internal` gives Go compile-time protection against accidental imports from unrelated packages.
+- Doing this as a move-only commit keeps later file splits easier to review.
+
+### What worked
+- Focused pre-change `go test ./cmd/web-chat/... -count=1` passed.
+- Focused post-change `go test ./cmd/web-chat/... -count=1` passed.
+- The commit pre-hook passed full repository validation, including `go test ./...`.
+- `rg -n "cmd/web-chat/(app|profiles|mockruntime)" -g'*.go'` found no active old imports after the replacement, apart from the intentionally updated `pkg/chatapp/runner.go` comment.
+
+### What didn't work
+- No implementation failures. The only notable output was existing/non-blocking frontend build noise from the pre-commit hook:
+  - `<script src="./app-config.js"> in "/index.html" can't be bundled without type="module" attribute`
+- This warning is already known from earlier frontend validations and was not introduced by this Go package move.
+
+### What I learned
+- The package move was clean because all current imports of `cmd/web-chat/app`, `profiles`, and `mockruntime` were inside the `cmd/web-chat` tree or comments.
+- The `internal` restriction did not break tests because the tests that need these packages live under the `cmd/web-chat` parent tree.
+
+### What was tricky to build
+- The main sharp edge was package naming. The old directory was `app`, but the local alias in call sites was already often `appserver`. Renaming the package declaration to `appserver` made the moved package match its intended role and import alias.
+- Another subtle point was not over-editing. It would have been tempting to rename files or split route groups while moving packages, but that would have made the first implementation diff harder to audit. I kept this commit to import paths, package declarations, and the one runner comment.
+
+### What warrants a second pair of eyes
+- Review that no package outside `cmd/web-chat` should import the new `internal/...` packages. If such a need appears later, it probably means the reusable part belongs under `pkg/chatapp/...`, not under the command.
+- Review `pkg/chatapp/runner.go` after later appserver cleanup to decide whether appserver should adopt `chatapp.Runner` or keep explicit setup.
+
+### What should be done in the future
+- Next, extract static UI/root mounting/server lifecycle helpers out of `main.go` into `internal/webapp`.
+- Then move runtime composer/resolver, middleware definitions, and the agent-mode plugin into internal packages.
+- Later split `internal/appserver` and `internal/profiles` files by route group.
+
+### Code review instructions
+- Start with the rename diff in Pinocchio commit `986350b77dd6c7a6379b20bfc91961730a062e24`.
+- Confirm that the moved files are behavior-preserving:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/server.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/mockruntime/engine.go`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+  - optionally `go test ./...` if you want to mirror the pre-commit hook.
+
+### Technical details
+- Old imports replaced:
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/app`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/profiles`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/mockruntime`
+- New imports:
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/appserver`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/profiles`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/mockruntime`

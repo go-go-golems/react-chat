@@ -92,3 +92,14 @@ Uploaded CHATOVERLAY-011 Go Internal Refactor Guide bundle to reMarkable at /ai/
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/design-doc/02-pinocchio-web-chat-go-internal-package-refactor-analysis-and-implementation-guide.md — Uploaded guide source
 
+
+## 2026-06-01
+
+Phase 5 started: internalized web-chat Go subpackages with behavior-preserving package moves (Pinocchio commit 986350b77dd6c7a6379b20bfc91961730a062e24).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/server.go — New internal appserver package
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/mockruntime/engine.go — New internal mockruntime package
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api.go — New internal profiles package
+
