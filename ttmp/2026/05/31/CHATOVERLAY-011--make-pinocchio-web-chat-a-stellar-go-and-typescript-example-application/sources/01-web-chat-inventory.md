@@ -16,7 +16,7 @@ updated: 2026-06-01
 
 # Pinocchio web-chat inventory
 
-Generated: 2026-06-01 14:02:25 UTC
+Generated: 2026-06-01 14:28:56 UTC
 
 ## Roots
 - Pinocchio: `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio`
@@ -27,7 +27,7 @@ Generated: 2026-06-01 14:02:25 UTC
 ## Summary
 | Area | Count |
 | --- | --- |
-| TypeScript/TSX files under cmd/web-chat/web/src | 105 |
+| TypeScript/TSX files under cmd/web-chat/web/src | 97 |
 | Go files under cmd/web-chat | 30 |
 | Go packages from go list ./cmd/web-chat/... | 4 |
 | npm audit:unused script present | yes |
@@ -37,31 +37,28 @@ Generated: 2026-06-01 14:02:25 UTC
 ### By extension
 | Extension | Count |
 | --- | --- |
-| .ts | 68 |
-| .tsx | 37 |
+| .ts | 64 |
+| .tsx | 33 |
 
 ### By category
 | Category | Count |
 | --- | --- |
 | generated | 2 |
-| source | 85 |
+| source | 77 |
 | stories | 11 |
 | tests | 7 |
 
 ### Top directories
 | Directory | Files |
 | --- | --- |
-| features/web-chat | 69 |
-| webchat | 12 |
+| features/web-chat | 79 |
 | store | 5 |
-| utils | 5 |
 | (root) | 3 |
-| app | 3 |
+| utils | 3 |
 | ws | 3 |
 | generated/chatapp | 2 |
 | components | 1 |
 | config | 1 |
-| webchat/components | 1 |
 
 ### Largest TypeScript/TSX files
 | File | Lines |
@@ -70,20 +67,20 @@ Generated: 2026-06-01 14:02:25 UTC
 | src/generated/chatapp/proto/pinocchio/chatapp/rpc/v1/rpc_pb.ts | 422 |
 | src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.ts | 291 |
 | src/features/web-chat/ChatTimeline/useStickyScrollFollow.ts | 236 |
-| src/webchat/types.ts | 198 |
+| src/features/web-chat/types.ts | 198 |
 | src/features/web-chat/WebChatApp/WebChatApp.tsx | 182 |
 | src/store/profileApi.test.ts | 131 |
 | src/store/profileApi.ts | 121 |
 | src/features/web-chat/ChatTimeline/ChatTimeline.tsx | 116 |
 | src/ws/protocol.test.ts | 106 |
 | src/features/web-chat/ChatTimeline/ChatTimeline.stories.tsx | 103 |
-| src/webchat/components/ExportMenu.tsx | 101 |
+| src/features/web-chat/ChatStatusbar/ExportMenu.tsx | 101 |
 | src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx | 95 |
+| src/features/web-chat/cards/Markdown/Markdown.tsx | 84 |
 | src/features/web-chat/cards/ToolCallCard/ToolCallCard.tsx | 84 |
 | src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts | 84 |
 | src/features/web-chat/ChatHeader/ChatHeader.stories.tsx | 81 |
 | src/utils/basePrefix.test.ts | 80 |
-| src/features/web-chat/cards/Markdown/Markdown.tsx | 77 |
 | src/features/web-chat/ChatStatusbar/ChatStatusbar.stories.tsx | 74 |
 | src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx | 67 |
 | src/features/web-chat/ChatComposer/ChatComposer.tsx | 66 |
@@ -97,43 +94,10 @@ Generated: 2026-06-01 14:02:25 UTC
 - No matches.
 
 ### src/webchat namespace imports
-- `src/features/web-chat/ChatComposer/ChatComposer.tsx:1: import { getPartProps, mergeClassName, mergeStyle } from '../../../webchat/parts';`
-- `src/features/web-chat/ChatComposer/types.ts:1: import type { ComposerSlotProps } from '../../../webchat/types';`
-- `src/features/web-chat/ChatHeader/ChatHeader.stories.tsx:2: import type { StatusbarSlotProps } from '../../../webchat/types';`
-- `src/features/web-chat/ChatHeader/ChatHeader.tsx:1: import { getPartProps, mergeClassName, mergeStyle } from '../../../webchat/parts';`
-- `src/features/web-chat/ChatHeader/types.ts:2: import type { HeaderSlotProps, StatusbarSlotProps } from '../../../webchat/types';`
-- `src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx:1: import { ExportMenu } from '../../../webchat/components/ExportMenu';`
-- `src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx:2: import { getPartProps, mergeClassName, mergeStyle } from '../../../webchat/parts';`
-- `src/features/web-chat/ChatStatusbar/ChatStatusbar.tsx:3: import { fmtShort } from '../../../webchat/utils';`
-- `src/features/web-chat/ChatStatusbar/types.ts:1: import type { StatusbarSlotProps } from '../../../webchat/types';`
-- `src/features/web-chat/ChatTimeline/ChatTimeline.stories.tsx:3: import type { ChatWidgetRenderers, RenderEntity } from '../../../webchat/types';`
-- `src/features/web-chat/ChatTimeline/ChatTimeline.tsx:1: import { getPartProps, mergeClassName, mergeStyle } from '../../../webchat/parts';`
-- `src/features/web-chat/ChatTimeline/ChatTimeline.tsx:2: import type { RenderEntity } from '../../../webchat/types';`
-- `src/features/web-chat/ChatTimeline/types.ts:2: import type { ChatWidgetRenderers, PartProps, RenderEntity } from '../../../webchat/types';`
-- `src/features/web-chat/WebChatApp/ProviderStatusbar.tsx:2: import { ExportMenuForSession } from '../../../webchat/components/ExportMenu';`
-- `src/features/web-chat/WebChatApp/ProviderStatusbar.tsx:3: import { getPartProps, mergeClassName, mergeStyle } from '../../../webchat/parts';`
-- `src/features/web-chat/WebChatApp/ProviderStatusbar.tsx:4: import type { StatusbarSlotProps } from '../../../webchat/types';`
-- `src/features/web-chat/WebChatApp/ProviderStatusbar.tsx:5: import { fmtShort } from '../../../webchat/utils';`
-- `src/features/web-chat/WebChatApp/ProviderToolCallRenderer.tsx:2: import type { RenderEntity } from '../../../webchat/types';`
-- `src/features/web-chat/WebChatApp/ProviderWidgetRenderer.tsx:2: import type { RenderEntity } from '../../../webchat/types';`
-- `src/features/web-chat/WebChatApp/WebChatApp.tsx:9: import { getPartProps, mergeClassName, mergeStyle } from '../../../webchat/parts';`
-- `src/features/web-chat/WebChatApp/WebChatApp.tsx:10: import { createWebChatRenderers } from '../../../webchat/renderers';`
-- `src/features/web-chat/WebChatApp/WebChatApp.tsx:11: import type { ChatWidgetComponents, ChatWidgetRenderers } from '../../../webchat/types';`
-- `src/features/web-chat/WebChatApp/types.ts:2: import type { ChatWidgetProps } from '../../../webchat/types';`
-- `src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx:8: import { resolveSelectedProfile } from '../../../webchat/profileSelection';`
-- `src/features/web-chat/WebChatProviderShell/types.ts:1: import type { ChatWidgetProps } from '../../../webchat/types';`
-- `src/features/web-chat/cards/AgentModeCard/AgentModeCard.tsx:1: import { normalizeAgentModeAnalysis } from '../../../../webchat/agentModeMarkdown';`
-- `src/features/web-chat/cards/AgentModeCard/AgentModeCard.tsx:2: import { fmtSentAt } from '../../../../webchat/utils';`
-- `src/features/web-chat/cards/GenericCard/GenericCard.tsx:1: import { fmtSentAt } from '../../../../webchat/utils';`
-- `src/features/web-chat/cards/LogCard/LogCard.tsx:1: import { fmtSentAt } from '../../../../webchat/utils';`
-- `src/features/web-chat/cards/MessageCard/MessageCard.tsx:1: import { fmtSentAt } from '../../../../webchat/utils';`
+- No matches.
 
 ### explicit any casts
-- `src/features/web-chat/WebChatApp/WebChatApp.tsx:144: Statusbar={StatusbarComponent as any}`
-- `src/features/web-chat/cards/Markdown/Markdown.tsx:40: pre({ children }: any) {`
-- `src/features/web-chat/cards/Markdown/Markdown.tsx:51: code({ inline, children }: any) {`
-- `src/features/web-chat/cards/Markdown/Markdown.tsx:55: a({ href, children }: any) {`
-- `src/features/web-chat/cards/Markdown/Markdown.tsx:72: <ReactMarkdown remarkPlugins={[remarkGfm]} components={components as any}>`
+- No matches.
 
 ### eslint/biome suppressions
 - `src/generated/chatapp/proto/pinocchio/chatapp/rpc/v1/rpc_pb.ts:3: /* eslint-disable */`
@@ -164,22 +128,13 @@ Exit code: `1`. Non-zero is expected while cleanup candidates remain.
 > web-chat-frontend@0.1.0 audit:unused
 > npx --yes knip --include files,exports --reporter compact
 
-Unused files (8)
-public/mockServiceWorker.js: public/mockServiceWorker.js
-src/generated/chatapp/proto/pinocchio/chatapp/rpc/v1/rpc_pb.ts: src/generated/chatapp/proto/pinocchio/chatapp/rpc/v1/rpc_pb.ts
-src/generated/chatapp/proto/pinocchio/chatapp/v1/chat_pb.ts: src/generated/chatapp/proto/pinocchio/chatapp/v1/chat_pb.ts
-src/utils/guards.ts: src/utils/guards.ts
-src/utils/number.ts: src/utils/number.ts
-src/webchat/Markdown.tsx: src/webchat/Markdown.tsx
-src/webchat/cards.tsx: src/webchat/cards.tsx
-src/webchat/index.ts: src/webchat/index.ts
 Unused exports (8)
 src/features/web-chat/ChatStatusbar/index.ts: DefaultStatusbar
 src/features/web-chat/cards/index.ts: Markdown
 src/features/web-chat/cards/utils.ts: formatJson
 src/features/web-chat/extensions/pinocchio-timeline-adapters/index.ts: pinocchioAgentModeAdapter, pinocchioBackendToolAdapter, pinocchioReasoningAdapter
 src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.ts: pinocchioReasoningAdapter
-src/features/web-chat/index.ts: DefaultComposer, DefaultHeader, DefaultStatusbar, ChatTimeline, useStickyScrollFollow, pinocchioWebChatTimelineAdapters, WebChatApp
+src/features/web-chat/index.ts: DefaultComposer, DefaultHeader, DefaultStatusbar, ChatTimeline, useStickyScrollFollow, pinocchioWebChatTimelineAdapters, createWebChatRenderers, WebChatApp
 src/utils/logger.ts: logInfo, errorToString
 src/ws/protocol.ts: asRecord, asString, normalizeServerFrame, unwrapAnyPayload
 ```

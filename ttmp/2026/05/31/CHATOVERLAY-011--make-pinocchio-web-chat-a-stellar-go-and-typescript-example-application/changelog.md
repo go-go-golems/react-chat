@@ -62,3 +62,14 @@ Implemented Phase 1 inventory tooling: added web-chat npm audit:unused, checked-
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py — Repeatable inventory generator
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/package.json — Added audit:unused script
 
+
+## 2026-06-01
+
+Implemented frontend cleanup Phases 2-4: removed confirmed unused TS/public files, deleted MSW storybook leftovers, folded src/app into top-level App.tsx, moved src/webchat support modules into features/web-chat, documented generated protobuf bindings, and removed active any casts (Pinocchio commit fd438a1).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/App.tsx — Direct app root after wrapper deletion
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx — Typed Markdown renderer
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/types.ts — Feature-local public contracts
+

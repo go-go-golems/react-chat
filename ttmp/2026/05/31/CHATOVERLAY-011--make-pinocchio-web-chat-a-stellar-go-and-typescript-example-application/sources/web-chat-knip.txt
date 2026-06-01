@@ -7,22 +7,13 @@ exit: 1
 > web-chat-frontend@0.1.0 audit:unused
 > npx --yes knip --include files,exports --reporter compact
 
-Unused files (8)
-public/mockServiceWorker.js: public/mockServiceWorker.js
-src/generated/chatapp/proto/pinocchio/chatapp/rpc/v1/rpc_pb.ts: src/generated/chatapp/proto/pinocchio/chatapp/rpc/v1/rpc_pb.ts
-src/generated/chatapp/proto/pinocchio/chatapp/v1/chat_pb.ts: src/generated/chatapp/proto/pinocchio/chatapp/v1/chat_pb.ts
-src/utils/guards.ts: src/utils/guards.ts
-src/utils/number.ts: src/utils/number.ts
-src/webchat/Markdown.tsx: src/webchat/Markdown.tsx
-src/webchat/cards.tsx: src/webchat/cards.tsx
-src/webchat/index.ts: src/webchat/index.ts
 Unused exports (8)
 src/features/web-chat/ChatStatusbar/index.ts: DefaultStatusbar
 src/features/web-chat/cards/index.ts: Markdown
 src/features/web-chat/cards/utils.ts: formatJson
 src/features/web-chat/extensions/pinocchio-timeline-adapters/index.ts: pinocchioAgentModeAdapter, pinocchioBackendToolAdapter, pinocchioReasoningAdapter
 src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.ts: pinocchioReasoningAdapter
-src/features/web-chat/index.ts: DefaultComposer, DefaultHeader, DefaultStatusbar, ChatTimeline, useStickyScrollFollow, pinocchioWebChatTimelineAdapters, WebChatApp
+src/features/web-chat/index.ts: DefaultComposer, DefaultHeader, DefaultStatusbar, ChatTimeline, useStickyScrollFollow, pinocchioWebChatTimelineAdapters, createWebChatRenderers, WebChatApp
 src/utils/logger.ts: logInfo, errorToString
 src/ws/protocol.ts: asRecord, asString, normalizeServerFrame, unwrapAnyPayload
 

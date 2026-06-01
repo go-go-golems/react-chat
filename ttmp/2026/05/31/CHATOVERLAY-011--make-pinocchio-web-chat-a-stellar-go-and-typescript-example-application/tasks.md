@@ -7,9 +7,9 @@
 - [x] Write intern-oriented cleanup analysis, design, and implementation guide
 - [x] Validate ticket documentation and publish bundle to reMarkable
 - [x] Implement Phase 1: add repeatable TypeScript and Go inventory tooling for web-chat cleanup
-- [ ] Implement Phase 2: remove confirmed unused TypeScript files or document intentional public/generated surfaces
-- [ ] Implement Phase 3: move TypeScript support modules out of the misleading src/webchat namespace
-- [ ] Implement Phase 4: tighten TypeScript public contracts and remove remaining avoidable any casts
+- [x] Implement Phase 2: remove confirmed unused TypeScript files or document intentional public/generated surfaces
+- [x] Implement Phase 3: move TypeScript support modules out of the misleading src/webchat namespace
+- [x] Implement Phase 4: tighten TypeScript public contracts and remove remaining avoidable any casts
 - [ ] Implement Phase 5: split cmd/web-chat Go command composition into smaller files
 - [ ] Implement Phase 6: rename/split app server route files, especially production frontend-tool endpoints
 - [ ] Implement Phase 7: split profile API files by responsibility and review profile cookie behavior

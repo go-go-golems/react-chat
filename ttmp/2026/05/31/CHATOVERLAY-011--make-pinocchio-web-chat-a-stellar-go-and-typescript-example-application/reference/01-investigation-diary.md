@@ -15,22 +15,35 @@ RelatedFiles:
       Note: Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/knip.json
+      Note: Documents generated-code ignore policy for unused-file audit (commit fd438a1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
       Note: |-
         Removed debug-only frontend dependencies (commit e829689)
         Added npm audit:unused helper (commit e15e234)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/App.tsx
+      Note: Top-level app now owns the Redux provider and WebChatProviderShell directly (commit fd438a1)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/App.tsx
       Note: Production app now renders chat-only root without debug route mode (commit e829689)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx
+      Note: Removed markdown renderer any casts with typed ReactMarkdown components (commit fd438a1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/renderers.ts
+      Note: Moved renderer factory into feature boundary (commit fd438a1)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/types.ts
+      Note: Moved renderer/widget contracts out of the old src/webchat namespace (commit fd438a1)
     - Path: ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/scripts/01-web-chat-inventory.py
       Note: Repeatable Phase 1 inventory generator
     - Path: ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/01-web-chat-inventory.md
-      Note: Generated baseline inventory for future cleanup phases
+      Note: |-
+        Generated baseline inventory for future cleanup phases
+        Regenerated inventory after Phases 2-4
 ExternalSources: []
 Summary: ""
 LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -390,3 +403,129 @@ I also added a local frontend `npm run audit:unused` command in Pinocchio so the
   - `--skip-knip`
 - Current raw `knip` output reports 8 unused files and 8 unused export groups.
 - The report intentionally records `knip exit code: 1` as a cleanup signal, not a script failure.
+
+## Step 5: Complete frontend cleanup Phases 2, 3, and 4
+
+I used the Phase 1 inventory as the baseline and then collapsed the frontend surface around the actual web-chat feature. The cleanup removed confirmed unused files, moved the old `src/webchat` support namespace into `src/features/web-chat`, and folded the redundant `src/app/*` wrapper into the top-level `src/App.tsx`.
+
+I also tightened the remaining TypeScript edges that were easy to remove safely. The Markdown renderer no longer relies on `any`, `WebChatApp` no longer casts the statusbar component, and the generated protobuf bindings are documented as intentionally retained for the future protobuf decoder work rather than treated as mystery unused code.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do phase 2 3 4"
+
+**Follow-up user prompt (verbatim):** "also, fold web/src/app/* and App.tsx all into one App.tsx int he toplevel, MainWebChatRoot is just app really"
+
+**Assistant interpretation:** Implement CHATOVERLAY-011 Phases 2–4 now: remove confirmed unused frontend files, move support modules out of `src/webchat`, tighten TypeScript contracts/`any` usage, and simplify the app entrypoint by deleting the redundant `src/app` layer.
+
+**Inferred user intent:** The user wants the web-chat frontend to become a cleaner example application with fewer compatibility shims, fewer confusing namespaces, and a direct app entrypoint.
+
+**Commit (code):** `fd438a10df106c42c55c03326b85647a9b8c4bca` — "refactor: simplify web-chat frontend surface"
+
+### What I did
+- Deleted confirmed unused files reported by the inventory/`knip` pass:
+  - `src/utils/guards.ts`
+  - `src/utils/number.ts`
+  - `src/webchat/Markdown.tsx`
+  - `src/webchat/cards.tsx`
+  - `src/webchat/index.ts`
+  - `public/mockServiceWorker.js`
+- Removed unused Storybook MSW plumbing and dependencies:
+  - removed `msw` and `msw-storybook-addon` from `package.json` / `package-lock.json`
+  - removed `initialize()` and `mswLoader` from `.storybook/preview.tsx`
+- Folded app wrappers into the top-level entrypoint:
+  - rewrote `src/App.tsx` to render the Redux provider and `WebChatProviderShell` directly
+  - deleted `src/app/App.tsx`, `src/app/MainWebChatRoot.tsx`, and `src/app/index.ts`
+- Moved the misleading `src/webchat` support namespace into the feature boundary:
+  - `src/features/web-chat/types.ts`
+  - `src/features/web-chat/parts.ts`
+  - `src/features/web-chat/renderers.ts`
+  - `src/features/web-chat/format.ts`
+  - `src/features/web-chat/profileSelection.ts`
+  - `src/features/web-chat/agentModeMarkdown.ts`
+  - `src/features/web-chat/ChatStatusbar/ExportMenu.tsx`
+  - moved the matching tests into `src/features/web-chat/`
+- Updated all imports to use feature-local paths instead of `../../../webchat/...`.
+- Tightened TypeScript in the Markdown card and `WebChatApp`:
+  - replaced Markdown renderer `any` props with `react-markdown` `Components` typing and a typed `textFromNode()` helper
+  - removed the `StatusbarComponent as any` cast
+- Added `knip.json` to ignore generated protobuf bindings during unused-file audits.
+- Updated `src/generated/README.md` to explain that generated protobuf TypeScript is intentionally retained for future browser payload decoding work.
+- Re-ran the ticket inventory script so `sources/01-web-chat-inventory.md` reflects the new baseline.
+
+### Why
+- `src/webchat` made the provider-backed feature look like it still had a separate legacy web-chat implementation namespace.
+- The `src/app` wrapper layer no longer added meaning after debug route mode was removed; it only obscured the real app root.
+- Removing `any` from the active Markdown/statusbar paths makes future renderer changes safer and keeps the example code easier to teach.
+- Generated protobuf files should remain because CHATOVERLAY-012 needs them, but the unused-code report should not keep presenting them as accidental dead files.
+
+### What worked
+- The post-cleanup inventory reports:
+  - 97 TypeScript/TSX files under `cmd/web-chat/web/src`.
+  - No `src/webchat` namespace import matches.
+  - No explicit `any` probe matches outside generated files.
+  - No debug-app leftovers.
+- Validation passed:
+  - `npm run typecheck`
+  - `npm test` — 7 files / 25 tests
+  - `npm run lint`
+  - `npm run audit:unused || true`
+  - `npm run build`
+  - `npm run check:storybook`
+- The Pinocchio pre-commit web-check passed for the code commit.
+
+### What didn't work
+- Biome initially failed after the large move because several imports/exports were out of sorted order.
+- I fixed this with:
+  - `npm run lint:fix`
+- Biome also reported one unsafe unused import suggestion in `WebChatApp.tsx` after removing the statusbar cast:
+  - `ChatWidgetComponents` was no longer used.
+- I removed that import manually and reran validation.
+
+### What I learned
+- Once debug UI and stream-debug code were gone, the remaining frontend architecture could collapse cleanly around `features/web-chat`.
+- The generated protobuf files are still the largest TypeScript files, but they are now explicitly documented and excluded from `knip` unused-file noise.
+- The remaining `knip` output is now mostly unused exports/barrels rather than unused files, which is a better next cleanup target.
+
+### What was tricky to build
+- The import migration was the riskiest part because paths changed from multiple depths: top-level feature components, nested card components, provider support modules, and tests all referenced `src/webchat` from different relative positions.
+- I handled this by moving the files first, running a path-rewriting script for known `webchat/*` imports, then repeatedly running `tsc`, `rg`, Biome, tests, build, and Storybook until all references and type errors were gone.
+- The Markdown renderer also needed care: replacing `any` with `react-markdown` `Components` typing meant the copy button could no longer reach into arbitrary props with unchecked assumptions. I added a recursive `textFromNode()` helper that extracts code text from typed `ReactNode` values.
+
+### What warrants a second pair of eyes
+- Review whether the feature root barrel `src/features/web-chat/index.ts` should stay broad or be narrowed further, because `knip` still reports several unused exports there.
+- Review `knip.json` to confirm that excluding `src/generated/**` is the right policy until protobuf-backed payload decoding lands.
+- Review Markdown copy behavior after the typed renderer change to ensure copied fenced-code text still matches expectations across browsers.
+
+### What should be done in the future
+- Continue with Phase 5: split the overloaded Go command composition files.
+- Consider a follow-up pass on unused exports/barrels after deciding which frontend symbols are intended public surface for this private example app.
+- Re-run the inventory script after the next cleanup phase.
+
+### Code review instructions
+- Start with the commit:
+  - `fd438a10df106c42c55c03326b85647a9b8c4bca`
+- Review the app entrypoint simplification:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/App.tsx`
+- Review the moved feature support files:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/types.ts`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/parts.ts`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/renderers.ts`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/format.ts`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/profileSelection.ts`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/agentModeMarkdown.ts`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/ChatStatusbar/ExportMenu.tsx`
+- Review the TypeScript tightening:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web && npm run typecheck && npm test && npm run lint && npm run audit:unused || true && npm run build && npm run check:storybook`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application && scripts/01-web-chat-inventory.py`
+
+### Technical details
+- Current `knip` output no longer reports unused files; it reports only unused export groups.
+- The active cleanup probes now show no matches for:
+  - debug app leftovers
+  - `src/webchat` namespace imports
+  - explicit `any` casts
+- The remaining `webchat` string matches are only logger message prefixes, not a source namespace.
