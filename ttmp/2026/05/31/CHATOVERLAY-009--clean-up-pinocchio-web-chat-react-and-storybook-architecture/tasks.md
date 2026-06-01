@@ -165,8 +165,8 @@ Goal: align web-chat rendering extension points with provider-scoped extension d
 - [x] Delete `registerTimelineRenderer`, `unregisterTimelineRenderer`, and `clearRegisteredTimelineRenderers` if no external users remain.
 - [x] Replace `timelinePropsRegistry.ts` global registration with projector-local normalization or renderer-local props adapters.
 - [x] Delete `registerTimelinePropsNormalizer`, `unregisterTimelinePropsNormalizer`, and `clearRegisteredTimelinePropsNormalizers` if no external users remain.
-- [ ] Introduce typed render entity unions for message, tool call, tool result, widget, agent mode, and generic entities.
-- [ ] Remove `RenderEntity.props: any` and replace with discriminated union props where practical.
+- [x] Introduce typed render entity unions for message, tool call, tool result, widget, agent mode, and generic entities.
+- [x] Remove `RenderEntity.props: any` and replace with discriminated union props where practical.
 - [x] Remove `getDefaultMiddleware: any` in `src/store/store.ts`.
 - [x] Add unit tests for renderer factory override precedence.
 
@@ -187,13 +187,13 @@ Goal: keep app-specific live event projection explicit and well-tested.
 
 Goal: keep the good `data-pwchat`/`data-part` design but make CSS easier to own.
 
-- [ ] Split `src/webchat/styles/webchat.css` into `root.css`, `layout.css`, `header.css`, `statusbar.css`, `timeline.css`, `cards.css`, `composer.css`, and `debug-panel.css`.
-- [ ] Create `src/features/web-chat/styles/index.css` that imports the modular files in deterministic order.
-- [ ] Keep `theme-default.css` as theme tokens or move it to `styles/themes/default.css`.
-- [ ] Expand `ChatPart`/`WebChatPart` type to cover documented public `data-part` values.
-- [ ] Move inline styles from `ExportMenu`, `StreamDebugPanel`, cards, and provider demo code into CSS classes or component parts.
-- [ ] Add a style README documenting token names, public parts, and private/internal parts.
-- [ ] Validate theme override and unstyled Storybook stories.
+- [x] Split `src/webchat/styles/webchat.css` into `root.css`, `layout.css`, `header.css`, `statusbar.css`, `timeline.css`, `cards.css`, `composer.css`, and `debug-panel.css`.
+- [x] Create `src/features/web-chat/styles/index.css` that imports the modular files in deterministic order.
+- [x] Keep `theme-default.css` as theme tokens or move it to `styles/themes/default.css`.
+- [x] Expand `ChatPart`/`WebChatPart` type to cover documented public `data-part` values.
+- [x] Move inline styles from `ExportMenu`, `StreamDebugPanel`, cards, and provider demo code into CSS classes or component parts.
+- [x] Add a style README documenting token names, public parts, and private/internal parts.
+- [x] Validate theme override and unstyled Storybook stories.
 
 ## Phase 11 — Debug UI boundary cleanup
 

@@ -70,10 +70,18 @@ RelatedFiles:
       Note: Typed story fixture builders for card render entities (commit cb52e41)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-projectors/pinocchioProjectors.ts
       Note: Pinocchio projectors moved under feature extensions (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/provider-support/providerTimeline.ts
+      Note: Safer unknown-to-render-entity normalization
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/styles/README.md
+      Note: Style ownership
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/styles/index.css
+      Note: Canonical ordered web-chat style imports
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/store/store.ts
       Note: Store now keeps only app/profile state
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ChatWidget.tsx
       Note: Deleted legacy runtime entrypoint
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/components/StreamDebugPanel.tsx
+      Note: Moved debug panel inline styles to scoped parts
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Canonical versus legacy export evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/renderers.test.ts
@@ -82,6 +90,10 @@ RelatedFiles:
       Note: Explicit renderer factory replacing global mutable registry
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/timelinePropsRegistry.ts
       Note: Deleted unused global props normalizer registry
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/types.ts
+      Note: |-
+        Renderer-facing entity prop union types
+        Expanded ChatPart data-part contract and typed render entities
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/frontendTools.ts
       Note: Removed browser.get_page_context auto-demo behavior (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/wsManager.ts
@@ -106,6 +118,8 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
 
 
 
@@ -1570,3 +1584,137 @@ The old `timelinePropsRegistry.ts` had no real callers after the adapter migrati
 
 ### Technical details
 - Code commit: `4f4cd8c`.
+
+## Step 21: Type renderer entity props without changing card behavior
+
+This step finished the remaining Phase 8 typing cleanup requested before moving on to CSS work. `RenderEntity.props` is no longer `any`; it is now a union of renderer-facing prop shapes for messages, tool calls, tool results, widgets, agent mode, logs, and generic fallback entities.
+
+The implementation intentionally keeps the renderer contract permissive enough for hydrated/app-owned entities while removing the unsafe `any` escape hatch. Runtime behavior stays the same: cards still coerce optional unknown values at the render boundary.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, type, then move on to CSS/theming cleanup"
+
+**Assistant interpretation:** Complete the optional typed `RenderEntity` cleanup from Phase 8, then proceed into Phase 10 CSS/theming modularization.
+
+**Inferred user intent:** Keep the cleanup momentum, close remaining renderer API type debt, and then make styles easier to own.
+
+**Commit (code):** 7ef08b8 — "refactor: type web-chat render entities"
+
+### What I did
+- Added renderer-facing prop types in `src/webchat/types.ts`:
+  - `MessageEntityProps`
+  - `ToolCallEntityProps`
+  - `ToolResultEntityProps`
+  - `AgentModeEntityProps`
+  - `WidgetEntityProps`
+  - `LogEntityProps`
+  - `GenericEntityProps`
+- Replaced `RenderEntity.props: any` with typed `RenderEntityProps`.
+- Updated `toRenderEntity()` to accept `unknown`, normalize through `asRecord()`, and cast only at the provider-to-render boundary.
+- Marked the Phase 8 typed entity tasks complete.
+
+### Why
+- Phase 8’s factory cleanup removed global renderer state; this removes the remaining broad `any` hole in the renderer contract.
+- Keeping the prop types renderer-facing avoids overfitting to backend protocol details while still documenting what card components consume.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm test -- src/webchat/renderers.test.ts src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts` passed.
+- `npm run lint` passed.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- The existing cards already treat props defensively, so the safest type improvement is a permissive union plus typed known fields rather than strict per-kind narrowing everywhere.
+
+### What was tricky to build
+- A fully strict discriminated union would require narrowing every renderer by `kind`; that is larger than needed for this cleanup pass. The selected model removes `any` while preserving current renderer ergonomics.
+
+### What warrants a second pair of eyes
+- Review whether `RenderEntityKind` should eventually stop allowing arbitrary strings once unknown fallback behavior is better specified.
+
+### What should be done in the future
+- If card renderers become more complex, split `RenderEntity` into card-specific prop types and typed renderer components.
+
+### Code review instructions
+- Start with `src/webchat/types.ts` and `src/features/web-chat/provider-support/providerTimeline.ts`.
+- Validate with `npm run typecheck`, focused renderer tests, and `npm run lint`.
+
+### Technical details
+- This is a type-only cleanup except for safer input normalization in `toRenderEntity()`.
+
+## Step 22: Modularize web-chat CSS and move inline styling into parts
+
+This step moved the styling cleanup into Phase 10. The monolithic `src/webchat/styles/webchat.css` is now split under the canonical web-chat feature folder, with a deterministic `styles/index.css` import and the default theme tokens under `styles/themes/default.css`.
+
+The pass also removed production inline styles from cards, export menu, and stream debug panel by replacing them with scoped `data-part` styles. Story-only sizing wrappers and caller-provided `partProps` styles remain intentionally inline because they are examples or public customization hooks.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 21)
+
+**Assistant interpretation:** After typing render entities, start CSS/theming modularization and keep changes documented.
+
+**Inferred user intent:** Make styling easier to own and review without changing the visual contract.
+
+**Commit (code):** a3decd9 — "refactor: modularize web-chat styles"
+
+### What I did
+- Created `src/features/web-chat/styles/index.css` that imports style modules in a deterministic order.
+- Split the old monolithic stylesheet into:
+  - `root.css`
+  - `layout.css`
+  - `header.css`
+  - `statusbar.css`
+  - `timeline.css`
+  - `cards.css`
+  - `composer.css`
+  - `debug-panel.css`
+- Moved `theme-default.css` to `src/features/web-chat/styles/themes/default.css`.
+- Updated `WebChatProviderShell` and Storybook preview to import the new `styles/index.css`.
+- Expanded `ChatPart` to cover current styled `data-part` values.
+- Moved inline production styling from `ExportMenu`, `StreamDebugPanel`, and card components into scoped CSS selectors.
+- Added `src/features/web-chat/styles/README.md` documenting style files, public parts, internal parts, and theme-token conventions.
+- Deleted the old `src/webchat/styles/` files after imports moved.
+
+### Why
+- Styles now live beside the canonical `features/web-chat` implementation rather than under the legacy `webchat` namespace.
+- File-level CSS boundaries make future card/composer/header changes easier to review.
+- Removing inline production styles makes theming possible through CSS variables and `data-part` selectors instead of editing JSX.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `npm run build` passed with the known Vite `app-config.js` note and large-chunk warning.
+- `npm test` passed: 9 files, 32 tests.
+- `npm run build-storybook` passed with known Storybook `eval` warnings and large-chunk warning.
+- Pinocchio pre-commit web-check passed.
+
+### What didn't work
+- N/A; the split and import migration passed validation on the first full run.
+
+### What I learned
+- Most remaining inline styles after this pass are either Storybook wrapper dimensions or public `partProps` customization paths, not production hardcoded styling.
+- `StreamDebugPanel` can stay visually isolated while still using scoped `data-part` CSS.
+
+### What was tricky to build
+- The CSS split needed to preserve import order because primitives like pills/buttons are used across header, statusbar, cards, and debug surfaces.
+- Removing inline card spacing required adding small part variants such as `data-spacing="top"` and `data-spacing="bottom"` instead of introducing component-specific class names.
+
+### What warrants a second pair of eyes
+- Review whether `debug-panel.css` is the right place for `kv`/`status-text` utility rules or whether those should become general primitives.
+- Review whether all newly added `ChatPart` values should be considered public or if some should move to an internal-only documented list.
+
+### What should be done in the future
+- If visual parity is critical, run a screenshot comparison against the previous Storybook build.
+- Continue Phase 10 only if we want to add explicit unstyled/themed stories beyond the existing Storybook build validation.
+
+### Code review instructions
+- Start with `src/features/web-chat/styles/index.css` and `README.md` to understand the split.
+- Then review JSX diffs in cards, `ExportMenu`, and `StreamDebugPanel` to verify inline styles became `data-part` contracts.
+- Validate with `npm run typecheck`, `npm run lint`, `npm run build`, `npm test`, and `npm run build-storybook`.
+
+### Technical details
+- Code commit: `a3decd9`.

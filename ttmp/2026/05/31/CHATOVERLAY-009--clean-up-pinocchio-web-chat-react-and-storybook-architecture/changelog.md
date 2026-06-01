@@ -185,3 +185,25 @@ Phase 8 cleanup: replaced global renderer/props registries with explicit createW
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/renderers.ts — Explicit renderer factory replacing global mutable registry
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/timelinePropsRegistry.ts — Deleted unused global props normalizer registry
 
+
+## 2026-05-31
+
+Completed Phase 8 render entity typing by replacing RenderEntity.props any with renderer-facing prop unions (Pinocchio commit 7ef08b8).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/provider-support/providerTimeline.ts — Safer unknown-to-render-entity normalization
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/types.ts — Renderer-facing entity prop union types
+
+
+## 2026-05-31
+
+Phase 10 styling cleanup: modularized web-chat CSS under features/web-chat/styles, moved theme tokens, expanded ChatPart, and removed production inline styles from cards/export/debug surfaces (Pinocchio commit a3decd9).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/styles/README.md — Style ownership
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/styles/index.css — Canonical ordered web-chat style imports
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/components/StreamDebugPanel.tsx — Moved debug panel inline styles to scoped parts
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/types.ts — Expanded ChatPart data-part contract and typed render entities
+
