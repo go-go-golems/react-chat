@@ -160,15 +160,15 @@ Goal: remove old runtime paths so the example project is clean and opinionated.
 
 Goal: align web-chat rendering extension points with provider-scoped extension design.
 
-- [ ] Replace `rendererRegistry.ts` global registration with `createWebChatRenderers({ overrides })` or equivalent factory.
-- [ ] Update `WebChatApp` to pass renderer maps explicitly.
-- [ ] Delete `registerTimelineRenderer`, `unregisterTimelineRenderer`, and `clearRegisteredTimelineRenderers` if no external users remain.
-- [ ] Replace `timelinePropsRegistry.ts` global registration with projector-local normalization or renderer-local props adapters.
-- [ ] Delete `registerTimelinePropsNormalizer`, `unregisterTimelinePropsNormalizer`, and `clearRegisteredTimelinePropsNormalizers` if no external users remain.
+- [x] Replace `rendererRegistry.ts` global registration with `createWebChatRenderers({ overrides })` or equivalent factory.
+- [x] Update `WebChatApp` to pass renderer maps explicitly.
+- [x] Delete `registerTimelineRenderer`, `unregisterTimelineRenderer`, and `clearRegisteredTimelineRenderers` if no external users remain.
+- [x] Replace `timelinePropsRegistry.ts` global registration with projector-local normalization or renderer-local props adapters.
+- [x] Delete `registerTimelinePropsNormalizer`, `unregisterTimelinePropsNormalizer`, and `clearRegisteredTimelinePropsNormalizers` if no external users remain.
 - [ ] Introduce typed render entity unions for message, tool call, tool result, widget, agent mode, and generic entities.
 - [ ] Remove `RenderEntity.props: any` and replace with discriminated union props where practical.
-- [ ] Remove `getDefaultMiddleware: any` in `src/store/store.ts`.
-- [ ] Add unit tests for renderer factory override precedence.
+- [x] Remove `getDefaultMiddleware: any` in `src/store/store.ts`.
+- [x] Add unit tests for renderer factory override precedence.
 
 ## Phase 9 — Pinocchio projector hardening
 

@@ -55,6 +55,7 @@ RelatedFiles:
       Note: |-
         Provider-backed web-chat chrome moved to feature folder (commit 833fa7c)
         Removed demo extension installation from production provider-backed app (commit 1a76cbe)
+        Uses local renderer factory overrides
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatProviderShell/WebChatProviderShell.tsx
       Note: Provider config/profile bridge moved to feature folder (commit 833fa7c)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx
@@ -75,6 +76,12 @@ RelatedFiles:
       Note: Deleted legacy runtime entrypoint
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Canonical versus legacy export evidence
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/renderers.test.ts
+      Note: Factory override and no-leakage tests
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/renderers.ts
+      Note: Explicit renderer factory replacing global mutable registry
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/timelinePropsRegistry.ts
+      Note: Deleted unused global props normalizer registry
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/frontendTools.ts
       Note: Removed browser.get_page_context auto-demo behavior (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/wsManager.ts
@@ -99,6 +106,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1490,3 +1498,75 @@ The cleanup intentionally keeps shared pieces that the provider-backed shell sti
 - Code commit: `dff233e`.
 - Mock parity evidence: `/tmp/pinocchio-phase6-mock-profile-parity-smoke.json`.
 - Hydration evidence: `/tmp/pinocchio-chatprovider-timeline-adapter-hydration.json`.
+
+## Step 20: Replace global renderer and props registries with explicit renderer factory
+
+This step completed the surgical Phase 8 cleanup pass. The web-chat UI no longer exposes mutable global renderer or timeline-props registration APIs; `WebChatApp` now builds its renderer map from `createWebChatRenderers({ overrides })`, so renderer configuration is local to the app instance.
+
+The old `timelinePropsRegistry.ts` had no real callers after the adapter migration and legacy runtime deletion, so it was deleted outright. This keeps normalization responsibility with timeline adapters and card-local helpers instead of a hidden global registry.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, keep a diary, commit at appropriate intervals as usual."
+
+**Assistant interpretation:** Proceed with CHATOVERLAY-009 Phase 8 as a cleanup/deletion pass, record the work, and commit focused changes.
+
+**Inferred user intent:** Remove stale global rendering extension machinery now that renderers were already reorganized and provider-backed runtime is canonical.
+
+**Commit (code):** 4f4cd8c — "refactor: replace global renderer registries"
+
+### What I did
+- Replaced `src/webchat/rendererRegistry.ts` with `src/webchat/renderers.ts`.
+- Introduced `createWebChatRenderers({ overrides })` as an explicit factory.
+- Removed global renderer mutation APIs:
+  - `registerTimelineRenderer`
+  - `unregisterTimelineRenderer`
+  - `clearRegisteredTimelineRenderers`
+- Updated `WebChatApp` to call `createWebChatRenderers({ overrides })` with app-local provider renderer overrides for `tool_call` and `widget`.
+- Deleted `src/webchat/timelinePropsRegistry.ts` and removed its barrel exports.
+- Replaced `getDefaultMiddleware: any` in `src/store/store.ts` with the inferred Redux Toolkit middleware callback.
+- Replaced the old renderer registry test with `src/webchat/renderers.test.ts`, covering built-ins, override precedence, and no state leakage between calls.
+
+### Why
+- Hidden mutable registries are hostile to multiple chat instances and Storybook isolation.
+- CHATOVERLAY-010 already moved timeline normalization into explicit adapters, so a separate global timeline-props normalizer registry no longer had a job.
+- The renderer factory keeps custom renderer composition easy without allowing import-side-effect registration.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm test -- src/webchat/renderers.test.ts` passed: 1 file, 2 tests.
+- `npm test` passed: 9 files, 32 tests.
+- `npm run lint` passed after export ordering was fixed.
+- `npm run build` passed with the known Vite `app-config.js` note and large-chunk warning.
+- Pinocchio pre-commit web-check passed.
+- `rg "rendererRegistry|resolveTimelineRenderers|registerTimelineRenderer|unregisterTimelineRenderer|clearRegisteredTimelineRenderers|timelinePropsRegistry|normalizeTimelineProps|registerTimelinePropsNormalizer|unregisterTimelinePropsNormalizer|clearRegisteredTimelinePropsNormalizers|getDefaultMiddleware: any" src -S` returned no matches.
+
+### What didn't work
+- First lint run failed because Biome wanted the `src/webchat/index.ts` type export sorted before the value export. Reordering the exports fixed it.
+
+### What I learned
+- Phase 8 really was mostly deletion now: the renderer components and app flow were already in the right places, and the remaining work was removing compatibility-style registries.
+- `timelinePropsRegistry.ts` was fully unused, confirming that adapter/card-local normalization is now the active path.
+
+### What was tricky to build
+- The main invariant was preserving override precedence: app-provided renderers should override defaults, and provider-specific `tool_call`/`widget` renderers should be supplied through the same explicit override mechanism.
+- The factory also needed to avoid retaining overrides between calls, because Storybook and multi-instance pages should not leak renderer state.
+
+### What warrants a second pair of eyes
+- Review whether `ChatFrontendToolCall` and `ChatWidgetInstance` compatibility renderer keys should remain in `createWebChatRenderers` now that provider adapters usually normalize to `tool_call` and `widget`/`widget_instance`.
+- Review whether the remaining `RenderEntity.props: any` should be tackled in a separate typed-entity pass rather than inside this cleanup phase.
+
+### What should be done in the future
+- Continue Phase 8 only if we decide to introduce typed render entity unions now; otherwise move on to CSS/theming and debug UI boundary cleanup.
+- Consider renaming the remaining `src/webchat` namespace later, since it now contains UI support rather than a runtime widget.
+
+### Code review instructions
+- Start with `src/webchat/renderers.ts` and `src/features/web-chat/WebChatApp/WebChatApp.tsx`.
+- Then review deleted `timelinePropsRegistry.ts` and removed barrel exports in `src/webchat/index.ts`.
+- Validate with:
+  - `npm run typecheck`
+  - `npm test`
+  - `npm run lint`
+
+### Technical details
+- Code commit: `4f4cd8c`.

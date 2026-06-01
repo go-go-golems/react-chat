@@ -173,3 +173,15 @@ Resumed Phase 7 and deleted the legacy Redux/WebSocket web-chat runtime after CH
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ChatWidget.tsx — Deleted legacy Redux/WebSocket chat runtime
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/ws/wsManager.ts — Deleted legacy singleton WebSocket runtime
 
+
+## 2026-05-31
+
+Phase 8 cleanup: replaced global renderer/props registries with explicit createWebChatRenderers factory and deleted unused timelinePropsRegistry (Pinocchio commit 4f4cd8c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/WebChatApp.tsx — Uses local renderer factory overrides
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/renderers.test.ts — Factory override and no-leakage tests
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/renderers.ts — Explicit renderer factory replacing global mutable registry
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/timelinePropsRegistry.ts — Deleted unused global props normalizer registry
+
