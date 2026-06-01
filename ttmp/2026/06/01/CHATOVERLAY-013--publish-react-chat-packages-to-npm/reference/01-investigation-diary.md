@@ -516,3 +516,115 @@ Token lockdown after verification is done on npmjs.com package settings:
 ```text
 Package → Settings → Publishing access → Require two-factor authentication and disallow tokens
 ```
+
+## Step 5: Verify published React chat packages and trusted publishing
+
+After the first manual npm publishes completed, I verified that both React chat packages exist on npm, have trusted publisher relationships for `go-go-golems/react-chat`, and can be installed from the public registry into a clean Vite consumer project. I also ran the tokenless GitHub Actions publish workflow with `skip_existing=true`; it completed successfully, confirming the trusted publishing workflow can authenticate to npm without Vault or `NODE_AUTH_TOKEN`.
+
+The only remaining security hardening action is package-level token lockdown for the two new React chat packages. npm still requires a fresh 2FA/web authorization for `npm access set mfa=publish`, so that setting must be applied through the npm UI or an authenticated CLI flow.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, published."
+
+**Assistant interpretation:** The user completed the first manual npm package creation/publish step; verify package existence, trusted publishing configuration, workflow behavior, and consumer installation.
+
+**Inferred user intent:** Finish the post-bootstrap checks and identify any remaining steps to make the new packages secure and operational.
+
+**Commit (code):** Pending at time of diary entry.
+
+### What I did
+
+- Verified both packages exist on npm:
+  - `@go-go-golems/chat-provider@0.1.0`
+  - `@go-go-golems/chat-overlay@0.1.0`
+- Verified npm dist-tags show `next` and `latest` both pointing at `0.1.0`.
+- Verified both packages have trusted publisher configuration:
+  - repository: `go-go-golems/react-chat`
+  - workflow file: `publish-npm.yml`
+  - environment: `npm-production`
+- Ran the tokenless `publish-npm` GitHub Actions workflow for React chat with:
+  - `package_set=all`
+  - `npm_tag=next`
+  - `dry_run=false`
+  - `skip_existing=true`
+- Verified workflow run `26778523201` completed successfully.
+- Created a clean npm consumer smoke project in `/tmp/react-chat-npm-smoke` and installed the packages from npm.
+- Verified the consumer project passed:
+  - `pnpm typecheck`
+  - `pnpm build`
+- Tried to apply token lockdown with `npm access set mfa=publish` for both packages, but npm required another fresh 2FA/web authorization.
+
+### Why
+
+- First publish only proves the tarballs reached npm. The follow-up checks prove registry installability, TypeScript declarations, CSS exports, Vite bundling, and tokenless trusted-publishing workflow authentication.
+
+### What worked
+
+- `npm view` confirmed both package versions exist.
+- `npm trust list` confirmed both trusted publisher relationships exist.
+- GitHub Actions run `26778523201` succeeded without Vault token access.
+- Clean consumer install from npm succeeded:
+  - `@go-go-golems/chat-provider 0.1.0`
+  - `@go-go-golems/chat-overlay 0.1.0`
+- Consumer typecheck and production build succeeded.
+
+### What didn't work
+
+- Token lockdown commands still require 2FA:
+
+  `npm error code EOTP`
+
+  `npm error This operation requires a one-time password.`
+
+### What I learned
+
+- The React chat package bootstrap is complete: packages exist, trust exists, and the workflow can run tokenlessly.
+- npm package settings changes remain interactive/2FA-gated even after successful trusted publisher setup.
+
+### What was tricky to build
+
+The subtle point is that the tokenless workflow run used `skip_existing=true`, so it did not publish a new immutable version. It still validated the important part for this stage: npm trusted publishing authentication and package-set resolution in GitHub Actions. A future version bump should be used to validate a real tokenless publish of a new version.
+
+### What warrants a second pair of eyes
+
+- Confirm whether `latest` should point at `0.1.0` already. The manual bootstrap left both `next` and `latest` pointing at `0.1.0`.
+- Confirm token lockdown is applied in npm settings for both new packages.
+
+### What should be done in the future
+
+- Apply package Publishing access lockdown for:
+  - `@go-go-golems/chat-provider`
+  - `@go-go-golems/chat-overlay`
+- Bump to `0.1.1` in a follow-up and run a real tokenless trusted publish from GitHub Actions to verify a new-version release.
+- Revoke/delete obsolete Vault npm token paths once no workflows use them.
+
+### Code review instructions
+
+- Check npm package pages for version and trusted publisher settings.
+- Check GitHub Actions run `26778523201` for tokenless publish workflow success.
+- Reproduce consumer validation with:
+
+```bash
+pnpm add @go-go-golems/chat-provider @go-go-golems/chat-overlay
+pnpm typecheck
+pnpm build
+```
+
+### Technical details
+
+Observed npm trust configuration for both packages:
+
+```text
+type: github
+file: publish-npm.yml
+repository: go-go-golems/react-chat
+environment: npm-production
+permissions: createPackage
+```
+
+Consumer smoke project:
+
+```text
+/tmp/react-chat-npm-smoke
+```

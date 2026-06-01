@@ -57,3 +57,13 @@ Captured npm Trusted Publishing sources and updated React chat publish workflow 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.github/workflows/publish-npm.yml — Removed Vault npm token step and upgraded npm for trusted publishing
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/sources/00-source-pack-readme.md — Source pack index for trusted publishing migration
 
+
+## 2026-06-01
+
+Verified chat-provider and chat-overlay are published, trusted publishers are configured, tokenless publish workflow succeeds, and npm consumer smoke passes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.github/workflows/publish-npm.yml — Tokenless trusted publishing workflow verified by run 26778523201
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/reference/01-investigation-diary.md — Recorded npm publish verification and remaining token lockdown step
+
