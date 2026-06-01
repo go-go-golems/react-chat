@@ -219,3 +219,15 @@ Removed obsolete Phase 9 projector hardening and completed Phase 11 debug UI bou
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/debug-ui/components/AppShell.stories.tsx — Debug UI shell Storybook coverage
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/debug-ui/ws/debugWsManager.ts — Uses debug store AppDispatch instead of production store type
 
+
+## 2026-05-31
+
+Phase 12 cleanup: moved web generated chatapp protobufs to src/generated/chatapp, documented npm ownership/devctl/local provider dependency, removed pnpm lockfile, and added check:storybook (Pinocchio commit fea645f).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/buf.chatapp.web.gen.yaml — Frontend protobuf output now targets src/generated/chatapp
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/README.md — Package-manager
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/package.json — Adds check:storybook script and keeps npm package metadata
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/generated/README.md — Generated protobuf ownership and regeneration instructions
+

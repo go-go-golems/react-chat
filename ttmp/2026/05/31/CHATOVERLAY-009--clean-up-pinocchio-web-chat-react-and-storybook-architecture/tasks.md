@@ -198,13 +198,13 @@ Goal: keep debug UI useful but prevent it from leaking types/state into producti
 
 Goal: reduce noise for new contributors.
 
-- [ ] Move generated protobuf output from `src/chatapp/pb` to `src/generated/chatapp` if Buf/Vite imports allow it.
-- [ ] Add `src/generated/README.md` saying generated files are not hand-edited.
-- [ ] Decide whether this app is npm-only or pnpm-based.
-- [ ] Remove the non-canonical lockfile after package-manager decision.
-- [ ] Document the temporary local `@go-go-golems/chat-provider` file dependency and removal plan.
-- [ ] Add `npm run check:storybook` or include Storybook build in CI if desired.
-- [ ] Update `README.md` with devctl commands and actual-port discovery.
+- [x] Move generated protobuf output from `src/chatapp/pb` to `src/generated/chatapp` if Buf/Vite imports allow it.
+- [x] Add `src/generated/README.md` saying generated files are not hand-edited.
+- [x] Decide whether this app is npm-only or pnpm-based.
+- [x] Remove the non-canonical lockfile after package-manager decision.
+- [x] Document the temporary local `@go-go-golems/chat-provider` file dependency and removal plan.
+- [x] Add `npm run check:storybook` or include Storybook build in CI if desired.
+- [x] Update `README.md` with devctl commands and actual-port discovery.
 
 ## Phase 13 — Final cleanup verification
 

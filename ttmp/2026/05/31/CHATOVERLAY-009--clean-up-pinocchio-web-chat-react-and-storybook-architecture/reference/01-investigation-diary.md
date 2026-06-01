@@ -7,6 +7,8 @@ DocType: ""
 Intent: ""
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../pinocchio/buf.chatapp.web.gen.yaml
+      Note: Frontend protobuf output now targets src/generated/chatapp
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server.go
       Note: Removed special capabilities prompt branch (commit 1a76cbe)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/app/server_test.go
@@ -21,8 +23,12 @@ RelatedFiles:
       Note: Storybook discovery evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/.storybook/preview.tsx
       Note: Debug CSS no longer globally imported for all stories
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/README.md
+      Note: Package-manager
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/package.json
-      Note: Validation scripts and dependency/package-manager evidence
+      Note: |-
+        Validation scripts and dependency/package-manager evidence
+        Adds check:storybook script and keeps npm package metadata
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/scripts/print-dev-url.mjs
       Note: Phase 0 devctl URL helper (commit fe5b00f)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src
@@ -84,6 +90,8 @@ RelatedFiles:
       Note: Style ownership
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/styles/index.css
       Note: Canonical ordered web-chat style imports
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/generated/README.md
+      Note: Generated protobuf ownership and regeneration instructions
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/store/store.ts
       Note: Store now keeps only app/profile state
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ChatWidget.tsx
@@ -126,6 +134,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1800,3 +1809,69 @@ The debug UI remains available through `?debug=1` for operator/developer use, bu
 ### Technical details
 - Code commit: `44faae3`.
 - Successful debug route smoke used the devctl state URL rather than the default port.
+
+## Step 24: Clean generated-code and package-management ownership
+
+This step completed Phase 12 for the web-chat frontend. The app now states that npm is canonical, removes the stale pnpm lockfile, documents the temporary local `@go-go-golems/chat-provider` file dependency, and moves generated protobuf bindings under `src/generated/chatapp` with a regeneration README.
+
+The generated TypeScript protobuf files were not imported by current production code, but the Buf template now points at the new path so future regeneration writes to the documented generated-code directory.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Continue the next cleanup phase after Phase 11, which is Phase 12 generated-code and package-management cleanup.
+
+**Inferred user intent:** Keep moving through the remaining CHATOVERLAY-009 cleanup checklist with focused commits and documentation.
+
+**Commit (code):** fea645f — "chore: clean web-chat generated and package files"
+
+### What I did
+- Moved generated TypeScript protobuf bindings from `src/chatapp/pb` to `src/generated/chatapp`.
+- Updated `buf.chatapp.web.gen.yaml` so future generation writes to `cmd/web-chat/web/src/generated/chatapp`.
+- Added `src/generated/README.md` documenting that generated files are not hand-edited and how to regenerate them.
+- Declared npm as the canonical package manager in `cmd/web-chat/web/README.md`.
+- Removed stale `cmd/web-chat/web/pnpm-lock.yaml`.
+- Documented the temporary local `@go-go-golems/chat-provider` file dependency and its release/removal plan.
+- Added `npm run check:storybook` as a named Storybook validation command.
+- Added frontend README instructions for devctl startup and actual URL discovery via `npm run dev:url`.
+
+### Why
+- New contributors should not see competing npm/pnpm lockfiles in an npm-owned app.
+- Generated code should live under an obvious generated namespace rather than under the old `chatapp/pb` path.
+- The local provider dependency is intentional but temporary; documenting it avoids confusion.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm test` passed: 9 files, 32 tests.
+- `npm run lint` passed.
+- `npm run build` passed with the known Vite `app-config.js` note and large-chunk warning.
+- `npm run check:storybook` passed with the known Storybook `eval` warnings and large-chunk warning.
+- Pinocchio pre-commit web-check passed.
+
+### What didn't work
+- An initial repository-wide search included the overlay ticket path while running from the Pinocchio repo, so `rg` reported `No such file or directory` for that path. Re-running relevant searches from the correct repo roots avoided the issue.
+
+### What I learned
+- The generated TypeScript chatapp bindings are currently not imported by the cleaned provider-backed UI, so moving them only required updating the Buf output path and documentation.
+- `package-lock.json` is the correct lockfile for this app based on the project preference and existing npm scripts.
+
+### What was tricky to build
+- The generated files are large, so the commit has a high deletion count due to removing `pnpm-lock.yaml`; the actual code move is a path ownership change, not a hand edit to generated bindings.
+- The local `file:` dependency must remain until the chat-provider package is released, even though it is not ideal for long-term app setup.
+
+### What warrants a second pair of eyes
+- Review whether generated frontend protobuf bindings are still needed at all now that provider timeline adapters parse JSON payloads directly.
+- Review whether CI should call `npm run check:storybook` or keep Storybook build as an optional local validation.
+
+### What should be done in the future
+- Replace the local `file:` dependency with a released `@go-go-golems/chat-provider` version once available.
+- Consider deleting unused generated frontend protobuf bindings entirely if no future feature imports them.
+
+### Code review instructions
+- Start with `cmd/web-chat/web/README.md` and `src/generated/README.md`.
+- Then review `buf.chatapp.web.gen.yaml` and the generated file move.
+- Validate with `npm run typecheck`, `npm test`, `npm run lint`, `npm run build`, and `npm run check:storybook`.
+
+### Technical details
+- Code commit: `fea645f`.
