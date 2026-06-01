@@ -17,10 +17,17 @@ RelatedFiles:
       Note: Moved app/test mock runtime under internal/mockruntime in commit 986350b
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/profiles/api.go
       Note: Moved command-owned profile HTTP API under internal/profiles in commit 986350b
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/routes.go
+      Note: New HTTP mux package extracted from main.go in commit 9b4caa4
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/server.go
+      Note: Signal-aware HTTP server lifecycle extracted from main.go in commit 9b4caa4
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/static.go
+      Note: Static UI and SPA fallback serving extracted from main.go in commit 9b4caa4
     - Path: ../../../../../../../pinocchio/cmd/web-chat/main.go
       Note: |-
         Removed debug-api CLI/runtime config and Geppetto debug observer wiring (commit e829689)
         Updated imports to internal appserver/profiles in commit 986350b
+        Shrunk by delegating HTTP shell helpers to internal/webapp in commit 9b4caa4
     - Path: ../../../../../../../pinocchio/cmd/web-chat/plugins/webchat.py
       Note: Removed devctl debug-api configuration plumbing (commit e829689)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/knip.json
@@ -51,6 +58,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -727,3 +735,106 @@ This step intentionally avoided splitting files or rewriting option APIs. It cha
   - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/appserver`
   - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/profiles`
   - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/mockruntime`
+
+## Step 8: Extract the web-chat HTTP shell out of main.go
+
+After the package-boundary move, I extracted the browser-facing HTTP shell from `main.go` into `internal/webapp`. This moved runtime config JavaScript generation, static asset serving, root-prefix mounting, app mux construction, and HTTP server shutdown into a focused internal package.
+
+This reduced `main.go` substantially while keeping command assembly there for now. The command still builds profiles, middleware, runtime composition, stores, plugins, and the appserver, but it now delegates HTTP shell mechanics to `webapp` instead of carrying static UI and server lifecycle helpers inline.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Continue the Go refactor in small commits and document both successful and failed validation attempts.
+
+**Inferred user intent:** The user wants the backend cleanup to make steady progress while preserving a reviewable trail and not hiding pre-commit/test failures.
+
+**Commit (code):** `9b4caa42be1b74954f8fb424bae5e736f7255aa0` — "refactor: extract web-chat HTTP shell"
+
+### What I did
+- Added `cmd/web-chat/internal/webapp` with:
+  - `config.go` for `RuntimeConfigScript` and base-prefix normalization.
+  - `static.go` for static asset and SPA fallback serving.
+  - `routes.go` for `NewMux` and profile/session/ws route mounting.
+  - `root.go` for custom root-prefix mounting.
+  - `server.go` for signal-aware HTTP server shutdown.
+  - generated `logcopter.go` after `go generate` ran during pre-commit.
+- Updated `cmd/web-chat/main.go` to call:
+  - `webapp.RuntimeConfigScript`
+  - `webapp.NewMux`
+  - `webapp.MountRoot`
+  - `webapp.RunHTTPServer`
+- Updated `cmd/web-chat/main_runtime_test.go` to exercise the new `webapp` package API instead of unexported `main` helpers.
+- Included logcopter package-name updates generated after the previous internal package move:
+  - `internal/appserver/logcopter.go`
+  - `internal/profiles/logcopter.go`
+  - `internal/mockruntime/logcopter.go`
+- Ran focused validation:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the code change. The Pinocchio pre-commit hook also ran `go generate`, frontend build, `go build ./...`, `golangci-lint`, custom vet tools, and `go test ./...` successfully on the final attempt.
+
+### Why
+- `main.go` should not own static UI serving, SPA fallback behavior, app-config JavaScript generation, prefixed root routing, or signal-aware HTTP lifecycle.
+- The extracted package gives the next refactor steps a cleaner seam: command assembly can later move into `internal/webchatcmd` without carrying low-level HTTP helpers along.
+- Tests now exercise the same exported internal package API the command uses.
+
+### What worked
+- After fixing the generated logger name conflict, `go test ./cmd/web-chat/... -count=1` passed.
+- The final commit pre-hook passed full validation, including `go test ./...`.
+- The webapp extraction removed the old unexported helpers from `main.go`; a search for old helper names found no remaining references:
+  - `runtimeConfigScript`
+  - `buildAppMux`
+  - `buildRootHandler`
+  - `runHTTPServer`
+  - `registerStaticUIHandlers`
+  - `normalizeBasePrefix`
+
+### What didn't work
+- The first commit attempt failed during pre-commit after `go generate ./...` generated `cmd/web-chat/internal/webapp/logcopter.go`:
+  - `# github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webapp`
+  - `cmd/web-chat/internal/webapp/logcopter.go:7:5: log already declared through import of package log ("github.com/rs/zerolog/log")`
+  - `cmd/web-chat/internal/webapp/root.go:7:2: other declaration of log`
+  - `cmd/web-chat/internal/webapp/server.go:11:2: other declaration of log`
+  - `cmd/web-chat/internal/webapp/static.go:8:2: other declaration of log`
+- The cause was that new `webapp` files imported `github.com/rs/zerolog/log` as `log`, while generated logcopter code also declares a package-level `var log`.
+- I fixed it by aliasing zerolog imports as `zlog` in `static.go`, `root.go`, and `server.go`.
+- The pre-commit frontend build again printed the known non-blocking warning:
+  - `<script src="./app-config.js"> in "/index.html" can't be bundled without type="module" attribute`
+
+### What I learned
+- New Go packages in this repo may get generated `logcopter.go` files during `go generate`, so package code must avoid importing another package under the name `log` unless it intentionally uses the generated package logger.
+- Extracting the mux into `webapp.NewMux` required passing middleware definitions and extension schemas explicitly; this is cleaner than letting the web shell create middleware registries itself.
+
+### What was tricky to build
+- The main tricky part was keeping `webapp` dumb. It should mount routes and static assets, but not construct runtime registries or profile registries. The solution was a `MuxOptions` struct that receives `RequestResolver`, `ChatServer`, `MiddlewareDefinitions`, and `ExtensionSchemas` from command assembly.
+- Another tricky point was preserving custom-root behavior. The old root handler exposed `/app-config.js` both at the unprefixed root and under the prefixed app mux. The new `webapp.MountRoot` keeps that behavior by mounting an unprefixed config handler and strip-prefixing the app mux.
+
+### What warrants a second pair of eyes
+- Review `internal/webapp.NewMux` to confirm it should own the exact profile API cookie route defaults (`chat_profile`) or whether those should be passed as explicit options later.
+- Review whether the starter-suggestions extension schema should stay inline in command assembly or move into a small app-schema helper before command assembly is extracted.
+
+### What should be done in the future
+- Move runtime composer/resolver, middleware definitions, and agent-mode plugin code out of `main` into internal packages.
+- Then move command assembly itself into `internal/webchatcmd` so `main.go` contains only executable/Glazed/Cobra bootstrapping.
+
+### Code review instructions
+- Start with Pinocchio commit `9b4caa42be1b74954f8fb424bae5e736f7255aa0`.
+- Review the new internal package:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/config.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/routes.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/static.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/root.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/server.go`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+
+### Technical details
+- `webapp.MuxOptions` currently carries:
+  - `StaticFS`
+  - `AppConfigJS`
+  - `RequestResolver`
+  - `ChatServer`
+  - `MiddlewareDefinitions`
+  - `ExtensionSchemas`
+- `main.go` still owns the starter-suggestions schema literal; this is acceptable for now because command assembly has not yet been moved.

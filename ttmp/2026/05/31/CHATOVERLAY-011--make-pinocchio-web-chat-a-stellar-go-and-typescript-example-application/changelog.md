@@ -103,3 +103,13 @@ Phase 5 started: internalized web-chat Go subpackages with behavior-preserving p
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/mockruntime/engine.go — New internal mockruntime package
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api.go — New internal profiles package
 
+
+## 2026-06-01
+
+Phase 5 continued: extracted web-chat HTTP shell helpers from main.go into internal/webapp, with one documented pre-commit logger-name conflict fixed before commit (Pinocchio commit 9b4caa42be1b74954f8fb424bae5e736f7255aa0).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/webapp/routes.go — New mux composition package
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go — Delegates runtime config
+
