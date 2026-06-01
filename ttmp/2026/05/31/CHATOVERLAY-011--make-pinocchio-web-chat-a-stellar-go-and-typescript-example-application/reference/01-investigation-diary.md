@@ -26,7 +26,13 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/plugins/agentmode/plugin.go
       Note: App-owned agent-mode chat plugin moved out of main package in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/profiles/api.go
-      Note: Moved command-owned profile HTTP API under internal/profiles in commit 986350b
+      Note: |-
+        Moved command-owned profile HTTP API under internal/profiles in commit 986350b
+        Reduced to route registration dispatcher in commit d47630d
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/profiles/api_current_profile.go
+      Note: Current-profile cookie route split out and reviewed in commit d47630d
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/profiles/api_current_profile_test.go
+      Note: Focused cookie behavior tests added in commit d47630d
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/runtime/composer.go
       Note: Profile runtime composer moved out of main package in commit d1e1032
     - Path: ../../../../../../../pinocchio/cmd/web-chat/internal/webapp/routes.go
@@ -74,6 +80,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1115,3 +1122,87 @@ The server constructor and state now stay in `server.go`, while options, hydrati
   - `routes_exports.go`: 168 lines
   - `snapshot.go`: 85 lines
 - The route behavior and public endpoints were not intentionally changed.
+
+## Step 12: Split the profile API and add cookie behavior coverage
+
+I split the large `internal/profiles/api.go` file by API responsibility and added focused tests for the current-profile cookie route. The public entrypoint remains `RegisterAPIHandlers`, but it now delegates to smaller registration helpers for schema endpoints, profile listing/details, and the current-profile route.
+
+This step also explicitly reviewed current profile cookie behavior by testing default fallback, qualified cookie values (`registry/profile`), legacy unqualified cookie values (`profile`), and the secure HttpOnly cookie written by POST. That gives future profile-cookie changes a safety net instead of relying on incidental route coverage.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Continue Phase 7 by splitting profile API files and validating current-profile cookie behavior.
+
+**Inferred user intent:** The user wants the profile API to be understandable by responsibility and wants subtle cookie behavior protected before future cleanup.
+
+**Commit (code):** `d47630dda7c0d4b93224c58748a778fe697ba114` — "refactor: split web-chat profile API"
+
+### What I did
+- Reduced `internal/profiles/api.go` to a small `RegisterAPIHandlers` dispatcher.
+- Added focused API files:
+  - `api_schemas.go` for middleware/extension schema endpoints and schema listing helpers.
+  - `api_profiles.go` for `/api/chat/profiles` and `/api/chat/profiles/{slug}`.
+  - `api_current_profile.go` for `/api/chat/profile` GET/POST and cookie helpers.
+  - `api_models.go` for profile DTO conversion, extension cloning, and mock parity DTO helpers.
+  - `api_response.go` for JSON response and registry error helpers.
+- Added `api_current_profile_test.go` covering:
+  - default profile fallback from the registry default.
+  - qualified `default/beta` cookie values.
+  - legacy unqualified `beta` cookie values.
+  - POST writing a `chat_profile=default/beta` cookie with `Path=/`, `Secure`, `HttpOnly`, and `SameSite=Lax`.
+- Ran focused validation:
+  - `go test ./cmd/web-chat/... -count=1`
+- Committed the code change; the Pinocchio pre-commit hook passed full validation, including `go test ./...`.
+
+### Why
+- The old `api.go` mixed route registration, route handlers, DTO conversion, schema discovery, response helpers, registry error mapping, cookie parsing, and mock parity DTO behavior.
+- Current-profile cookie behavior is subtle because it supports both new qualified values and legacy unqualified profile values.
+- Splitting files without changing the public registration API keeps existing app wiring stable.
+
+### What worked
+- Focused `go test ./cmd/web-chat/... -count=1` passed.
+- The final pre-commit hook passed full validation.
+- The profile package now has direct tests, so it no longer reports `[no test files]`.
+- `api.go` is now 21 lines and acts as an obvious route-registration entrypoint.
+
+### What didn't work
+- No failing validation in this step.
+- The known Vite `app-config.js` warning appeared again during pre-commit frontend build and remains non-blocking.
+
+### What I learned
+- The current cookie route intentionally accepts both `registry/profile` and bare `profile` cookie formats. The bare format falls back to the default registry if the profile exists there.
+- The POST route intentionally stores qualified cookie values and sets secure browser cookie attributes.
+
+### What was tricky to build
+- The main tricky part was preserving handler closure behavior while moving helpers out of the old monolithic file. I kept `RegisterAPIHandlers` as the single public entrypoint and moved each route group into private `register...` helpers.
+- Another tricky point was test setup. The profile package can build an in-memory registry with `NewInMemoryProfileService`, but the tests still need minimal engine profiles with runtime metadata, so I added a small test helper that uses `infruntime.SetProfileRuntime`.
+
+### What warrants a second pair of eyes
+- Review whether `api_profiles.go` should be split further into list and detail route files if it grows again.
+- Review cookie behavior with product expectations: the tests preserve existing behavior, but they do not assert whether `Secure: true` is ideal for local HTTP development.
+
+### What should be done in the future
+- Phase 8: add intern-facing backend/frontend README and package docs.
+- Phase 9: run final frontend, Go, Storybook, and browser acceptance validations.
+
+### Code review instructions
+- Start with Pinocchio commit `d47630dda7c0d4b93224c58748a778fe697ba114`.
+- Review:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_profiles.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_current_profile.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_current_profile_test.go`
+- Validate with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+
+### Technical details
+- Preserved current route entrypoints:
+  - `/api/chat/schemas/middlewares`
+  - `/api/chat/schemas/extensions`
+  - `/api/chat/profiles`
+  - `/api/chat/profiles/{slug}`
+  - `/api/chat/profiles/{slug}/default`
+  - `/api/chat/profile`
+- New current-profile tests assert the current cookie format and browser attributes.

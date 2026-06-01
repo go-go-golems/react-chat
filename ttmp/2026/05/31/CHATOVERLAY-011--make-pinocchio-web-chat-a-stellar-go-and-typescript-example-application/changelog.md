@@ -144,3 +144,13 @@ Phase 6 complete: split internal/appserver route, option, hydration, snapshot, a
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/routes_frontend_tools.go — Production frontend-tool routes
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/appserver/server.go — Reduced constructor/state file
 
+
+## 2026-06-01
+
+Phase 7 complete: split internal/profiles/api.go into schema, profile, current-profile, model, and response files; added focused current-profile cookie tests (Pinocchio commit d47630dda7c0d4b93224c58748a778fe697ba114).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_current_profile.go — Current profile route split
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/internal/profiles/api_current_profile_test.go — Cookie behavior coverage
+
