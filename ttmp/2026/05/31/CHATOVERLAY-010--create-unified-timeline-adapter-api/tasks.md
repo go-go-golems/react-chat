@@ -1,5 +1,9 @@
 # Tasks
 
+## Closure note
+
+CHATOVERLAY-010 is closed with a deliberately small baseline unit-test suite plus Playwright hydration smoke coverage. The remaining unchecked registry tests are useful follow-ups, but were not required for the closure gate after the user chose a bare-but-useful baseline.
+
 ## Phase 0 — Ticket setup and current-state confirmation
 
 Goal: preserve the exact problem statement and verify the split live/hydration architecture before implementation.
@@ -126,11 +130,11 @@ Goal: make CHATOVERLAY-010 safe to land before CHATOVERLAY-009 legacy deletion.
 - [x] Run Pinocchio web-chat typecheck.
 - [x] Run Pinocchio web-chat lint.
 - [x] Run Pinocchio web-chat build.
-- [ ] Run Pinocchio Storybook build if adapter changes affect stories.
-- [ ] Run focused Go tests if mock profile tests are touched.
+- [x] Run Pinocchio Storybook build if adapter changes affect stories.
+- [x] Run focused Go tests if mock profile tests are touched.
 - [x] Run `04-phase6-mock-profile-parity-smoke.js`.
 - [x] Run the new CHATOVERLAY-010 hydration smoke.
 - [x] Run `rg "projectors?:|projectorRegistry|createTimelineProjectorRegistry|pinocchio-projectors"` and document remaining matches.
-- [ ] Update CHATOVERLAY-009 tasks to unblock Phase 7 only after adapter API is complete.
+- [x] Update CHATOVERLAY-009 tasks to unblock Phase 7 only after adapter API is complete.
 - [x] Update diary and changelog with exact commands and outcomes.
 - [x] Run `docmgr doctor --ticket CHATOVERLAY-010 --stale-after 30`.

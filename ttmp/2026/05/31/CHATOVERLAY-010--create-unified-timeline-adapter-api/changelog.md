@@ -36,3 +36,17 @@ Added bare baseline unit tests for timeline adapter misuse prevention and Pinocc
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/src/ws/timelineAdapterRegistry.test.ts — Provider adapter registry and ChatMessage parity baseline tests
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-timeline-adapters/pinocchioTimelineAdapters.test.ts — Pinocchio AgentMode and backend tool hydration parity baseline tests
 
+
+## 2026-05-31
+
+Closed CHATOVERLAY-010 after final Storybook and focused Go validation; adapter API now unblocks CHATOVERLAY-009 Phase 7.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-010--create-unified-timeline-adapter-api/tasks.md — Closure note and final validation status
+
+
+## 2026-05-31
+
+Closed after adapter API implementation, baseline unit coverage, hydration smoke, Storybook build, and focused Go validation.
+

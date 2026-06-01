@@ -1,7 +1,7 @@
 ---
 Title: Create unified timeline adapter API
 Ticket: CHATOVERLAY-010
-Status: active
+Status: complete
 Topics:
     - chat-provider
     - web-chat
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-05-31T20:35:01.893439733-04:00
+LastUpdated: 2026-05-31T21:14:38.902605047-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Create unified timeline adapter API
 

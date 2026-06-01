@@ -31,6 +31,8 @@ RelatedFiles:
       Note: Phase 0 architecture guardrails (commit fe5b00f)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/App.tsx
       Note: Phase 1 app route switch (commit bf3a98b)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/MainWebChatRoot.tsx
+      Note: Production route imports WebChatProviderShell directly after legacy deletion
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/app/routeMode.ts
       Note: |-
         Phase 1 typed route-mode parser (commit bf3a98b)
@@ -67,10 +69,16 @@ RelatedFiles:
       Note: Typed story fixture builders for card render entities (commit cb52e41)
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/features/web-chat/extensions/pinocchio-projectors/pinocchioProjectors.ts
       Note: Pinocchio projectors moved under feature extensions (commit 833fa7c)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/store/store.ts
+      Note: Store now keeps only app/profile state
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/ChatWidget.tsx
+      Note: Deleted legacy runtime entrypoint
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/webchat/index.ts
       Note: Canonical versus legacy export evidence
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/frontendTools.ts
       Note: Removed browser.get_page_context auto-demo behavior (commit 1a76cbe)
+    - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/ws/wsManager.ts
+      Note: Deleted legacy singleton websocket manager
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/vite.config.ts
       Note: Vite build/proxy setup evidence
     - Path: ../../../../../../../pinocchio/pkg/chatapp/demo.go
@@ -91,6 +99,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1394,3 +1403,90 @@ The current ticket now has an explicit Phase 7 prerequisite: implement CHATOVERL
 
 ### Technical details
 - No Pinocchio source changes are part of this planning step.
+
+## Step 19: Delete the legacy Redux/WebSocket web-chat runtime
+
+This step resumed CHATOVERLAY-009 Phase 7 after CHATOVERLAY-010 unblocked legacy deletion. The production route now imports `WebChatProviderShell` directly, and the old Redux/WebSocket `ChatWidget`, singleton `wsManager`, legacy timeline reducers, legacy snapshot mapper, legacy UI-event projector, and provider-demo compatibility wrappers are gone.
+
+The cleanup intentionally keeps shared pieces that the provider-backed shell still uses: profile selection/API state, renderers, card components, `streamDebug`, `frontendTools`, and the generic websocket protocol helpers used by debug UI. The grep gate now reports no remaining references to the deleted legacy runtime names.
+
+### Prompt Context
+
+**User prompt (verbatim):** "close 010, resume 009"
+
+**Assistant interpretation:** Close the timeline adapter ticket and continue CHATOVERLAY-009 by deleting the now-unblocked legacy web-chat runtime code.
+
+**Inferred user intent:** Move from compatibility/parity mode to a clean provider-backed example app with old runtime paths removed.
+
+**Commit (code):** dff233e — "refactor: delete legacy web-chat runtime"
+
+### What I did
+- Updated `src/app/MainWebChatRoot.tsx` to render `WebChatProviderShell` directly instead of importing `ChatWidget` from `src/webchat`.
+- Deleted legacy runtime files:
+  - `src/webchat/ChatWidget.tsx`
+  - `src/ws/wsManager.ts`
+  - `src/ws/timelineEvents.ts`
+  - `src/ws/timelineSnapshot.ts`
+  - legacy ws/timeline tests tied to those files.
+- Deleted legacy Redux slices:
+  - `src/store/timelineSlice.ts`
+  - `src/store/errorsSlice.ts`
+- Reduced `src/store/store.ts` to app/profile state only.
+- Deleted compatibility/demo wrappers:
+  - `src/webchat/ProviderBackedChatWidget.tsx`
+  - `src/chat/provider/index.ts`
+  - `src/features/web-chat/demos/ProviderMultiDemo/*`
+- Removed provider-backed compatibility alias exports from feature indexes.
+- Kept `src/ws/protocol.ts`, `src/ws/streamDebug.ts`, and `src/ws/frontendTools.ts` because provider-backed/debug code still imports them.
+- Adjusted `streamDebug.ts` to use a small local debug entity shape instead of importing the deleted legacy timeline slice type.
+
+### Why
+- Provider-backed `ChatProvider` is now the canonical production runtime.
+- CHATOVERLAY-010 proved adapter-backed hydration parity, so the old app-specific legacy hydration path is no longer needed as a safety net.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm test` passed: 9 files, 31 tests.
+- `npm run lint` passed.
+- `npm run build` passed with known Vite `app-config.js` note and large-chunk warning.
+- `npm run build-storybook` passed with known Storybook `eval` warnings and large-chunk warning.
+- `04-phase6-mock-profile-parity-smoke.js` passed.
+- `01-mock-profile-hydration-smoke.js` passed.
+- `rg "LegacyChatWidget|ChatWidget\\.tsx|ProviderBackedChatWidget|ProviderMultiDemoPage|wsManager|timelineEvents|timelineSnapshot|timelineSlice|errorsSlice|chatappPayloads|timelineMutationFromUIEvent|timelineEntityFromSnapshotEntity|src/chat/provider" src -S` returned no matches.
+- Pinocchio pre-commit web-check passed.
+
+### What didn't work
+- N/A; deletion validation passed after the direct import/store/type cleanup.
+
+### What I learned
+- The remaining `src/webchat` directory is now mostly reusable UI/types/rendering support, not runtime ownership.
+- `src/ws` is no longer a legacy runtime directory, but it still contains shared protocol/debug/frontend-tool helpers. A later phase should decide whether to rename/move those helpers for clarity.
+
+### What was tricky to build
+- `streamDebug.ts` depended on the deleted legacy `TimelineEntity` type even though it only needed `id` and `kind` for debug export summaries. Replacing that with a local `DebugTimelineEntity` kept the debug helper independent of the old runtime slice.
+- The app store could not be deleted entirely because `WebChatProviderShell` still owns profile selection via `appSlice` and `profileApi`.
+
+### What warrants a second pair of eyes
+- Review whether the remaining `src/webchat` barrel exports should be renamed now that it no longer exports a chat widget runtime.
+- Review whether `src/ws/protocol.ts`, `streamDebug.ts`, and `frontendTools.ts` should move under `features/web-chat/provider-support` or `shared/ws` in a later cleanup phase.
+
+### What should be done in the future
+- Continue CHATOVERLAY-009 Phase 8: replace global renderer/props registries with explicit APIs.
+- Continue Phase 10/11 cleanup for CSS and debug UI boundaries.
+
+### Code review instructions
+- Start with `src/app/MainWebChatRoot.tsx` and `src/store/store.ts` to verify the production route and app store are now provider-focused.
+- Review deleted file list in commit `dff233e` to confirm only legacy runtime/demo files were removed.
+- Validate with:
+  - `npm run typecheck`
+  - `npm test`
+  - `npm run lint`
+  - `npm run build`
+  - `npm run build-storybook`
+  - `node .../04-phase6-mock-profile-parity-smoke.js`
+  - `node .../01-mock-profile-hydration-smoke.js`
+
+### Technical details
+- Code commit: `dff233e`.
+- Mock parity evidence: `/tmp/pinocchio-phase6-mock-profile-parity-smoke.json`.
+- Hydration evidence: `/tmp/pinocchio-chatprovider-timeline-adapter-hydration.json`.

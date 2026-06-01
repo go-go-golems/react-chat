@@ -161,3 +161,15 @@ Added a Phase 7 prerequisite to implement CHATOVERLAY-010 unified timeline adapt
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md — Phase 7 now gates legacy deletion on CHATOVERLAY-010
 
+
+## 2026-05-31
+
+Resumed Phase 7 and deleted the legacy Redux/WebSocket web-chat runtime after CHATOVERLAY-010 adapter parity gate (Pinocchio commit dff233e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/app/MainWebChatRoot.tsx — Production route now renders WebChatProviderShell directly
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/store/store.ts — App store reduced to app/profile state
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/webchat/ChatWidget.tsx — Deleted legacy Redux/WebSocket chat runtime
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/ws/wsManager.ts — Deleted legacy singleton WebSocket runtime
+

@@ -142,19 +142,19 @@ Goal: make provider parity testable without a live LLM by selecting an explicit 
 
 Goal: remove old runtime paths so the example project is clean and opinionated.
 
-- [ ] First implement CHATOVERLAY-010 unified timeline adapter API so live projection and snapshot hydration cannot drift for app-owned timeline entities.
-- [ ] Delete `src/webchat/ChatWidget.tsx` after parity sign-off.
-- [ ] Delete `LegacyChatWidget` export from `src/webchat/index.ts`.
-- [ ] Delete legacy singleton `src/ws/wsManager.ts` if no tests or production code import it.
-- [ ] Delete legacy `src/ws/timelineEvents.ts` after provider projector tests replace useful coverage.
-- [ ] Delete legacy `src/ws/timelineSnapshot.ts` after provider snapshot/projector coverage replaces useful coverage.
-- [ ] Delete or move legacy `src/ws/*` tests to provider/projector tests as appropriate.
-- [ ] Delete `src/store/timelineSlice.ts` if production no longer uses the legacy timeline store.
-- [ ] Delete `src/store/errorsSlice.ts` if provider/app shell no longer needs legacy error panel state.
-- [ ] Keep `profileApi` and minimal app/profile slice only if still used by provider-backed shell.
-- [ ] Remove compatibility re-exports `src/webchat/ProviderBackedChatWidget.tsx` and `src/webchat/ProviderMultiDemoPage.tsx` after imports move.
-- [ ] Run `rg "LegacyChatWidget|wsManager|timelineEvents|timelineSnapshot|timelineSlice" src` and confirm only intended references remain.
-- [ ] Validate with typecheck, lint, build, Storybook, and production smokes.
+- [x] First implement CHATOVERLAY-010 unified timeline adapter API so live projection and snapshot hydration cannot drift for app-owned timeline entities.
+- [x] Delete `src/webchat/ChatWidget.tsx` after parity sign-off.
+- [x] Delete `LegacyChatWidget` export from `src/webchat/index.ts`.
+- [x] Delete legacy singleton `src/ws/wsManager.ts` if no tests or production code import it.
+- [x] Delete legacy `src/ws/timelineEvents.ts` after provider projector tests replace useful coverage.
+- [x] Delete legacy `src/ws/timelineSnapshot.ts` after provider snapshot/projector coverage replaces useful coverage.
+- [x] Delete or move legacy `src/ws/*` tests to provider/projector tests as appropriate.
+- [x] Delete `src/store/timelineSlice.ts` if production no longer uses the legacy timeline store.
+- [x] Delete `src/store/errorsSlice.ts` if provider/app shell no longer needs legacy error panel state.
+- [x] Keep `profileApi` and minimal app/profile slice only if still used by provider-backed shell.
+- [x] Remove compatibility re-exports `src/webchat/ProviderBackedChatWidget.tsx` and `src/webchat/ProviderMultiDemoPage.tsx` after imports move.
+- [x] Run `rg "LegacyChatWidget|wsManager|timelineEvents|timelineSnapshot|timelineSlice" src` and confirm only intended references remain.
+- [x] Validate with typecheck, lint, build, Storybook, and production smokes.
 
 ## Phase 8 — Replace global registries with explicit APIs
 

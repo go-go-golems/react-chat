@@ -25,12 +25,15 @@ RelatedFiles:
       Note: Snapshot hydration now uses adapter registry
     - Path: ttmp/2026/05/31/CHATOVERLAY-010--create-unified-timeline-adapter-api/scripts/01-mock-profile-hydration-smoke.js
       Note: Repeatable hydration parity smoke
+    - Path: ttmp/2026/05/31/CHATOVERLAY-010--create-unified-timeline-adapter-api/tasks.md
+      Note: Closure note and final validation status
 ExternalSources: []
 Summary: Chronological diary for the unified timeline adapter API ticket.
 LastUpdated: 2026-05-31T20:35:09.274152988-04:00
 WhatFor: Track design and implementation work for CHATOVERLAY-010.
 WhenToUse: Before resuming timeline adapter API implementation.
 ---
+
 
 
 
@@ -248,3 +251,60 @@ The tests are not exhaustive. They are a focused baseline so future refactors ge
 ### Technical details
 - Chat-provider test commit: `5e2c704`.
 - Pinocchio test commit: `1a005b0`.
+
+## Step 4: Close CHATOVERLAY-010 and hand back to legacy cleanup
+
+This step completed the remaining closure validation for CHATOVERLAY-010 and recorded why the ticket can close with a small unit-test baseline rather than exhaustive registry testing. The adapter API is implemented, Pinocchio is migrated, hydration parity is protected by unit tests plus Playwright reload smoke, and the old provider projector API is gone.
+
+The only unchecked items left in the task file are explicitly deferred exhaustive test cases. They are useful follow-ups, but not required for the user-approved bare baseline or for unblocking CHATOVERLAY-009 Phase 7.
+
+### Prompt Context
+
+**User prompt (verbatim):** "close 010, resume 009"
+
+**Assistant interpretation:** Finish CHATOVERLAY-010 bookkeeping/validation, mark it closed, and continue the previously blocked CHATOVERLAY-009 legacy deletion work.
+
+**Inferred user intent:** Treat the timeline adapter work as complete enough to unblock deletion of the old Redux/WebSocket chat runtime.
+
+### What I did
+- Ran remaining closure validation:
+  - `npm run build-storybook` in `pinocchio/cmd/web-chat/web`.
+  - `go test ./cmd/web-chat/mockruntime ./cmd/web-chat ./cmd/web-chat/app ./cmd/web-chat/profiles ./pkg/chatapp -count=1` in Pinocchio.
+- Updated CHATOVERLAY-010 tasks with a closure note explaining deferred exhaustive unit tests.
+- Marked the CHATOVERLAY-009 unblock task as complete.
+- Prepared the ticket for `docmgr ticket close`.
+
+### Why
+- CHATOVERLAY-009 Phase 7 was intentionally blocked until live projection and snapshot hydration shared a strict adapter API.
+- That condition is now satisfied by the adapter registry, app adapter migration, unit tests, and hydration smoke.
+
+### What worked
+- Storybook build passed with known Storybook `eval` warnings and known large-chunk warning.
+- Focused Go tests passed:
+  - `cmd/web-chat/mockruntime`
+  - `cmd/web-chat`
+  - `cmd/web-chat/app`
+  - `cmd/web-chat/profiles` (`[no test files]`)
+  - `pkg/chatapp`
+
+### What didn't work
+- N/A.
+
+### What I learned
+- Closing this ticket does not require converting every possible registry behavior into unit tests immediately; the key value is that the public API now makes live/hydration drift difficult and the known app entities are covered.
+
+### What was tricky to build
+- The closure boundary needed to distinguish mandatory adapter parity from optional exhaustive test hardening. The task file now keeps deferred tests visible while still documenting why the ticket can close.
+
+### What warrants a second pair of eyes
+- Confirm that the deferred registry tests should stay in CHATOVERLAY-010 as visible follow-ups rather than being moved into a separate hardening ticket.
+
+### What should be done in the future
+- Add optional registry cleanup/unsupported-hydration tests if the adapter API continues to evolve.
+
+### Code review instructions
+- Review the CHATOVERLAY-010 task closure note and the baseline tests from Step 3.
+- Re-run `docmgr doctor --ticket CHATOVERLAY-010 --stale-after 30` after the close command.
+
+### Technical details
+- Closure depends on overlay commits `d810976`, `5e2c704`, `889c5cf`, `b47eb03`, `77bf493` and Pinocchio commits `322fa70`, `1a005b0`.
