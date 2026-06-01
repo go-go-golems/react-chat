@@ -67,3 +67,14 @@ Verified chat-provider and chat-overlay are published, trusted publishers are co
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/.github/workflows/publish-npm.yml — Tokenless trusted publishing workflow verified by run 26778523201
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-013--publish-react-chat-packages-to-npm/reference/01-investigation-diary.md — Recorded npm publish verification and remaining token lockdown step
 
+
+## 2026-06-01
+
+Published new React chat 0.1.1 packages and go-go-os os-core 0.1.3 through tokenless GitHub Actions trusted publishing under the next dist-tag.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-overlay/package.json — Version bumped to 0.1.1 and published via run 26778779490
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/packages/chat-provider/package.json — Version bumped to 0.1.1 and published via run 26778779490
+- /home/manuel/workspaces/2026-05-29/chatbot-react/go-go-os-frontend/packages/os-core/package.json — Version bumped to 0.1.3 and published via run 26778852213
+

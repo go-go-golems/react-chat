@@ -628,3 +628,110 @@ Consumer smoke project:
 ```text
 /tmp/react-chat-npm-smoke
 ```
+
+## Step 6: Publish new versions through tokenless GitHub CI/CD
+
+I verified a real new-version publish through GitHub Actions Trusted Publishing for both the new React chat repository and the existing `go-go-os-frontend` package workflow. For React chat, I bumped both packages to `0.1.1`, pushed the change, and published them with the `next` npm dist-tag from GitHub Actions. For `go-go-os-frontend`, I bumped `@go-go-golems/os-core` to `0.1.3` and published it with the `next` dist-tag through its now-tokenless workflow.
+
+This confirms that trusted publishing is not merely configured or dry-running: GitHub Actions can publish new npm versions without Vault npm tokens or `NODE_AUTH_TOKEN`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we try actually publishing this through github CICD? and for go-go-os-frontend too?"
+
+**Assistant interpretation:** Bump package versions and perform real, non-dry-run publishes through GitHub Actions for both React chat and go-go-os-frontend to prove tokenless trusted publishing works end-to-end.
+
+**Inferred user intent:** Validate the migration by publishing immutable new package versions from CI rather than only doing dry-runs or local/manual publishes.
+
+**Commit (code):** `944ed43b473cbf3e6c37e474caae66e1427a8750` — "Bump React chat packages to 0.1.1"
+
+**Commit (code, go-go-os-frontend):** `15936de30ef22600b41c557d004af3c57307c3c5` — "Bump os-core to 0.1.3"
+
+### What I did
+
+- In `go-go-golems/react-chat`:
+  - Bumped `@go-go-golems/chat-provider` from `0.1.0` to `0.1.1`.
+  - Bumped `@go-go-golems/chat-overlay` from `0.1.0` to `0.1.1`.
+  - Ran local validation:
+    - `pnpm -r typecheck`
+    - `pnpm test`
+    - `npm run build:publish`
+    - `npm run pack:smoke`
+  - Committed and pushed the version bump.
+  - Ran `publish-npm.yml` with `package_set=all`, `npm_tag=next`, `dry_run=false`, and `skip_existing=true`.
+  - Watched workflow run `26778779490` complete successfully.
+  - Verified npm dist-tags show `next: 0.1.1` for both React chat packages.
+- In `go-go-golems/go-go-os-frontend`:
+  - Bumped `@go-go-golems/os-core` from `0.1.2` to `0.1.3`.
+  - Committed and pushed the version bump.
+  - Ran `publish-npm.yml` with `package_set=single`, `package_name=@go-go-golems/os-core`, `npm_tag=next`, `dry_run=false`, and `skip_existing=true`.
+  - Watched workflow run `26778852213` complete successfully.
+  - Verified npm dist-tags show `@go-go-golems/os-core` has `next: 0.1.3`.
+  - Watched the push CI run `26778838477` complete successfully.
+
+### Why
+
+- Dry-runs prove workflow structure but not immutable publish behavior for new versions.
+- Publishing a new `next` version is safer than immediately moving `latest`, while still proving tokenless npm Trusted Publishing end-to-end.
+
+### What worked
+
+- React chat tokenless CI/CD published:
+  - `@go-go-golems/chat-provider@0.1.1` under `next`
+  - `@go-go-golems/chat-overlay@0.1.1` under `next`
+- go-go-os-frontend tokenless CI/CD published:
+  - `@go-go-golems/os-core@0.1.3` under `next`
+- Both GitHub workflows completed successfully without Vault npm token reads.
+- go-go-os-frontend push CI also passed after the version bump.
+
+### What didn't work
+
+- My first local validation attempt in `go-go-os-frontend` failed because this checkout did not have the workspace dependencies installed locally:
+  - `sh: 1: tsc: not found`
+  - `This is not the tsc command you are looking for`
+- I proceeded with the CI-backed validation/publish path, where the workflow installs dependencies from the lockfile. The GitHub publish workflow and push CI both passed.
+
+### What I learned
+
+- Tokenless trusted publishing is fully operational for both React chat and go-go-os-frontend.
+- Publishing with `npm_tag=next` is a good low-risk proof of new-version release behavior.
+- Local checkout dependency state can be stale even when CI is healthy; future local go-go-os validation should run `pnpm install` rather than only `pnpm install --lockfile-only`.
+
+### What was tricky to build
+
+The tricky part was avoiding accidental `latest` movement while still proving a real publish. Publishing `0.1.1`/`0.1.3` under `next` created immutable versions and exercised npm trusted publishing, but left `latest` unchanged. This gives us a clean promotion decision point.
+
+### What warrants a second pair of eyes
+
+- Decide whether to promote React chat `0.1.1` from `next` to `latest`.
+- Decide whether to promote `@go-go-golems/os-core@0.1.3` from `next` to `latest`.
+- Review whether go-go-os-frontend should bump and publish other packages that depend on os-core.
+
+### What should be done in the future
+
+- Promote `next` to `latest` when ready.
+- Remove or archive obsolete Vault npm token roles/paths once no workflows use them.
+- Consider adding a release checklist that distinguishes `next` proof publishes from `latest` promotions.
+
+### Code review instructions
+
+- React chat workflow run: `26778779490`.
+- go-go-os-frontend publish workflow run: `26778852213`.
+- go-go-os-frontend CI run: `26778838477`.
+- Verify npm dist-tags:
+
+```bash
+npm view @go-go-golems/chat-provider dist-tags --json
+npm view @go-go-golems/chat-overlay dist-tags --json
+npm view @go-go-golems/os-core dist-tags --json
+```
+
+### Technical details
+
+Observed npm dist-tags after publishing:
+
+```text
+@go-go-golems/chat-provider: latest=0.1.0, next=0.1.1
+@go-go-golems/chat-overlay: latest=0.1.0, next=0.1.1
+@go-go-golems/os-core: latest=0.1.2, next=0.1.3
+```
