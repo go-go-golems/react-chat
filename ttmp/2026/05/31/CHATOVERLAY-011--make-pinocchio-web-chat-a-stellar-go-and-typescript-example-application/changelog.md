@@ -73,3 +73,22 @@ Implemented frontend cleanup Phases 2-4: removed confirmed unused TS/public file
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/cards/Markdown/Markdown.tsx — Typed Markdown renderer
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/types.ts — Feature-local public contracts
 
+
+## 2026-06-01
+
+Added a Go internal-package refactor guide for cmd/web-chat, including current-state architecture, target internal package tree, main.go shrink plan, phased implementation checklist, and validation strategy.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/design-doc/02-pinocchio-web-chat-go-internal-package-refactor-analysis-and-implementation-guide.md — New intern-facing Go refactor guide
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go — Primary refactor target
+
+
+## 2026-06-01
+
+Uploaded CHATOVERLAY-011 Go Internal Refactor Guide bundle to reMarkable at /ai/2026/06/01/CHATOVERLAY-011 after dry-run.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/design-doc/02-pinocchio-web-chat-go-internal-package-refactor-analysis-and-implementation-guide.md — Uploaded guide source
+

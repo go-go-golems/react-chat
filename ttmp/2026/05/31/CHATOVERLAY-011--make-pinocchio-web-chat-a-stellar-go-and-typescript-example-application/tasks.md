@@ -18,3 +18,4 @@
 - [x] Ruthless cleanup: remove debug-ui route, files, stories, styles, store, and WebSocket diagnostics app from Pinocchio web-chat
 - [x] Ruthless cleanup: remove debug-ui dependencies/imports/tests and make route mode chat-only
 - [x] Ruthless cleanup: remove Go debug API/recorder/reconcile backend and devctl debug flag plumbing
+- [x] Write Go internal package refactor analysis and implementation guide

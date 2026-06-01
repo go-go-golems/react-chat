@@ -529,3 +529,101 @@ I also tightened the remaining TypeScript edges that were easy to remove safely.
   - `src/webchat` namespace imports
   - explicit `any` casts
 - The remaining `webchat` string matches are only logger message prefixes, not a source namespace.
+
+## Step 6: Write the Go internal-package refactor guide
+
+I paused before changing Go code and wrote a focused implementation guide for the next backend cleanup. The guide maps the current `cmd/web-chat` command package, explains why the public-looking `app`, `profiles`, and `mockruntime` packages should become command-owned internals, and proposes a staged package tree under `cmd/web-chat/internal`.
+
+The document is meant for a new intern: it explains the request flow, the current responsibilities of `main.go`, `app/server.go`, `profiles/api.go`, `runtime_composer.go`, middleware definitions, and the app-owned agent-mode plugin. It then gives a behavior-preserving migration sequence with validation commands and review checkpoints.
+
+### Prompt Context
+
+**User prompt (verbatim):** "refactor the go side so we have a proper internal/ package where we can then decompose things more cleanly, and cleanup both the current files, and also split things out of main.go, which really should only contain the glazed command part.
+
+Create  a detailed analysis / design / implementation guide that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Produce a detailed intern-facing design and implementation guide for the next Go refactor of Pinocchio `cmd/web-chat`, focused on introducing `internal/`, shrinking `main.go`, and decomposing current files; store it in CHATOVERLAY-011 and upload it to reMarkable.
+
+**Inferred user intent:** The user wants a precise plan before a large Go package move, so the eventual implementation can proceed in small behavior-preserving commits rather than an ad hoc rewrite.
+
+**Commit (code):** N/A — documentation and ticket bookkeeping only.
+
+### What I did
+- Created a new design document:
+  - `design-doc/02-pinocchio-web-chat-go-internal-package-refactor-analysis-and-implementation-guide.md`
+- Gathered evidence from:
+  - `cmd/web-chat/main.go`
+  - `cmd/web-chat/app/server.go`
+  - `cmd/web-chat/app/showcase_tools.go`
+  - `cmd/web-chat/profiles/api.go`
+  - `cmd/web-chat/profiles/resolver.go`
+  - `cmd/web-chat/runtime_composer.go`
+  - `cmd/web-chat/canonical_runtime_resolver.go`
+  - `cmd/web-chat/middleware_definitions.go`
+  - `cmd/web-chat/agentmode_chat_feature.go`
+  - `pkg/chatapp/runner.go`
+- Added and checked ticket task 17 for writing the Go internal package guide.
+- Related the guide to the key source files it analyzes.
+- Updated the ticket changelog.
+- Ran a reMarkable bundle dry-run and uploaded `CHATOVERLAY-011 Go Internal Refactor Guide.pdf` to `/ai/2026/06/01/CHATOVERLAY-011`.
+
+### Why
+- `main.go` still mixes CLI definition, HTTP/static serving, mux composition, profile runtime setup, middleware registry setup, turn-store opening, app-server construction, and HTTP server lifecycle.
+- The current `cmd/web-chat/app`, `cmd/web-chat/profiles`, and `cmd/web-chat/mockruntime` packages look importable, but they are command-specific app internals.
+- The implementation should be staged carefully because moving to `internal/` affects imports, tests, generated static asset embedding, and route behavior.
+
+### What worked
+- The guide now gives a concrete target tree under `cmd/web-chat/internal`.
+- It defines recommended package ownership for `webchatcmd`, `webapp`, `appserver`, `profiles`, `runtime`, `middlewaredefs`, `plugins/agentmode`, and `mockruntime`.
+- It includes pseudocode for the future command runner and app assembly flow.
+- It explicitly preserves current API routes and validation commands.
+- The reMarkable upload succeeded with `OK: uploaded CHATOVERLAY-011 Go Internal Refactor Guide.pdf -> /ai/2026/06/01/CHATOVERLAY-011`.
+
+### What didn't work
+- N/A. This was a design/documentation step; no code was changed.
+
+### What I learned
+- `pkg/chatapp/runner.go` already exists and mirrors much of `cmd/web-chat/app.Server` setup, but adopting it should be a separate optional commit because frontend-tool manager installation order needs care.
+- The most important first code commit should be a pure `git mv`/import update into `cmd/web-chat/internal`, not a combined move-and-rewrite.
+
+### What was tricky to build
+- The main tricky part was designing a package split that is useful without accidentally promoting web-chat internals into `pkg/` reusable APIs. The guide resolves this by using `cmd/web-chat/internal` for app-specific code and leaving already-reusable mechanics in `pkg/chatapp/*`.
+- Another tricky point is static asset embedding: `go:embed` paths are package-relative and cannot use `..`, so the guide recommends keeping the embed near `cmd/web-chat/static` or moving static generation deliberately rather than casually moving the embed into a nested internal package.
+
+### What warrants a second pair of eyes
+- Confirm whether the command package should keep `NewCommand` in `main.go` or move all Glazed command construction into `internal/webchatcmd` with `main.go` only calling `NewRootCommand`.
+- Confirm whether `internal/appserver` should adopt `pkg/chatapp.Runner` after package moves, or keep explicit hub/engine construction for readability.
+- Review the proposed split of `profiles/api.go` because cookie fallback behavior is subtle.
+
+### What should be done in the future
+- Implement the guide in small commits:
+  - move `app`, `profiles`, and `mockruntime` under `internal`
+  - extract `webapp` helpers from `main.go`
+  - extract runtime/middleware/plugin packages
+  - split appserver route files
+  - split profile API files
+- Re-run Go, frontend, and browser parity validations after each phase.
+
+### Code review instructions
+- Review the new guide first:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/design-doc/02-pinocchio-web-chat-go-internal-package-refactor-analysis-and-implementation-guide.md`
+- Then compare its proposed ownership boundaries against:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/main.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/app/server.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/profiles/api.go`
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/pkg/chatapp/runner.go`
+- Validate ticket hygiene with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && docmgr doctor --ticket CHATOVERLAY-011 --stale-after 30`
+
+### Technical details
+- The design doc proposes the target tree:
+  - `cmd/web-chat/internal/webchatcmd`
+  - `cmd/web-chat/internal/webapp`
+  - `cmd/web-chat/internal/appserver`
+  - `cmd/web-chat/internal/profiles`
+  - `cmd/web-chat/internal/runtime`
+  - `cmd/web-chat/internal/middlewaredefs`
+  - `cmd/web-chat/internal/plugins/agentmode`
+  - `cmd/web-chat/internal/mockruntime`
+- The guide keeps current HTTP API invariants explicit, including profile APIs, session APIs, export APIs, frontend-tool endpoints, websocket endpoint, and `app-config.js` root behavior.
+- reMarkable upload used `remarquee upload bundle ... --toc-depth 2 --non-interactive` after a dry-run.
