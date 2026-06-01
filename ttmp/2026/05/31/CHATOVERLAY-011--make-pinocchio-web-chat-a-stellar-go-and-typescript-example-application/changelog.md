@@ -164,3 +164,13 @@ Phase 8 complete: refreshed cmd/web-chat backend README for the new internal pac
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/README.md — Intern-facing backend guide
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/README.md — Frontend README cross-reference
 
+
+## 2026-06-01
+
+Phase 9 complete: ran frontend typecheck/tests/lint/audit/build/Storybook, Go focused tests, inventory regeneration, and docmgr doctor; all blocking checks passed with only known advisory warnings.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/01-web-chat-inventory.md — Refreshed inventory after Go internal package split
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/web-chat-go-list.txt — Updated go list output showing internal packages
+

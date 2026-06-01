@@ -1292,3 +1292,95 @@ I also added a pointer from the frontend README back to the backend README so ne
   - `internal/middlewaredefs`
   - `internal/plugins/agentmode`
   - `internal/mockruntime`
+
+## Step 14: Run final Go/frontend acceptance and refresh inventory
+
+I ran the final acceptance suite for the web-chat cleanup phases completed in this pass. This included the frontend typecheck, unit tests, lint, unused-audit, production build, Storybook build, focused Go tests, the ticket inventory script, and `docmgr doctor`.
+
+The validation passed. The only non-failing outputs were the known advisory `knip` unused-export report, the known Vite `app-config.js` non-module warning, Storybook's `eval` warning, and large chunk warnings.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 7)
+
+**Assistant interpretation:** Finish Phase 9 acceptance for the Go/internal refactor work and record the exact validation results.
+
+**Inferred user intent:** The user wants confidence that the multi-commit refactor preserved frontend, Go, Storybook, and ticket hygiene before moving on.
+
+**Commit (code):** N/A — validation and ticket source refresh only.
+
+### What I did
+- Ran frontend validation from `cmd/web-chat/web`:
+  - `npm run typecheck`
+  - `npm test`
+  - `npm run lint`
+  - `npm run audit:unused || true`
+  - `npm run build`
+  - `npm run check:storybook`
+- Ran Go validation:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+- Regenerated the ticket inventory:
+  - `scripts/01-web-chat-inventory.py`
+- Ran ticket validation:
+  - `docmgr doctor --ticket CHATOVERLAY-011 --stale-after 30`
+- The inventory now reports 53 Go files and 9 Go packages under `cmd/web-chat`, reflecting the new internal package decomposition.
+
+### Why
+- The refactor touched backend package layout, command assembly, appserver routes, profile APIs, backend docs, and frontend docs, so both Go and frontend acceptance checks were needed.
+- Regenerating inventory keeps the ticket evidence aligned with the new internal package structure.
+
+### What worked
+- `npm run typecheck` passed.
+- `npm test` passed: 7 files, 25 tests.
+- `npm run lint` passed: Biome checked 108 files.
+- `npm run build` passed.
+- `npm run check:storybook` passed.
+- `go test ./cmd/web-chat/... -count=1` passed.
+- `docmgr doctor --ticket CHATOVERLAY-011 --stale-after 30` passed.
+- Inventory regenerated successfully:
+  - `sources/01-web-chat-inventory.md`
+  - `sources/web-chat-go-list.txt`
+  - `sources/web-chat-knip.txt`
+
+### What didn't work
+- `npm run audit:unused` exited `1`, as expected for advisory `knip` output, and reported unused exports only. It did not report unused files.
+- Known non-blocking frontend warnings appeared:
+  - Vite: `<script src="./app-config.js"> in "/index.html" can't be bundled without type="module" attribute`
+  - Storybook runtime `eval` warnings.
+  - Vite/Storybook large chunk warnings.
+
+### What I learned
+- The inventory now makes the refactor visible at a glance: old packages `cmd/web-chat/app`, `cmd/web-chat/profiles`, and `cmd/web-chat/mockruntime` are gone from `go list`, replaced by internal packages.
+- The Go file count increased because large files were split into navigable route and helper files; that is expected and desirable for this cleanup.
+
+### What was tricky to build
+- The final validation command intentionally used `npm run audit:unused || true` because `knip` uses exit code `1` when advisory unused exports remain. Treating that as non-fatal is consistent with the ticket's earlier inventory workflow.
+
+### What warrants a second pair of eyes
+- Review the remaining `knip` unused-export groups and decide whether they are public feature exports worth retaining or should be trimmed in a later frontend pass.
+- Review Storybook chunk sizes if bundle-size cleanup becomes part of a future task.
+
+### What should be done in the future
+- If the user wants, close or extend CHATOVERLAY-011 after reviewing whether any browser parity smoke scripts should be rerun through `devctl`.
+- Implement CHATOVERLAY-012 payload decoder work after this cleanup stabilizes.
+
+### Code review instructions
+- Start with the commit series from `986350b` through `82274c9` in Pinocchio.
+- Review refreshed inventory:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-011--make-pinocchio-web-chat-a-stellar-go-and-typescript-example-application/sources/01-web-chat-inventory.md`
+- Re-run acceptance with:
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web && npm run typecheck && npm test && npm run lint && npm run audit:unused || true && npm run build && npm run check:storybook`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio && go test ./cmd/web-chat/... -count=1`
+  - `cd /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm && docmgr doctor --ticket CHATOVERLAY-011 --stale-after 30`
+
+### Technical details
+- Current `go list ./cmd/web-chat/...` package set includes:
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/appserver`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/middlewaredefs`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/mockruntime`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/plugins/agentmode`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/profiles`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/runtime`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webapp`
+  - `github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webchatcmd`

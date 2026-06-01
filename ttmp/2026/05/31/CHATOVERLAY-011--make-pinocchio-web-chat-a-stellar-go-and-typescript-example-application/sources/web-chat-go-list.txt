@@ -4,9 +4,14 @@ exit: 0
 
 ## stdout
 github.com/go-go-golems/pinocchio/cmd/web-chat
-github.com/go-go-golems/pinocchio/cmd/web-chat/app
-github.com/go-go-golems/pinocchio/cmd/web-chat/mockruntime
-github.com/go-go-golems/pinocchio/cmd/web-chat/profiles
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/appserver
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/middlewaredefs
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/mockruntime
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/plugins/agentmode
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/profiles
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/runtime
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webapp
+github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webchatcmd
 
 ## stderr
 

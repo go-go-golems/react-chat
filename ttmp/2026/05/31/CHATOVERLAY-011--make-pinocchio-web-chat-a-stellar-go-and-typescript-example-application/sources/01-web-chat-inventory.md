@@ -16,7 +16,7 @@ updated: 2026-06-01
 
 # Pinocchio web-chat inventory
 
-Generated: 2026-06-01 14:28:56 UTC
+Generated: 2026-06-01 16:26:03 UTC
 
 ## Roots
 - Pinocchio: `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio`
@@ -28,8 +28,8 @@ Generated: 2026-06-01 14:28:56 UTC
 | Area | Count |
 | --- | --- |
 | TypeScript/TSX files under cmd/web-chat/web/src | 97 |
-| Go files under cmd/web-chat | 30 |
-| Go packages from go list ./cmd/web-chat/... | 4 |
+| Go files under cmd/web-chat | 53 |
+| Go packages from go list ./cmd/web-chat/... | 9 |
 | npm audit:unused script present | yes |
 | knip exit code | 1 |
 
@@ -145,46 +145,49 @@ Raw output: `sources/web-chat-go-list.txt`
 | Package |
 | --- |
 | github.com/go-go-golems/pinocchio/cmd/web-chat |
-| github.com/go-go-golems/pinocchio/cmd/web-chat/app |
-| github.com/go-go-golems/pinocchio/cmd/web-chat/mockruntime |
-| github.com/go-go-golems/pinocchio/cmd/web-chat/profiles |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/appserver |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/middlewaredefs |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/mockruntime |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/plugins/agentmode |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/profiles |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/runtime |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webapp |
+| github.com/go-go-golems/pinocchio/cmd/web-chat/internal/webchatcmd |
 
 ### Files by cmd/web-chat subdirectory
 | Directory | Files |
 | --- | --- |
-| (root) | 15 |
-| app | 7 |
-| profiles | 5 |
-| mockruntime | 3 |
+| internal | 47 |
+| (root) | 6 |
 
 ### Largest Go files
 | File | Lines |
 | --- | --- |
-| profiles/api.go | 576 |
-| app/server_test.go | 566 |
-| profiles/resolver.go | 440 |
-| app/server.go | 396 |
-| main.go | 385 |
-| runtime_composer_test.go | 352 |
-| runtime_composer.go | 350 |
+| internal/appserver/server_test.go | 566 |
+| internal/profiles/resolver.go | 440 |
+| internal/runtime/composer_test.go | 352 |
+| internal/runtime/composer.go | 350 |
 | reasoning_chat_feature_test.go | 265 |
 | main_profile_registries_test.go | 217 |
-| main_runtime_test.go | 169 |
-| app/server_export.go | 168 |
-| app/showcase_tools.go | 167 |
-| middleware_definitions.go | 159 |
-| mockruntime/engine.go | 142 |
-| agentmode_chat_feature.go | 134 |
-| profiles/types.go | 116 |
-| agentmode_chat_feature_test.go | 93 |
-| turn_persistence.go | 90 |
-| middleware_definitions_test.go | 75 |
-| canonical_runtime_resolver.go | 71 |
-| mockruntime/engine_test.go | 48 |
-| agentmode_sink.go | 43 |
-| profile_runtime_test_helpers_test.go | 19 |
-| app/runtime.go | 15 |
-| app/contracts.go | 11 |
+| internal/profiles/api_profiles.go | 205 |
+| main_runtime_test.go | 171 |
+| internal/appserver/routes_exports.go | 168 |
+| internal/middlewaredefs/registry.go | 159 |
+| internal/profiles/api_schemas.go | 157 |
+| internal/webchatcmd/run.go | 154 |
+| internal/appserver/routes_frontend_tools.go | 148 |
+| internal/mockruntime/engine.go | 142 |
+| internal/plugins/agentmode/plugin.go | 134 |
+| internal/appserver/routes_sessions.go | 129 |
+| internal/profiles/types.go | 116 |
+| internal/profiles/api_current_profile.go | 105 |
+| internal/profiles/api_models.go | 104 |
+| main.go | 98 |
+| internal/appserver/options.go | 94 |
+| internal/plugins/agentmode/plugin_test.go | 93 |
+| internal/runtime/turn_persistence.go | 90 |
+| internal/profiles/api_current_profile_test.go | 89 |
+| internal/appserver/server.go | 86 |
 
 ### CLI flags discovered in main.go
 `--addr`, `--evict-idle-seconds`, `--evict-interval-seconds`, `--idle-timeout-seconds`, `--root`, `--timeline-db`, `--timeline-dsn`, `--turns-db`, `--turns-dsn`

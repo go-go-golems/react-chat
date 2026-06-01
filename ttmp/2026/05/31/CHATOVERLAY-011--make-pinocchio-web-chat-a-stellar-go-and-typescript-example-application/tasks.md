@@ -14,7 +14,7 @@
 - [x] Implement Phase 6: rename/split app server route files, especially production frontend-tool endpoints
 - [x] Implement Phase 7: split profile API files by responsibility and review profile cookie behavior
 - [x] Implement Phase 8: add intern-facing backend/frontend README and package docs
-- [ ] Implement Phase 9: run final frontend, Go, Storybook, and browser acceptance validations
+- [x] Implement Phase 9: run final frontend, Go, Storybook, and browser acceptance validations
 - [x] Ruthless cleanup: remove debug-ui route, files, stories, styles, store, and WebSocket diagnostics app from Pinocchio web-chat
 - [x] Ruthless cleanup: remove debug-ui dependencies/imports/tests and make route mode chat-only
 - [x] Ruthless cleanup: remove Go debug API/recorder/reconcile backend and devctl debug flag plumbing
