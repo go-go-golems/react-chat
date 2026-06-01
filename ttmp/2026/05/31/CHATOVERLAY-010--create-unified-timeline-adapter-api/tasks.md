@@ -96,13 +96,13 @@ Goal: Pinocchio app-specific live and hydration mappings are registered together
 
 Goal: ensure there is only one source of truth for timeline normalization.
 
-- [ ] Remove `AgentMode`, `ChatToolCall`, and `ChatToolResult` special cases from `providerTimeline.ts`.
-- [ ] Reduce `providerTimeline.ts` to shape conversion only, or delete it if no longer needed.
+- [x] Remove `AgentMode`, `ChatToolCall`, and `ChatToolResult` special cases from `providerTimeline.ts`.
+- [x] Reduce `providerTimeline.ts` to shape conversion only, or delete it if no longer needed.
 - [x] Search for `timelineEntityFromSnapshotEntity` and ensure only adapter-backed paths remain.
 - [x] Search for `projectorRegistry` and ensure no production code remains.
 - [x] Search for `projectors:` in ChatProvider/web-chat extension config and ensure none remain.
-- [ ] Update docs/comments mentioning projectors to timeline adapters.
-- [ ] Update existing Playwright scripts if names/diagnostics changed.
+- [x] Update docs/comments mentioning projectors to timeline adapters.
+- [x] Update existing Playwright scripts if names/diagnostics changed.
 
 ## Phase 7 — Hydration parity tests and smokes
 
@@ -115,8 +115,8 @@ Goal: prove live and hydrated paths cannot drift for registered adapters.
 - [x] The smoke should select `mock_parity`, send a prompt, capture `sessionId`, reload, and assert `AgentModeCard` layout.
 - [x] The smoke should assert hydrated backend tool calls render in `[data-part="card"]` layout.
 - [x] The smoke should assert raw protobuf `@type` JSON is not visible for adapter-owned entities.
-- [ ] Add the smoke to the validation instructions in the design doc.
-- [ ] Store script evidence under `/tmp` or ticket var output without committing generated evidence.
+- [x] Add the smoke to the validation instructions in the design doc.
+- [x] Store script evidence under `/tmp` or ticket var output without committing generated evidence.
 
 ## Phase 8 — Validation and cleanup gate
 
@@ -125,12 +125,12 @@ Goal: make CHATOVERLAY-010 safe to land before CHATOVERLAY-009 legacy deletion.
 - [ ] Run chat-provider tests.
 - [x] Run Pinocchio web-chat typecheck.
 - [x] Run Pinocchio web-chat lint.
-- [ ] Run Pinocchio web-chat build.
+- [x] Run Pinocchio web-chat build.
 - [ ] Run Pinocchio Storybook build if adapter changes affect stories.
 - [ ] Run focused Go tests if mock profile tests are touched.
 - [x] Run `04-phase6-mock-profile-parity-smoke.js`.
 - [x] Run the new CHATOVERLAY-010 hydration smoke.
 - [x] Run `rg "projectors?:|projectorRegistry|createTimelineProjectorRegistry|pinocchio-projectors"` and document remaining matches.
 - [ ] Update CHATOVERLAY-009 tasks to unblock Phase 7 only after adapter API is complete.
-- [ ] Update diary and changelog with exact commands and outcomes.
-- [ ] Run `docmgr doctor --ticket CHATOVERLAY-010 --stale-after 30`.
+- [x] Update diary and changelog with exact commands and outcomes.
+- [x] Run `docmgr doctor --ticket CHATOVERLAY-010 --stale-after 30`.

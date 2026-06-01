@@ -126,9 +126,11 @@ Pinocchio web-chat moved its app-owned reasoning, agent-mode, and backend tool m
 - `npm run typecheck` passed in `packages/chat-provider`.
 - `npm run typecheck` passed in `pinocchio/cmd/web-chat/web`.
 - `npm run lint` passed in `pinocchio/cmd/web-chat/web`.
+- `npm run build` passed in `pinocchio/cmd/web-chat/web` with the known Vite non-module `app-config.js` note and large-chunk warning.
 - `node ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js` passed.
 - `node ttmp/2026/05/31/CHATOVERLAY-010--create-unified-timeline-adapter-api/scripts/01-mock-profile-hydration-smoke.js` passed and wrote `/tmp/pinocchio-chatprovider-timeline-adapter-hydration.json`.
 - `rg "TimelineProjector|projectorRegistry|projectors\\??:|createTimelineProjectorRegistry|defineTimelineProjector|coreChatProjector|pinocchioWebChatProjectors|pinocchio-projectors|timelineMutationFromUIEvent|timelineEntityFromSnapshotEntity" 2026-05-29--chatbot-overlay-glm/packages/chat-provider pinocchio/cmd/web-chat/web/src/features/web-chat -S` returned no matches.
+- `docmgr doctor --ticket CHATOVERLAY-010 --stale-after 30` passed.
 
 ### What didn't work
 - There is no existing test runner/script in `packages/chat-provider` beyond `tsc --noEmit`, so registry behavior is currently protected by typecheck plus browser smokes rather than dedicated provider unit tests.
