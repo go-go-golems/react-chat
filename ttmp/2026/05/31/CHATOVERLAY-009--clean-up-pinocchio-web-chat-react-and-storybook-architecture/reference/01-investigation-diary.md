@@ -1347,3 +1347,50 @@ The renderer now distinguishes frontend tool requests from backend tool-call ent
 
 ### Technical details
 - The mock smoke now uses `page.locator('[data-part="card"]').filter({ hasText: 'mock.search' })` so it catches this layout regression.
+
+## Step 18: Gate legacy deletion on unified timeline adapters
+
+This step captured the decision that the live-vs-hydration drift is a structural API problem, not just an `AgentMode` bug. CHATOVERLAY-009 should not delete legacy hydration code until CHATOVERLAY-010 replaces live-only projectors and hardcoded snapshot mappers with a unified timeline adapter API.
+
+The current ticket now has an explicit Phase 7 prerequisite: implement CHATOVERLAY-010 first. This keeps legacy deletion from accidentally removing the old app-specific hydration behavior before the provider-backed path has an equivalent, stricter registration mechanism.
+
+### Prompt Context
+
+**User prompt (verbatim):** "create a ticket to create timeline adapter API, and add a detailed design + implementation guide. Add a task in the current ticket to first implement this adapter API.\n\nAdd a detailed set of tasks to the timeline adapter API, so that we can properly make sure everything is registered correctly. No backwards compatibility code, we should make the API impossible to utilise in a wrong manner, and replace whatever is necessary to make it so."
+
+**Assistant interpretation:** Create a new ticket for unified timeline adapters and update this cleanup ticket so legacy deletion waits for that API.
+
+**Inferred user intent:** Prevent future live/hydration mismatches by enforcing a clean, strict adapter registration model before removing legacy code.
+
+### What I did
+- Added a Phase 7 prerequisite task pointing to CHATOVERLAY-010.
+- Updated this ticket's changelog.
+- Created CHATOVERLAY-010 with its own design guide, tasks, and diary.
+
+### Why
+- Legacy code currently contains app-specific hydration behavior that the provider path must replace properly before deletion.
+
+### What worked
+- `docmgr doctor --ticket CHATOVERLAY-009 --stale-after 30` passed.
+
+### What didn't work
+- N/A.
+
+### What I learned
+- The correct next architecture step is not another targeted hydration mapper; it is a unified adapter API that makes registration incomplete states explicit.
+
+### What was tricky to build
+- The task had to span two tickets: CHATOVERLAY-010 owns the new API work, while CHATOVERLAY-009 must be gated so Phase 7 does not run too early.
+
+### What warrants a second pair of eyes
+- Confirm that Phase 7 should remain blocked until all CHATOVERLAY-010 acceptance criteria pass, not just the initial adapter registry implementation.
+
+### What should be done in the future
+- Implement CHATOVERLAY-010 before deleting legacy Redux/WebSocket hydration code.
+
+### Code review instructions
+- In CHATOVERLAY-009, review Phase 7 tasks.
+- In CHATOVERLAY-010, review the adapter API design and task phases.
+
+### Technical details
+- No Pinocchio source changes are part of this planning step.

@@ -152,3 +152,12 @@ Fixed provider-backed backend tool calls to render with the web-chat ToolCallCar
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/scripts/04-phase6-mock-profile-parity-smoke.js — Smoke asserts backend tool card layout
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/cmd/web-chat/web/src/features/web-chat/WebChatApp/ProviderToolCallRenderer.tsx — Renderer now routes backend tools to ToolCallCard
 
+
+## 2026-05-31
+
+Added a Phase 7 prerequisite to implement CHATOVERLAY-010 unified timeline adapters before deleting legacy hydration code.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/05/31/CHATOVERLAY-009--clean-up-pinocchio-web-chat-react-and-storybook-architecture/tasks.md — Phase 7 now gates legacy deletion on CHATOVERLAY-010
+

@@ -31,6 +31,10 @@ topics:
       description: Software architecture, subsystem boundaries, and design decisions
     - slug: storybook
       description: Storybook component documentation and frontend workbench
+    - slug: chat-provider
+      description: Generic React ChatProvider runtime package and extension APIs
+    - slug: parity
+      description: Validation that provider-backed behavior matches legacy or expected behavior
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

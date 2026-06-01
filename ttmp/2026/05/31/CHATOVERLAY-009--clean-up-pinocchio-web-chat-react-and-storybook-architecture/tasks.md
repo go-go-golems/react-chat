@@ -142,6 +142,7 @@ Goal: make provider parity testable without a live LLM by selecting an explicit 
 
 Goal: remove old runtime paths so the example project is clean and opinionated.
 
+- [ ] First implement CHATOVERLAY-010 unified timeline adapter API so live projection and snapshot hydration cannot drift for app-owned timeline entities.
 - [ ] Delete `src/webchat/ChatWidget.tsx` after parity sign-off.
 - [ ] Delete `LegacyChatWidget` export from `src/webchat/index.ts`.
 - [ ] Delete legacy singleton `src/ws/wsManager.ts` if no tests or production code import it.
