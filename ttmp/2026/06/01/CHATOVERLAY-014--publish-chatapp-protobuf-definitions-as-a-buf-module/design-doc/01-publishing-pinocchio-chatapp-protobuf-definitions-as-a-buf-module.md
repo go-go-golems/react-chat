@@ -1158,29 +1158,48 @@ Two expected warnings/limitations were observed:
 
 ### BSR publication status
 
-BSR publication itself is blocked on operator authentication and/or module creation. Local checks showed:
-
-```bash
-buf registry whoami
-# Failure: Not currently logged in for buf.build.
-
-buf registry module info buf.build/go-go-golems/pinocchio-chatapp
-# Failure: a module named "buf.build/go-go-golems/pinocchio-chatapp" does not exist, use "buf registry module create" to create one
-
-buf breaking --against-registry
-# Failure: resource with name "go-go-golems/pinocchio-chatapp" was not found
-```
-
-The remaining operator commands are therefore:
+BSR publication was completed after the user logged into Buf locally. The CLI reported the active account as `wesen`, then successfully created and pushed the module.
 
 ```bash
 cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio
-buf registry login
-buf registry module create buf.build/go-go-golems/pinocchio-chatapp   --visibility public   --default-label-name main
-buf push --label main --git-metadata
+buf registry whoami
+# Logged in as wesen.
+
+buf registry module create buf.build/go-go-golems/pinocchio-chatapp \
+  --visibility public \
+  --default-label-name main
+# Created buf.build/go-go-golems/pinocchio-chatapp.
+
+buf push --label main
+# buf.build/go-go-golems/pinocchio-chatapp:3b26b3452d1446a3872293fedb3b731f
 ```
 
-After this succeeds, record the BSR commit ID in this ticket and in any frontend schema package release notes.
+The BSR commit ID is:
+
+```text
+3b26b3452d1446a3872293fedb3b731f
+```
+
+The original `buf push --label main --git-metadata` attempt failed because no branch or tag pointed at the checked-out HEAD:
+
+```text
+Failure: no tags or branches found for HEAD, d525dc66c18d17562d41770daac9557ce5157453
+```
+
+For future CI pushes, this should be fine because GitHub Actions will run from branch/tag refs. For local detached-HEAD or worktree situations, use `buf push --label main` or provide source-control metadata explicitly.
+
+After the push, registry verification succeeded:
+
+```bash
+buf registry module info buf.build/go-go-golems/pinocchio-chatapp
+# Name                                      Create Time
+# buf.build/go-go-golems/pinocchio-chatapp  2026-06-02T14:27:53Z
+
+buf breaking --against-registry
+# no output; command exited successfully
+```
+
+Record this BSR commit ID in any frontend schema package release notes that consume this initial module publication.
 
 ### Implementation deviation from original guide
 

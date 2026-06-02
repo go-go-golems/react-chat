@@ -52,3 +52,12 @@ Finalized ticket bookkeeping after implementation pass: doctor passed and update
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-014--publish-chatapp-protobuf-definitions-as-a-buf-module/reference/01-investigation-diary.md — Final implementation diary and upload evidence
 
+
+## 2026-06-02
+
+Created and pushed BSR module buf.build/go-go-golems/pinocchio-chatapp after Buf login; initial BSR commit is 3b26b3452d1446a3872293fedb3b731f. Noted that local --git-metadata push failed because no branch/tag pointed at HEAD.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-014--publish-chatapp-protobuf-definitions-as-a-buf-module/reference/01-investigation-diary.md — Records BSR creation and push evidence
+

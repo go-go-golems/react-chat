@@ -692,3 +692,143 @@ buf push --label main --git-metadata
 ```text
 OK: uploaded CHATOVERLAY 014 Buf Module Guide.pdf -> /ai/2026/06/01/CHATOVERLAY-014
 ```
+
+## Step 7: Create and push the Buf Schema Registry module
+
+After the user created/logged into a Buf account, I retried the registry phase. This time the CLI had an authenticated account and the module could be created under the `go-go-golems` organization.
+
+The initial push with Git metadata still failed because this workspace HEAD did not have a branch or tag pointing directly at it. I then pushed with an explicit `main` label and no Git metadata, which succeeded and produced the initial BSR commit ID.
+
+### Prompt Context
+
+**User prompt (verbatim):** "done."
+
+**Assistant interpretation:** The user completed the requested `buf registry login` / account setup step, so continue with BSR module creation and push.
+
+**Inferred user intent:** The user wants the previously blocked BSR publication task completed now that authentication is available.
+
+**Commit (code):** N/A — registry operation plus ticket documentation only; no Pinocchio code changed.
+
+### What I did
+
+- Verified Buf login:
+
+```bash
+cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio
+buf registry whoami
+```
+
+- Created the BSR module:
+
+```bash
+buf registry module create buf.build/go-go-golems/pinocchio-chatapp \
+  --visibility public \
+  --default-label-name main
+```
+
+- Tried the original metadata-rich push:
+
+```bash
+buf push --label main --git-metadata
+```
+
+- Retried without Git metadata when the metadata push failed:
+
+```bash
+buf push --label main
+```
+
+- Verified module info and registry breaking checks:
+
+```bash
+buf registry module info buf.build/go-go-golems/pinocchio-chatapp
+buf breaking --against-registry
+```
+
+- Updated `tasks.md` and the design guide with the BSR commit ID and the `--git-metadata` caveat.
+
+### Why
+
+- This completes the external publication step that was previously blocked on Buf authentication.
+- The BSR commit ID is needed by future generated TypeScript package work and by any release notes that pin schema provenance.
+
+### What worked
+
+- `buf registry whoami` returned:
+
+```text
+Logged in as wesen.
+```
+
+- Module creation succeeded:
+
+```text
+Created buf.build/go-go-golems/pinocchio-chatapp.
+```
+
+- Push without Git metadata succeeded:
+
+```text
+buf.build/go-go-golems/pinocchio-chatapp:3b26b3452d1446a3872293fedb3b731f
+```
+
+- Module info succeeded:
+
+```text
+Name                                      Create Time
+buf.build/go-go-golems/pinocchio-chatapp  2026-06-02T14:27:53Z
+```
+
+- `buf breaking --against-registry` produced no output and exited successfully.
+
+### What didn't work
+
+- The metadata-rich push failed:
+
+```text
+Failure: no tags or branches found for HEAD, d525dc66c18d17562d41770daac9557ce5157453
+```
+
+This happened because `--git-metadata` expects a Git branch or tag to point at the checked-out HEAD. The local workspace state did not satisfy that condition.
+
+### What I learned
+
+- The `go-go-golems` organization was accessible to the logged-in `wesen` Buf account for module creation.
+- For local worktree/detached-HEAD scenarios, `buf push --label main` is a reliable fallback.
+- CI should still be able to use Git metadata because GitHub Actions runs on branch/tag refs.
+
+### What was tricky to build
+
+- The module creation and push are separate operations. Module creation succeeded, but the first push failed for Git metadata reasons rather than registry permissions. The fix was not to recreate the module, but to rerun `buf push` with a simpler label-only command.
+
+### What warrants a second pair of eyes
+
+- Verify in the BSR UI that the module is public and has the expected documentation rendered.
+- Confirm whether the initial no-metadata commit is acceptable, or whether a future push from CI should supersede it with source-control metadata.
+
+### What should be done in the future
+
+- Add `BUF_TOKEN` to Pinocchio GitHub repository secrets so CI can push subsequent schema changes.
+- If source-control metadata is required for the initial schema commit, rerun `buf push --label main --git-metadata` from a branch/tag state that points at the intended HEAD.
+
+### Code review instructions
+
+- Confirm BSR module existence:
+
+```bash
+buf registry module info buf.build/go-go-golems/pinocchio-chatapp
+```
+
+- Confirm registry breaking check baseline:
+
+```bash
+cd /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio
+buf breaking --against-registry
+```
+
+### Technical details
+
+- BSR module: `buf.build/go-go-golems/pinocchio-chatapp`
+- Visibility requested at creation: `public`
+- Default label requested at creation: `main`
+- Initial BSR commit ID: `3b26b3452d1446a3872293fedb3b731f`

@@ -57,10 +57,10 @@
 ### Phase 6: Attempt/prepare BSR publication
 
 - [x] Check whether local Buf registry authentication is available without exposing secrets.
-- [ ] Create or verify `buf.build/go-go-golems/pinocchio-chatapp` in the BSR. Blocked: local Buf CLI is not logged in.
-- [ ] Run `buf push --label main --git-metadata`. Blocked: module does not exist and local Buf CLI is not logged in.
-- [x] Document exact operator commands for the blocked BSR creation/push step.
-- [ ] Record the BSR commit ID after an authorized operator push succeeds.
+- [x] Create or verify `buf.build/go-go-golems/pinocchio-chatapp` in the BSR.
+- [x] Run `buf push --label main` after `--git-metadata` failed because no branch/tag pointed at HEAD.
+- [x] Document exact operator commands and the `--git-metadata` caveat.
+- [x] Record the BSR commit ID: `3b26b3452d1446a3872293fedb3b731f`.
 
 ### Phase 7: Ticket bookkeeping and delivery
 
