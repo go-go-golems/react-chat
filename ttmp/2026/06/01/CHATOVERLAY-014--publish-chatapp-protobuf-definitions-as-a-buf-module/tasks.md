@@ -78,8 +78,23 @@
 - [x] Add Terraform source for a package-specific Vault policy and GitHub Actions JWT role.
 - [x] Apply the Vault policy and JWT role directly with the Vault CLI because Terraform plan could not access the S3 backend credentials locally.
 - [x] Patch Pinocchio `buf-ci.yaml` to request `id-token: write`, read the Buf token with `hashicorp/vault-action@v3`, and pass `${{ env.BUF_TOKEN }}` to `bufbuild/buf-action@v1`.
-- [x] Restrict Vault token retrieval and BSR push to `push` events on `refs/heads/main`.
+- [x] Initially restrict Vault token retrieval and BSR push to `push` events on `refs/heads/main`.
 - [x] Disable Buf label archive for now because no delete-event Vault role is configured.
 - [x] Update Pinocchio operator docs to describe the Vault-backed Buf token flow.
 - [x] Commit Pinocchio workflow/docs changes and Terraform source changes.
-- [ ] Confirm the GitHub Actions run on `main` can authenticate to Vault and push to the BSR after the commits are pushed upstream.
+- [x] Replace the initial `main`-push publishing policy with release-only proto-diff publishing.
+
+### Phase 9: Gate BSR publishing on schema-changing releases
+
+- [x] Verify `@go-go-golems/chat-provider@0.1.1` and `@go-go-golems/chat-overlay@0.1.1` are already published on npm's `next` dist-tag.
+- [x] Update Pinocchio `cmd/web-chat/web/package.json` to consume `@go-go-golems/chat-provider` from npm instead of a local file dependency.
+- [x] Validate the npm dependency switch with `npm run typecheck` and `npm run build`.
+- [x] Change Pinocchio Buf CI to trigger publishing on `release: published` instead of `main` pushes.
+- [x] Add a release-time `proto/**/*.proto` diff gate against the previous non-draft GitHub release.
+- [x] Read the Vault Buf token only when the release contains proto changes.
+- [x] Set `breaking_against_registry: true` so PR breaking checks compare against the published BSR baseline.
+- [x] Update live Vault role and Terraform source to bind the Buf token to release tag events (`refs/tags/v*`).
+- [x] Push the Pinocchio branch and confirm the replacement PR Buf run succeeds without secrets and without publishing.
+- [x] Push the Terraform source update.
+- [ ] Confirm a real release with no proto changes skips Vault and BSR push.
+- [ ] Confirm a real release with proto changes authenticates to Vault and publishes to BSR.

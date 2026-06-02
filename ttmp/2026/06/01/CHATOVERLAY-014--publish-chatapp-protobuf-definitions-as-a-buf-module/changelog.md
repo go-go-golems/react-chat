@@ -71,3 +71,13 @@ Moved Buf token delivery from GitHub Secrets to Vault OIDC: stored BUF_TOKEN at 
 - /home/manuel/code/wesen/terraform/vault/github-actions/envs/k3s/main.tf — Vault policy/role source
 - /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/.github/workflows/buf-ci.yaml — Vault-backed Buf token workflow
 
+
+## 2026-06-02
+
+Step 9: gated BSR publishing on release-time proto changes, switched PR breaking checks to BSR baseline, updated Vault role to release tags, and verified PR Buf CI passed (Pinocchio commits 08f4327, 890ec90; Terraform commit bff748f).
+
+### Related Files
+
+- /home/manuel/code/wesen/terraform/vault/github-actions/envs/k3s/main.tf — Release-tag OIDC role for BSR token access
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/.github/workflows/buf-ci.yaml — Release-only proto-diff publish gate and registry-baseline PR breaking check
+
