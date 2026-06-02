@@ -61,3 +61,13 @@ Created and pushed BSR module buf.build/go-go-golems/pinocchio-chatapp after Buf
 
 - /home/manuel/workspaces/2026-05-29/chatbot-react/2026-05-29--chatbot-overlay-glm/ttmp/2026/06/01/CHATOVERLAY-014--publish-chatapp-protobuf-definitions-as-a-buf-module/reference/01-investigation-diary.md — Records BSR creation and push evidence
 
+
+## 2026-06-02
+
+Moved Buf token delivery from GitHub Secrets to Vault OIDC: stored BUF_TOKEN at kv/ci/buf/pinocchio-chatapp, added live Vault policy/role bsr-pinocchio-chatapp-publisher, patched Pinocchio Buf CI to read from Vault (1e2b4c5), documented flow (9957c7b), and committed Terraform source (e08ef30).
+
+### Related Files
+
+- /home/manuel/code/wesen/terraform/vault/github-actions/envs/k3s/main.tf — Vault policy/role source
+- /home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/.github/workflows/buf-ci.yaml — Vault-backed Buf token workflow
+

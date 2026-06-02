@@ -12,8 +12,12 @@ DocType: design-doc
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../../code/wesen/terraform/vault/github-actions/envs/k3s/main.tf
+      Note: Terraform source for Vault policy and JWT role (commit e08ef30)
     - Path: ../../../../../../../pinocchio/.github/workflows/buf-ci.yaml
-      Note: Added Buf CI/BSR publishing workflow (commit 19fda9c)
+      Note: |-
+        Added Buf CI/BSR publishing workflow (commit 19fda9c)
+        Now reads BUF_TOKEN from Vault via GitHub Actions OIDC (commit 1e2b4c5)
     - Path: ../../../../../../../pinocchio/buf.chatapp.gen.yaml
       Note: Adjusted Go codegen output for v2 module-root semantics (commit d525dc6)
     - Path: ../../../../../../../pinocchio/buf.chatapp.web.gen.yaml
@@ -29,7 +33,9 @@ RelatedFiles:
     - Path: ../../../../../../../pinocchio/cmd/web-chat/web/src/generated/chatapp/proto/pinocchio/chatapp/widgets/v1/widget_pb.ts
       Note: New generated TypeScript schema coverage for widgets (commit d525dc6)
     - Path: ../../../../../../../pinocchio/docs/chatapp-protobuf.md
-      Note: Added operator documentation for BSR publishing and compatibility rules (commit 3c66ec9)
+      Note: |-
+        Added operator documentation for BSR publishing and compatibility rules (commit 3c66ec9)
+        Documents Vault-backed Buf token flow (commit 9957c7b)
     - Path: ../../../../../../../pinocchio/proto/pinocchio/chatapp/rpc/v1/rpc.proto
       Note: RPC and WebSocket frame schemas using protobuf Any
     - Path: ../../../../../../../pinocchio/proto/pinocchio/chatapp/v1/chat.proto
@@ -48,6 +54,7 @@ LastUpdated: 2026-06-01T20:35:00-04:00
 WhatFor: Use this when implementing BSR publishing for Pinocchio chatapp protos or when wiring chat-provider/chatapp-proto consumers to generated protobuf schemas.
 WhenToUse: Use before changing Pinocchio buf configuration, adding Buf CI, publishing the BSR module, or replacing local/generated schema copies in React chat packages.
 ---
+
 
 
 
@@ -1204,6 +1211,126 @@ Record this BSR commit ID in any frontend schema package release notes that cons
 ### Implementation deviation from original guide
 
 The v2 Buf module root changes generated descriptor source paths from `proto/pinocchio/...` to `pinocchio/...`. To avoid moving generated output directories in the repository, the generation templates now write to `pkg/chatapp/pb/proto` and `cmd/web-chat/web/src/generated/chatapp/proto`. This preserves existing import path layout while allowing Buf v2 to treat `proto` as the module root.
+
+
+## Vault-backed Buf token implementation update: 2026-06-02
+
+The Buf token delivery path was moved from GitHub repository secrets to the existing GitHub Actions OIDC + Vault pattern used elsewhere in the platform. The Buf API token remains a static BSR credential, but it is now stored in Vault and released only to the tightly bound Pinocchio `buf-ci.yaml` workflow on `main` pushes.
+
+### Runtime flow
+
+```text
+Pinocchio Buf CI push on refs/heads/main
+  -> GitHub Actions requests OIDC token
+  -> hashicorp/vault-action authenticates to Vault auth/github-actions
+  -> Vault role bsr-pinocchio-chatapp-publisher validates claims
+  -> Vault policy permits one KV read
+  -> workflow receives BUF_TOKEN in environment
+  -> bufbuild/buf-action pushes buf.build/go-go-golems/pinocchio-chatapp
+```
+
+Pull requests still run Buf build/lint/format/breaking checks, but they do not read the Buf token and do not push.
+
+### Vault secret and role
+
+The token was stored without printing its value:
+
+```bash
+vault kv put kv/ci/buf/pinocchio-chatapp token="$BUF_TOKEN"
+```
+
+Verification printed only metadata and length:
+
+```text
+Stored Buf token in Vault at kv/ci/buf/pinocchio-chatapp (token length: 64)
+current_version = 1
+```
+
+The live Vault policy is:
+
+```hcl
+path "kv/data/ci/buf/pinocchio-chatapp" {
+  capabilities = ["read"]
+}
+
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+
+path "auth/token/revoke-self" {
+  capabilities = ["update"]
+}
+```
+
+The live Vault role is `bsr-pinocchio-chatapp-publisher`, bound to:
+
+```json
+{
+  "repository_owner": "go-go-golems",
+  "repository": "go-go-golems/pinocchio",
+  "repository_id": "802670903",
+  "ref": "refs/heads/main",
+  "event_name": "push",
+  "workflow_ref": "go-go-golems/pinocchio/.github/workflows/buf-ci.yaml@refs/heads/main"
+}
+```
+
+The role TTL is 300 seconds, max TTL is 600 seconds, and `token_num_uses` is 4.
+
+### Terraform source of truth
+
+Terraform source was added in:
+
+```text
+/home/manuel/code/wesen/terraform/vault/github-actions/envs/k3s/main.tf
+```
+
+Commit:
+
+```text
+e08ef301cbf20b3671d2ee34811f56b3ca73792a Add Vault role for Pinocchio Buf publishing
+```
+
+`terraform validate` passed. `terraform plan` could not run locally because the S3 backend credentials were unavailable:
+
+```text
+Error: No valid credential sources found
+Error: failed to refresh cached credentials, no EC2 IMDS role found
+```
+
+Because of that local backend credential issue, the matching policy and role were applied directly with the Vault CLI. Terraform now records the intended source of truth and should be reconciled by an operator with backend access.
+
+### Pinocchio workflow changes
+
+Pinocchio `buf-ci.yaml` now:
+
+- grants `id-token: write` at the job level,
+- reads the Buf token from Vault only on `push` to `refs/heads/main`,
+- passes `${{ env.BUF_TOKEN }}` to `bufbuild/buf-action@v1`,
+- runs `push` only on `main` pushes,
+- disables `archive` for now.
+
+Commits:
+
+```text
+1e2b4c5e5205cb4082a7b750396faff0ed94944a Read Buf publishing token from Vault
+9957c7bfeb030942cc5f022f5a568d036f09fe5d Document Vault-backed Buf token flow
+```
+
+The Pinocchio docs now explicitly say not to store the Buf token as a GitHub repository secret unless Vault OIDC is unavailable.
+
+### Remaining validation
+
+The remaining end-to-end validation is a real GitHub Actions run on `go-go-golems/pinocchio` after the commits are pushed to `main`. That run should prove:
+
+1. GitHub can mint an OIDC token for the workflow.
+2. Vault accepts the role claims.
+3. `hashicorp/vault-action` can read the Buf token.
+4. `bufbuild/buf-action` can push the BSR module.
 
 ## Final recommendation
 

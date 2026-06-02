@@ -71,3 +71,15 @@
 - [x] Run `docmgr doctor --ticket CHATOVERLAY-014 --stale-after 30`.
 - [x] Upload the updated ticket bundle to reMarkable after implementation notes are complete.
 - [x] Commit ticket documentation updates in the overlay repo.
+
+### Phase 8: Move Buf token delivery from GitHub Secrets to Vault OIDC
+
+- [x] Store the locally supplied `BUF_TOKEN` in Vault at `kv/ci/buf/pinocchio-chatapp` without printing the token.
+- [x] Add Terraform source for a package-specific Vault policy and GitHub Actions JWT role.
+- [x] Apply the Vault policy and JWT role directly with the Vault CLI because Terraform plan could not access the S3 backend credentials locally.
+- [x] Patch Pinocchio `buf-ci.yaml` to request `id-token: write`, read the Buf token with `hashicorp/vault-action@v3`, and pass `${{ env.BUF_TOKEN }}` to `bufbuild/buf-action@v1`.
+- [x] Restrict Vault token retrieval and BSR push to `push` events on `refs/heads/main`.
+- [x] Disable Buf label archive for now because no delete-event Vault role is configured.
+- [x] Update Pinocchio operator docs to describe the Vault-backed Buf token flow.
+- [x] Commit Pinocchio workflow/docs changes and Terraform source changes.
+- [ ] Confirm the GitHub Actions run on `main` can authenticate to Vault and push to the BSR after the commits are pushed upstream.

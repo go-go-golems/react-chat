@@ -12,8 +12,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../../code/wesen/terraform/vault/github-actions/envs/k3s/main.tf
+      Note: Diary Step 8 Vault role source and live role basis (commit e08ef30)
     - Path: ../../../../../../../pinocchio/.github/workflows/buf-ci.yaml
-      Note: Diary Step 4 CI implementation (commit 19fda9c)
+      Note: |-
+        Diary Step 4 CI implementation (commit 19fda9c)
+        Diary Step 8 workflow implementation (commit 1e2b4c5)
     - Path: ../../../../../../../pinocchio/buf.chatapp.web.gen.yaml
       Note: Diary Step 5 codegen path fix (commit d525dc6)
     - Path: ../../../../../../../pinocchio/buf.yaml
@@ -30,6 +34,7 @@ LastUpdated: 2026-06-01T20:45:00-04:00
 WhatFor: Use this to understand how the CHATOVERLAY-014 design was produced and what evidence was gathered.
 WhenToUse: Read before resuming implementation of Pinocchio BSR publishing or chatapp schema packaging.
 ---
+
 
 
 # Diary
@@ -832,3 +837,161 @@ buf breaking --against-registry
 - Visibility requested at creation: `public`
 - Default label requested at creation: `main`
 - Initial BSR commit ID: `3b26b3452d1446a3872293fedb3b731f`
+
+## Step 8: Move Buf CI token delivery to Vault OIDC
+
+The user asked to replace the GitHub-secret `BUF_TOKEN` plan with the existing GitHub Actions OIDC plus Vault pattern used elsewhere in the platform. They placed the Buf token in `.envrc`, which made it available as an environment variable for this session. I stored that token in Vault without printing it, added the Vault policy/role source to Terraform, applied the live Vault policy/role with the Vault CLI, and patched Pinocchio CI to read the token from Vault only on trusted `main` pushes.
+
+This keeps the long-lived Buf token out of GitHub repository secrets. Vault becomes the admission-control layer: GitHub Actions proves its workflow identity through OIDC, and Vault releases the Buf token only when the configured claims match.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, let's do that. 
+
+I also put the BUF_TOKEN in .envrc so that you can read it and store it in the vault. 
+
+Set this up, keep a detailed diary as you wokr"
+
+**Assistant interpretation:** Implement Vault-backed Buf token delivery for Pinocchio Buf CI, using the locally available `BUF_TOKEN`, update the workflow and Vault configuration, and keep detailed ticket documentation.
+
+**Inferred user intent:** The user wants the BSR publishing token managed through existing Vault OIDC practices rather than as a GitHub Actions repository secret.
+
+**Commit (code):** `1e2b4c5e5205cb4082a7b750396faff0ed94944a` — "Read Buf publishing token from Vault"
+
+**Commit (code):** `9957c7bfeb030942cc5f022f5a568d036f09fe5d` — "Document Vault-backed Buf token flow"
+
+**Commit (code):** `e08ef301cbf20b3671d2ee34811f56b3ca73792a` — "Add Vault role for Pinocchio Buf publishing"
+
+### What I did
+
+- Confirmed `BUF_TOKEN` was available in the environment without printing its value.
+- Stored it in Vault:
+
+```bash
+vault kv put kv/ci/buf/pinocchio-chatapp token="$BUF_TOKEN"
+```
+
+- Verified the stored secret without printing the token:
+
+```bash
+vault kv get -format=json kv/ci/buf/pinocchio-chatapp | jq -r '.data.data.token | length'
+vault kv metadata get -format=json kv/ci/buf/pinocchio-chatapp | jq '{current_version:.data.current_version, created_time:.data.created_time, updated_time:.data.updated_time}'
+```
+
+- Added Terraform source in `/home/manuel/code/wesen/terraform/vault/github-actions/envs/k3s/main.tf` for:
+  - `local.bsr_publishers.pinocchio-chatapp`,
+  - `vault_policy.bsr_publish`,
+  - `vault_jwt_auth_backend_role.bsr_publish`.
+- Ran `terraform fmt main.tf` and `terraform validate` successfully.
+- Attempted `terraform plan -out=/tmp/pinocchio-bsr-vault.tfplan`, which failed due missing S3 backend credentials.
+- Applied the live Vault policy and role directly with `vault policy write` and `vault write auth/github-actions/role/...`.
+- Patched `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/.github/workflows/buf-ci.yaml` to:
+  - add job-level `id-token: write`,
+  - read `kv/data/ci/buf/pinocchio-chatapp token | BUF_TOKEN` with `hashicorp/vault-action@v3`,
+  - read the token only for `push` on `refs/heads/main`,
+  - pass `${{ env.BUF_TOKEN }}` to `bufbuild/buf-action@v1`,
+  - run Buf push only on `main` pushes,
+  - disable archive.
+- Updated `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/docs/chatapp-protobuf.md` to describe the Vault-backed flow.
+
+### Why
+
+- Buf requires an API token for registry push/archive operations.
+- Storing that token in GitHub Secrets would work, but it would bypass the platform's established Vault OIDC admission-control pattern.
+- With Vault, the token is released only to a workflow identity bound by repository, repository ID, branch ref, event, and workflow file.
+
+### What worked
+
+- Vault accepted the Buf token secret and metadata verification showed version 1.
+- The live Vault policy and role were created successfully.
+- Reading the role back showed the expected bound claims:
+
+```json
+{
+  "event_name": "push",
+  "ref": "refs/heads/main",
+  "repository": "go-go-golems/pinocchio",
+  "repository_id": "802670903",
+  "repository_owner": "go-go-golems",
+  "workflow_ref": "go-go-golems/pinocchio/.github/workflows/buf-ci.yaml@refs/heads/main"
+}
+```
+
+- `terraform validate` passed.
+- Pinocchio workflow YAML parsed successfully and was committed.
+- Pinocchio operator docs were updated and committed.
+- Terraform source was committed.
+
+### What didn't work
+
+- `terraform plan` failed because the local environment could not access the S3 backend credentials:
+
+```text
+Error: No valid credential sources found
+Please see https://developer.hashicorp.com/terraform/language/backend/s3
+for more information about providing credentials.
+Error: failed to refresh cached credentials, no EC2 IMDS role found,
+operation error ec2imds: GetMetadata, request canceled, context deadline exceeded
+```
+
+- The first direct Vault role write failed because the CLI did not parse `claim_mappings` as an inline key/value argument:
+
+```text
+Error writing data to auth/github-actions/role/bsr-pinocchio-chatapp-publisher: Error making API request.
+Code: 400. Errors:
+* error converting input for field "claim_mappings": invalid key pair "{...}"
+```
+
+- I fixed that by writing the role from a JSON file with `vault write auth/github-actions/role/bsr-pinocchio-chatapp-publisher @/tmp/bsr-role.json`.
+
+### What I learned
+
+- The established Vault OIDC pattern maps cleanly to Buf: Vault does not mint a Buf token, but it can securely store and release the static BSR token to trusted workflow runs.
+- For complex Vault JWT role fields, JSON-file input is safer than inline CLI arguments.
+- Terraform can validate locally without backend credentials, but plan/apply requires the S3 backend credential chain.
+
+### What was tricky to build
+
+- The sharp edge is that the Vault role has to match the exact workflow identity. I bound it to `go-go-golems/pinocchio`, repository ID `802670903`, `refs/heads/main`, push events, and `go-go-golems/pinocchio/.github/workflows/buf-ci.yaml@refs/heads/main`. If the workflow file or default branch changes, the Vault role must be updated.
+- Another subtle point is PR behavior. Pull requests should run Buf checks but must not receive the Buf token. The workflow therefore reads Vault and enables `push` only for `github.event_name == 'push' && github.ref == 'refs/heads/main'`.
+- Archive was disabled because delete events are a different trust shape and do not need to be solved for initial schema publishing.
+
+### What warrants a second pair of eyes
+
+- Confirm whether the Vault role should also bind `workflow_sha` or other claims if available and stable.
+- Confirm whether archive should remain disabled or receive its own delete-event Vault role.
+- Confirm whether Terraform should import/drift-check the live role after an operator with S3 backend credentials runs plan/apply.
+
+### What should be done in the future
+
+- Push the Pinocchio and Terraform commits upstream.
+- Run the Pinocchio `Buf CI` workflow on `main` and verify it authenticates to Vault and pushes to BSR.
+- Reconcile Terraform state with the direct Vault changes using an environment with S3 backend credentials.
+
+### Code review instructions
+
+- Review Pinocchio workflow:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/.github/workflows/buf-ci.yaml`
+- Review Pinocchio docs:
+  - `/home/manuel/workspaces/2026-05-29/chatbot-react/pinocchio/docs/chatapp-protobuf.md`
+- Review Terraform source:
+  - `/home/manuel/code/wesen/terraform/vault/github-actions/envs/k3s/main.tf`
+- Verify live Vault state without printing secrets:
+
+```bash
+vault read -format=json auth/github-actions/role/bsr-pinocchio-chatapp-publisher \
+  | jq '{role_type:.data.role_type, bound_audiences:.data.bound_audiences, bound_claims:.data.bound_claims, token_policies:.data.token_policies, token_ttl:.data.token_ttl, token_num_uses:.data.token_num_uses}'
+
+vault kv metadata get -format=json kv/ci/buf/pinocchio-chatapp \
+  | jq '{current_version:.data.current_version, created_time:.data.created_time, updated_time:.data.updated_time}'
+```
+
+### Technical details
+
+- Vault secret path: `kv/ci/buf/pinocchio-chatapp`
+- Vault API policy path: `kv/data/ci/buf/pinocchio-chatapp`
+- Vault policy: `gha-bsr-pinocchio-chatapp-publish`
+- Vault JWT role: `bsr-pinocchio-chatapp-publisher`
+- Pinocchio workflow commit: `1e2b4c5e5205cb4082a7b750396faff0ed94944a`
+- Pinocchio docs commit: `9957c7bfeb030942cc5f022f5a568d036f09fe5d`
+- Terraform commit: `e08ef301cbf20b3671d2ee34811f56b3ca73792a`
