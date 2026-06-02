@@ -33,6 +33,10 @@ WhenToUse: Use before moving chat-overlay frontendtools into Pinocchio.
 
 ## Executive summary
 
+## Current naming note
+
+As of the provider-safe naming cleanup, new chat-overlay/frontend tool definitions should use provider-safe names directly (`cart_add`, `checkout_confirm`, `catalog_search`) rather than dotted browser names (`cart.add`). The Pinocchio bridge still documents and supports provider-safe aliasing for legacy manifests, but package examples and validation now prefer names matching `^[a-zA-Z0-9_-]+$` before a model request is built.
+
 Frontend tools should become a first-class Pinocchio chatapp capability. The feature lets a browser advertise tools at runtime, lets a model call those tools through the normal Geppetto tool loop, routes selected calls to the browser through sessionstream, waits for the browser or human result, and returns the result to Geppetto as a normal tool result.
 
 The implementation exists today in chat-overlay under `internal/frontendtools`. It is generic enough to move into Pinocchio because it depends on `chatapp.ChatPlugin`, Geppetto `tools.ToolExecutor`, `sessionstream`, and protobuf payloads. It does not depend on ecommerce widgets except through demo tool names such as `cart.add`.
