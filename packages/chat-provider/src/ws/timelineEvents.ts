@@ -55,8 +55,14 @@ export const runStatusTimelineAdapter = defineLiveOnlyAdapter({
           return { status: (payload.status as string) || 'finished' };
         case 'ChatRunStopped':
           return { status: (payload.status as string) || 'stopped' };
-        case 'ChatRunFailed':
-          return { status: (payload.status as string) || 'failed' };
+        case 'ChatRunFailed': {
+          const messageId = asString(payload.messageId);
+          const content = asString(payload.error) || 'Chat run failed';
+          return {
+            ...(messageId ? { upsert: messageEntity(messageId, { role: 'error', content, text: content, status: payload.status || 'failed', streaming: false, final: true }) } : {}),
+            status: (payload.status as string) || 'failed',
+          };
+        }
         default:
           return null;
       }
