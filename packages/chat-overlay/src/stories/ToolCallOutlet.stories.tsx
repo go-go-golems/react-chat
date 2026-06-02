@@ -12,7 +12,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 defineToolUI({
-  name: 'catalog.search',
+  name: 'catalog_search',
   mode: 'backend',
   description: 'Render backend catalog search tool calls.',
   render: ({ input, result, status }) => {
@@ -34,7 +34,7 @@ defineToolUI({
 export const AutomaticFrontendTool: Story = {
   args: {
     toolCallId: 'tool-cart-add-1',
-    toolName: 'cart.add',
+    toolName: 'cart_add',
     status: 'success',
     input: { sku: 'retro-boot', quantity: 1 },
     result: { ok: true, cartCount: 1 },
@@ -44,7 +44,7 @@ export const AutomaticFrontendTool: Story = {
 export const BackendToolUI: Story = {
   args: {
     toolCallId: 'tool-catalog-search-1',
-    toolName: 'catalog.search',
+    toolName: 'catalog_search',
     status: 'success',
     input: { query: 'boots' },
     result: { products: [{ id: 'boot-1' }, { id: 'boot-2' }] },
@@ -54,9 +54,9 @@ export const BackendToolUI: Story = {
 export const FailedTool: Story = {
   args: {
     toolCallId: 'tool-failed-1',
-    toolName: 'cart.add',
+    toolName: 'cart_add',
     status: 'failed',
     input: { sku: '' },
-    error: 'invalid input for frontend tool cart.add: sku: Too small',
+    error: 'invalid input for frontend tool cart_add: sku: Too small',
   },
 };

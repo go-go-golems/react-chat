@@ -40,6 +40,12 @@ The root export includes:
 - widget APIs such as `defineWidget`, `useWidget`, and `WidgetOutlet`
 - timeline adapter APIs for projecting websocket events into UI state
 
+## Tool naming convention
+
+Frontend and human tool names must be provider-safe because manifests may be forwarded to model providers such as OpenAI Responses. Use only letters, numbers, underscores, and hyphens (`^[a-zA-Z0-9_-]+$`). Prefer names such as `cart_add`, `checkout_confirm`, or `catalog_search`; do not use dotted names such as `cart.add`.
+
+`defineTool`, `defineToolUI`, and `ChatToolRegistry.register` validate this convention so provider errors are caught in the browser/runtime before a model request is sent.
+
 ## Backend contract
 
 The default client creates sessions, sends messages, submits tool manifests/results, and subscribes to websocket timeline events using the configured `basePrefix` and `apiBase`.

@@ -51,6 +51,17 @@ export type BackendToolUI<TInput = Record<string, unknown>, TResult = Record<str
 
 export type ToolDefinition = FrontendTool<any, any> | HumanTool<any, any> | BackendToolUI<any, any>;
 
+export const PROVIDER_SAFE_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
+export function assertProviderSafeToolName(name: string): void {
+  if (!name.trim()) {
+    throw new Error('frontend tool requires a name');
+  }
+  if (!PROVIDER_SAFE_TOOL_NAME_PATTERN.test(name)) {
+    throw new Error(`frontend tool name "${name}" is not provider-safe; use only letters, numbers, underscores, and hyphens, for example "cart_add" instead of "cart.add"`);
+  }
+}
+
 export type FrontendToolManifestEntry = {
   name: string;
   description?: string;
@@ -71,9 +82,7 @@ export class ChatToolRegistry implements ToolRegistry {
   private manifestRevision = 0;
 
   register(tool: ToolDefinition): () => void {
-    if (!tool.name.trim()) {
-      throw new Error('frontend tool requires a name');
-    }
+    assertProviderSafeToolName(tool.name);
     const normalized = { ...tool, mode: tool.mode ?? 'frontend' } as ToolDefinition;
     this.tools.set(tool.name, normalized);
     this.manifestRevision++;
@@ -110,10 +119,12 @@ export function createToolRegistry(): ToolRegistry {
 }
 
 export function defineTool<T extends ToolDefinition>(tool: T): T {
+  assertProviderSafeToolName(tool.name);
   return tool;
 }
 
 export function defineToolUI<TInput, TResult>(toolUI: BackendToolUI<TInput, TResult>): BackendToolUI<TInput, TResult> {
+  assertProviderSafeToolName(toolUI.name);
   return toolUI;
 }
 

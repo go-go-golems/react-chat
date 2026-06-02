@@ -16,7 +16,7 @@ export { WidgetOutlet } from './widgets/WidgetOutlet';
 export { UnknownWidget } from './widgets/UnknownWidget';
 export { defineTimelineAdapter, defineLiveAndHydrateAdapter, defineLiveOnlyAdapter, defineHydrateOnlyAdapter, createTimelineAdapterRegistry, ChatTimelineAdapterRegistry } from './ws/timelineAdapterRegistry';
 export type { TimelineAdapter, TimelineAdapterRegistry, LiveProjectionContext, SnapshotProjectionContext, TimelineProjectionResult, TimelineMutation, HydrationPolicy } from './ws/timelineAdapterRegistry';
-export { defineTool, defineToolUI, createToolRegistry, ChatToolRegistry } from './tools/toolRegistry';
+export { defineTool, defineToolUI, createToolRegistry, ChatToolRegistry, assertProviderSafeToolName, PROVIDER_SAFE_TOOL_NAME_PATTERN } from './tools/toolRegistry';
 export type { FrontendTool, HumanTool, BackendToolUI, ToolRegistry, ToolExecutionMode, ToolDefinition } from './tools/toolRegistry';
 export { useTool } from './tools/useTool';
 export { useFrontendTool } from './tools/useFrontendTool';

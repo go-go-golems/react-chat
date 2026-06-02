@@ -240,12 +240,12 @@ func (e *Engine) run(ctx context.Context, sid sessionstream.SessionId, messageID
 
 func (e *Engine) shouldUseCartTool(prompt string) bool {
 	lower := strings.ToLower(prompt)
-	return strings.Contains(lower, "client tool") || strings.Contains(lower, "cart.add") || (strings.Contains(lower, "add") && strings.Contains(lower, "cart"))
+	return strings.Contains(lower, "client tool") || strings.Contains(lower, "cart_add") || (strings.Contains(lower, "add") && strings.Contains(lower, "cart"))
 }
 
 func (e *Engine) shouldUseCheckoutApprovalTool(prompt string) bool {
 	lower := strings.ToLower(prompt)
-	return strings.Contains(lower, "approve checkout") || strings.Contains(lower, "human tool") || strings.Contains(lower, "checkout.confirm")
+	return strings.Contains(lower, "approve checkout") || strings.Contains(lower, "human tool") || strings.Contains(lower, "checkout_confirm")
 }
 
 func (e *Engine) runCartTool(runCtx, publishCtx context.Context, sid sessionstream.SessionId, messageID, prompt string, pub sessionstream.EventPublisher) error {
@@ -255,7 +255,7 @@ func (e *Engine) runCartTool(runCtx, publishCtx context.Context, sid sessionstre
 	result, err := e.frontendTools.Request(runCtx, sid, pub, frontendtools.Request{
 		MessageID:  messageID,
 		ToolCallID: messageID + ":tool:cart-add",
-		ToolName:   "cart.add",
+		ToolName:   "cart_add",
 		Mode:       toolv1.ToolExecutionMode_TOOL_EXECUTION_MODE_FRONTEND_AUTO,
 		Input: map[string]any{
 			"sku":      "retro-boot",
@@ -274,11 +274,11 @@ func (e *Engine) runCartTool(runCtx, publishCtx context.Context, sid sessionstre
 		return fmt.Errorf("frontend tool %s returned %s", result.GetToolName(), result.GetStatus())
 	}
 
-	summary := "The browser ran cart.add and updated the demo cart."
+	summary := "The browser ran cart_add and updated the demo cart."
 	if result.GetResult() != nil {
 		m := result.GetResult().AsMap()
 		if cartCount, ok := m["cartCount"]; ok {
-			summary = fmt.Sprintf("The browser ran cart.add and the demo cart now contains %v item(s).", cartCount)
+			summary = fmt.Sprintf("The browser ran cart_add and the demo cart now contains %v item(s).", cartCount)
 		}
 	}
 	return e.publishAssistantText(publishCtx, sid, pub, messageID+":text:2", prompt, summary)
@@ -291,7 +291,7 @@ func (e *Engine) runCheckoutApprovalTool(runCtx, publishCtx context.Context, sid
 	result, err := e.frontendTools.Request(runCtx, sid, pub, frontendtools.Request{
 		MessageID:  messageID,
 		ToolCallID: messageID + ":tool:checkout-confirm",
-		ToolName:   "checkout.confirm",
+		ToolName:   "checkout_confirm",
 		Mode:       toolv1.ToolExecutionMode_TOOL_EXECUTION_MODE_FRONTEND_HUMAN,
 		Input: map[string]any{
 			"subtotal": "$149.99",
