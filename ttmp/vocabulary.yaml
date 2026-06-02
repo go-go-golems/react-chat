@@ -45,6 +45,8 @@ topics:
       description: npm package registry publishing and package metadata
     - slug: publishing
       description: Release and artifact publication workflows
+    - slug: buf
+      description: Buf CLI, Buf Schema Registry, and protobuf module publishing
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes

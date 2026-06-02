@@ -1,0 +1,14 @@
+version: v2
+modules:
+  - path: proto
+    name: buf.build/go-go-golems/pinocchio-chatapp
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_VERSION_SUFFIX
+    - DIRECTORY_SAME_PACKAGE
+breaking:
+  use:
+    - FILE
