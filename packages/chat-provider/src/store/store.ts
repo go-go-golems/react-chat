@@ -1,5 +1,11 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { useDispatch, useSelector } from 'react-redux';
+import { createContext } from 'react';
+import { configureStore, createSelector } from '@reduxjs/toolkit';
+import {
+  createDispatchHook,
+  createSelectorHook,
+  createStoreHook,
+  type ReactReduxContextValue,
+} from 'react-redux';
 import { timelineSlice } from './timelineSlice';
 import { overlaySlice } from './overlaySlice';
 
@@ -16,10 +22,16 @@ export type ChatStore = ReturnType<typeof createChatStore>;
 export type RootState = ReturnType<ChatStore['getState']>;
 export type AppDispatch = ChatStore['dispatch'];
 
-export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
-export const useAppSelector = useSelector.withTypes<RootState>();
+export const ChatReduxContext = createContext<ReactReduxContextValue | null>(null);
 
-export const selectTimelineEntities = (s: RootState) =>
-  s.timeline.order.map((id) => s.timeline.byId[id]);
+export const useChatDispatch = createDispatchHook(ChatReduxContext).withTypes<AppDispatch>();
+export const useChatSelector = createSelectorHook(ChatReduxContext).withTypes<RootState>();
+export const useChatStore = createStoreHook(ChatReduxContext).withTypes<ChatStore>();
+
+export const selectTimelineEntities = createSelector(
+  (s: RootState) => s.timeline.byId,
+  (s: RootState) => s.timeline.order,
+  (byId, order) => order.map((id) => byId[id]).filter(Boolean),
+);
 
 export const selectOverlay = (s: RootState) => s.overlay;

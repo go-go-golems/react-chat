@@ -35,7 +35,7 @@ The root export includes:
 - `useChatClient`
 - `useChatRuntime`
 - `createChatClient`
-- Redux helpers such as `useAppSelector`, `selectOverlay`, and `selectTimelineEntities`
+- Chat-scoped Redux helpers such as `useChatSelector`, `useChatDispatch`, `selectOverlay`, and `selectTimelineEntities`
 - tool APIs such as `defineTool`, `defineToolUI`, `useFrontendTool`, and `ToolCallOutlet`
 - widget APIs such as `defineWidget`, `useWidget`, and `WidgetOutlet`
 - timeline adapter APIs for projecting websocket events into UI state

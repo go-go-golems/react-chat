@@ -1,11 +1,11 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
 import { useChatClient } from '@go-go-golems/chat-provider';
-import { useAppSelector, selectOverlay } from '@go-go-golems/chat-provider';
+import { useChatSelector, selectOverlay } from '@go-go-golems/chat-provider';
 
 export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
   const [text, setText] = useState('');
   const client = useChatClient();
-  const { runStatus } = useAppSelector(selectOverlay);
+  const { runStatus } = useChatSelector(selectOverlay);
 
   const send = useCallback(() => {
     if (!text.trim()) return;

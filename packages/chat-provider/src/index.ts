@@ -5,7 +5,7 @@ export { useChatClient, useChatRuntime } from './core/context';
 export { defineChatExtensions, installChatExtension, installChatExtensions, normalizeChatExtensions } from './core/extensions';
 export type { ChatExtension, ChatExtensionConfig, ChatRuntimeApi } from './core/extensions';
 export { useChatExtensions } from './core/useChatExtensions';
-export { createChatStore, useAppDispatch, useAppSelector, selectTimelineEntities, selectOverlay } from './store/store';
+export { createChatStore, ChatReduxContext, useChatDispatch, useChatSelector, useChatStore, selectTimelineEntities, selectOverlay } from './store/store';
 export type { ChatStore, RootState, AppDispatch } from './store/store';
 export { timelineSlice } from './store/timelineSlice';
 export { overlaySlice } from './store/overlaySlice';
