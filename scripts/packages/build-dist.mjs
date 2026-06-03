@@ -284,6 +284,42 @@ async function removeIgnoredPublishArtifacts() {
   return ignoredFiles.length;
 }
 
+function shouldRewriteRelativeSpecifier(specifier) {
+  if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+    return false;
+  }
+  return !path.extname(specifier);
+}
+
+function rewriteRelativeSpecifier(specifier) {
+  return shouldRewriteRelativeSpecifier(specifier) ? `${specifier}.js` : specifier;
+}
+
+function rewriteEsmRelativeImports(source) {
+  return source
+    .replace(/(\b(?:import|export)\s+(?:[^'";]+?\s+from\s+)?['"])(\.{1,2}\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => {
+      return `${prefix}${rewriteRelativeSpecifier(specifier)}${suffix}`;
+    })
+    .replace(/(\bimport\s*\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => {
+      return `${prefix}${rewriteRelativeSpecifier(specifier)}${suffix}`;
+    });
+}
+
+async function rewriteDistEsmImports() {
+  const files = await walkFiles(distDir);
+  const jsFiles = files.filter((file) => file.endsWith('.js'));
+  let rewrittenCount = 0;
+  for (const file of jsFiles) {
+    const source = await readFile(file, 'utf8');
+    const rewritten = rewriteEsmRelativeImports(source);
+    if (rewritten !== source) {
+      await writeFile(file, rewritten, 'utf8');
+      rewrittenCount += 1;
+    }
+  }
+  return rewrittenCount;
+}
+
 function rewritePublishRuntimeTarget(target) {
   if (typeof target !== 'string') {
     return target;
@@ -429,10 +465,11 @@ try {
   exitCode = runTscBuild();
   if (exitCode === 0) {
     const removedIgnoredArtifacts = await removeIgnoredPublishArtifacts();
+    const rewrittenImportFiles = await rewriteDistEsmImports();
     const copiedCount = await copyAssets();
     await writePublishArtifacts();
     console.log(
-      `Removed ${removedIgnoredArtifacts} ignored publish artifact(s) and copied ${copiedCount} asset file(s) into ${
+      `Removed ${removedIgnoredArtifacts} ignored publish artifact(s), rewrote ${rewrittenImportFiles} ESM import file(s), and copied ${copiedCount} asset file(s) into ${
         path.relative(packageDir, distDir) || 'dist'
       }.`,
     );
