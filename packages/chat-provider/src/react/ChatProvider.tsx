@@ -3,7 +3,7 @@ import { Provider } from 'react-redux';
 import { createChatClient, type ChatProviderConfig } from '../core/createChatClient';
 import { ChatRuntimeContext } from '../core/context';
 import { installChatExtensions, normalizeChatExtensions } from '../core/extensions';
-import { createChatStore } from '../store/store';
+import { ChatReduxContext, createChatStore } from '../store/store';
 import { createToolRegistry } from '../tools/toolRegistry';
 import { createToolRuntime } from '../tools/toolRuntime';
 import { createTimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
@@ -50,7 +50,7 @@ export function ChatProvider({ children, config }: ChatProviderProps) {
   }, [config]);
 
   return (
-    <Provider store={runtime.store}>
+    <Provider store={runtime.store} context={ChatReduxContext}>
       <ChatRuntimeContext.Provider value={runtime.context}>
         {children}
       </ChatRuntimeContext.Provider>

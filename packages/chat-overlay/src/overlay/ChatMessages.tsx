@@ -1,10 +1,10 @@
 import type { RefObject } from 'react';
-import { useAppSelector, selectTimelineEntities } from '@go-go-golems/chat-provider';
+import { useChatSelector, selectTimelineEntities } from '@go-go-golems/chat-provider';
 import { WidgetOutlet } from '@go-go-golems/chat-provider';
 import { ToolCallOutlet } from '@go-go-golems/chat-provider';
 
 export function ChatMessages({ bottomRef }: { bottomRef?: RefObject<HTMLDivElement | null> } = {}) {
-  const entities = useAppSelector(selectTimelineEntities);
+  const entities = useChatSelector(selectTimelineEntities);
 
   // Filter to user-visible timeline entities only
   const visible = entities.filter(

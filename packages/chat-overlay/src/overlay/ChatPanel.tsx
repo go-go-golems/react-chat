@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
 import { useChatClient } from '@go-go-golems/chat-provider';
-import { useAppSelector, selectOverlay, selectTimelineEntities } from '@go-go-golems/chat-provider';
+import { useChatSelector, selectOverlay, selectTimelineEntities } from '@go-go-golems/chat-provider';
 import { ChatMessages } from './ChatMessages';
 import { ChatComposer } from './ChatComposer';
 import { useStickyScrollFollow } from './useStickyScrollFollow';
 
 export function ChatPanel() {
   const client = useChatClient();
-  const { isOpen, runStatus, wsStatus, error, sessionId } = useAppSelector(selectOverlay);
-  const entities = useAppSelector(selectTimelineEntities);
+  const { isOpen, runStatus, wsStatus, error, sessionId } = useChatSelector(selectOverlay);
+  const entities = useChatSelector(selectTimelineEntities);
   const contentVersion = useMemo(() => entities.map((entity) => `${entity.id}:${entity.kind}:${entity.props.status ?? ''}:${String(entity.props.content ?? '').length}`).join('|'), [entities]);
   const isStreaming = runStatus === 'streaming';
   const scroll = useStickyScrollFollow({
