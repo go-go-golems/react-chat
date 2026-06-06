@@ -95,7 +95,7 @@ defineWidget('ProductCarousel', ProductCarouselWidget);
 
 This is enough to render backend-produced widgets. It is not enough to let the page participate in the agent loop. A production embedded chatbot needs the page to contribute capabilities:
 
-- The page should expose local actions such as `cart.add`, `cart.remove`, `navigate.toProduct`, `checkout.open`, `selection.get`, or `document.insertText`.
+- The page should expose local actions such as `cart_add`, `cart_remove`, `navigate_to_product`, `checkout_open`, `selection_get`, or `document_insert_text`.
 - Some actions should execute automatically in the browser and return a result to the model.
 - Some actions should require user approval before execution.
 - Some actions should be purely backend tools but still render a custom frontend UI.
@@ -402,7 +402,7 @@ const ProductCarousel = defineWidget({
   render: ({ props, status, actions }) => (
     <ProductCarouselView
       products={props.products}
-      onAddToCart={(product) => actions.dispatch('cart.add', { productId: product.id })}
+      onAddToCart={(product) => actions.dispatch('cart_add', { productId: product.id })}
     />
   ),
 });
@@ -415,7 +415,7 @@ A widget renderer receives `actions` so user interactions can submit widget acti
 ```tsx
 function CartTools() {
   useFrontendTool({
-    name: 'cart.add',
+    name: 'cart_add',
     description: 'Add a purchasable product variant to the user cart.',
     parameters: z.object({
       variantId: z.string(),
@@ -423,7 +423,7 @@ function CartTools() {
     }),
     availability: ({ state }) => state.page.kind === 'product' || state.page.kind === 'catalog',
     execute: async ({ variantId, quantity }, { signal }) => {
-      await cart.add({ variantId, quantity }, { signal });
+      await cart_add({ variantId, quantity }, { signal });
       return { ok: true, cart: cart.snapshot() };
     },
     render: ({ args, status, result }) => (
@@ -450,7 +450,7 @@ A frontend tool has four jobs:
 ```tsx
 function CheckoutApprovalTool() {
   useHumanTool({
-    name: 'checkout.confirm',
+    name: 'checkout_confirm',
     description: 'Ask the user to confirm before opening checkout.',
     parameters: z.object({
       subtotal: z.string(),
@@ -480,7 +480,7 @@ A human tool has no `execute` function. The render component is the execution su
 
 ```tsx
 const CatalogSearchToolUI = defineToolUI({
-  name: 'catalog.search',
+  name: 'catalog_search',
   args: CatalogSearchArgsSchema,
   result: CatalogSearchResultSchema,
   render: ({ args, result, status }) => (
@@ -855,17 +855,17 @@ This gives the UI a single timeline with messages, tool calls, and widgets in or
 ```text
 Browser                    Server/sessionstream          Pinocchio/Geppetto          Model
    |                                |                           |                      |
-   | register cart.add              |                           |                      |
+   | register cart_add              |                           |                      |
    |------------------------------->| FrontendToolManifestCmd   |                      |
    |                                | store manifest             |                      |
    | send prompt                    |                           |                      |
    |------------------------------->| ChatOverlayStartInference  |                      |
    |                                |-------------------------->| start run             |
-   |                                |                           |--------------------->| tools include cart.add
-   |                                |                           |<---------------------| tool_call cart.add
+   |                                |                           |--------------------->| tools include cart_add
+   |                                |                           |<---------------------| tool_call cart_add
    |                                |<--------------------------| FrontendToolCallRequested
    |<-------------------------------| UI event                   | pause/wait           |
-   | validate + execute cart.add    |                           |                      |
+   | validate + execute cart_add    |                           |                      |
    | FrontendToolResultCommand      |                           |                      |
    |------------------------------->| route result to pending    |                      |
    |                                |-------------------------->| tool result           |
@@ -877,7 +877,7 @@ Browser                    Server/sessionstream          Pinocchio/Geppetto     
 ### Human approval tool
 
 ```text
-Model requests checkout.confirm
+Model requests checkout_confirm
 Backend publishes FrontendToolCallRequested(mode=HUMAN)
 Frontend renders approval card
 User clicks Continue or Cancel

@@ -55,8 +55,14 @@ export const runStatusTimelineAdapter = defineLiveOnlyAdapter({
           return { status: (payload.status as string) || 'finished' };
         case 'ChatRunStopped':
           return { status: (payload.status as string) || 'stopped' };
-        case 'ChatRunFailed':
-          return { status: (payload.status as string) || 'failed' };
+        case 'ChatRunFailed': {
+          const messageId = asString(payload.messageId);
+          const content = asString(payload.error) || 'Chat run failed';
+          return {
+            ...(messageId ? { upsert: messageEntity(messageId, { role: 'error', content, text: content, status: payload.status || 'failed', streaming: false, final: true }) } : {}),
+            status: (payload.status as string) || 'failed',
+          };
+        }
         default:
           return null;
       }
@@ -68,7 +74,15 @@ export const messageTimelineAdapter = defineLiveAndHydrateAdapter({
   name: 'chat-provider.message',
   priority: 0,
   live: {
-    accepts: (frame) => ['ChatUserMessageAccepted', 'ChatTextSegmentStarted', 'ChatTextPatch', 'ChatTextSegmentFinished'].includes(frameName(frame)),
+    accepts: (frame) => [
+      'ChatUserMessageAccepted',
+      'ChatTextSegmentStarted',
+      'ChatTextPatch',
+      'ChatTextSegmentFinished',
+      'ChatReasoningSegmentStarted',
+      'ChatReasoningPatch',
+      'ChatReasoningSegmentFinished',
+    ].includes(frameName(frame)),
     project(frame): TimelineMutation | null {
       const name = frameName(frame);
       const payload = framePayload(frame);
@@ -87,6 +101,20 @@ export const messageTimelineAdapter = defineLiveAndHydrateAdapter({
         }
         case 'ChatTextSegmentStarted':
           return { status: 'streaming' };
+        case 'ChatReasoningSegmentStarted': {
+          const messageId = payload.messageId as string;
+          if (!messageId) return null;
+          return {
+            upsert: messageEntity(messageId, definedProps({
+              role: payload.role || 'thinking',
+              content: payload.content || payload.text,
+              status: payload.status || 'streaming',
+              streaming: payload.streaming !== false,
+              parentMessageId: payload.parentMessageId || parentMessageId(messageId, ':thinking:'),
+            })),
+            status: 'streaming',
+          };
+        }
         case 'ChatTextPatch': {
           const messageId = payload.messageId as string;
           if (!messageId) return null;
@@ -101,6 +129,38 @@ export const messageTimelineAdapter = defineLiveAndHydrateAdapter({
             }),
             status: 'streaming',
           };
+        }
+        case 'ChatReasoningPatch': {
+          const messageId = payload.messageId as string;
+          if (!messageId) return null;
+          return {
+            upsert: messageEntity(messageId, {
+              role: payload.role || 'thinking',
+              contentPatch: payload.text || payload.content || '',
+              patchMode: patchModeName(payload.mode),
+              status: payload.status || 'streaming',
+              streaming: !(payload as any).final,
+              parentMessageId: payload.parentMessageId || parentMessageId(messageId, ':thinking:'),
+            }),
+            status: 'streaming',
+          };
+        }
+        case 'ChatReasoningSegmentFinished': {
+          const messageId = payload.messageId as string;
+          if (!messageId) return null;
+          const content = payload.content || payload.text;
+          const upsert = messageEntity(
+            messageId,
+            definedProps({
+              role: payload.role || 'thinking',
+              ...(content ? { content } : {}),
+              status: payload.status || 'finished',
+              streaming: false,
+              parentMessageId: payload.parentMessageId || parentMessageId(messageId, ':thinking:'),
+              ...(payload.final ? { final: payload.final } : {}),
+            }),
+          );
+          return content ? { upsert } : { upsertIfExists: upsert };
         }
         case 'ChatTextSegmentFinished': {
           const messageId = payload.messageId as string;

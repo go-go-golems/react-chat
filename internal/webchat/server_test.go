@@ -84,13 +84,13 @@ func TestFrontendToolRoundTripResumesMockRun(t *testing.T) {
 	for _, entity := range snap.Entities {
 		switch payload := entity.Payload.(type) {
 		case *toolv1.FrontendToolCallEntity:
-			if payload.GetToolName() == "cart.add" && payload.GetStatus() == "success" {
+			if payload.GetToolName() == "cart_add" && payload.GetStatus() == "success" {
 				if payload.GetResult().AsMap()["cartCount"] == float64(1) {
 					sawTool = true
 				}
 			}
 		case *chatappv1.ChatMessageEntity:
-			if payload.GetRole() == "assistant" && payload.GetContent() == "The browser ran cart.add and the demo cart now contains 1 item(s)." {
+			if payload.GetRole() == "assistant" && payload.GetContent() == "The browser ran cart_add and the demo cart now contains 1 item(s)." {
 				sawFinal = true
 			}
 		}
@@ -112,15 +112,15 @@ func TestHumanToolRoundTripResumesMockRun(t *testing.T) {
 
 	sessionID := createSession(t, server)
 	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
-		"name":        "checkout.confirm",
+		"name":        "checkout_confirm",
 		"description": "Ask for checkout approval",
 		"mode":        "human",
 		"available":   true,
 		"inputSchema": map[string]any{"type": "object"},
 	}})
 	submitPrompt(t, server, sessionID, "approve checkout")
-	waitForNamedToolCall(t, server, sessionID, "checkout.confirm", "requested")
-	postNamedToolResult(t, server, sessionID, "overlay-msg-1:tool:checkout-confirm", "checkout.confirm", map[string]any{"approved": true, "approvalCount": float64(1)})
+	waitForNamedToolCall(t, server, sessionID, "checkout_confirm", "requested")
+	postNamedToolResult(t, server, sessionID, "overlay-msg-1:tool:checkout-confirm", "checkout_confirm", map[string]any{"approved": true, "approvalCount": float64(1)})
 	waitIdle(t, server, sessionID)
 
 	snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
@@ -132,7 +132,7 @@ func TestHumanToolRoundTripResumesMockRun(t *testing.T) {
 	for _, entity := range snap.Entities {
 		switch payload := entity.Payload.(type) {
 		case *toolv1.FrontendToolCallEntity:
-			if payload.GetToolName() == "checkout.confirm" && payload.GetStatus() == "success" {
+			if payload.GetToolName() == "checkout_confirm" && payload.GetStatus() == "success" {
 				sawTool = true
 			}
 		case *chatappv1.ChatMessageEntity:
@@ -210,7 +210,7 @@ func submitPrompt(t *testing.T, server *Server, sessionID, prompt string) {
 func postToolManifest(t *testing.T, server *Server, sessionID string) {
 	t.Helper()
 	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
-		"name":        "cart.add",
+		"name":        "cart_add",
 		"description": "Add an item to the browser cart",
 		"mode":        "frontend",
 		"available":   true,
@@ -234,7 +234,7 @@ func postToolManifestWithTools(t *testing.T, server *Server, sessionID string, t
 
 func postToolResult(t *testing.T, server *Server, sessionID, toolCallID string) {
 	t.Helper()
-	postNamedToolResult(t, server, sessionID, toolCallID, "cart.add", map[string]any{"ok": true, "cartCount": float64(1)})
+	postNamedToolResult(t, server, sessionID, toolCallID, "cart_add", map[string]any{"ok": true, "cartCount": float64(1)})
 }
 
 func postNamedToolResult(t *testing.T, server *Server, sessionID, toolCallID, toolName string, result map[string]any) {
@@ -255,7 +255,7 @@ func postNamedToolResult(t *testing.T, server *Server, sessionID, toolCallID, to
 
 func waitForToolCall(t *testing.T, server *Server, sessionID string) {
 	t.Helper()
-	waitForNamedToolCall(t, server, sessionID, "cart.add", "requested")
+	waitForNamedToolCall(t, server, sessionID, "cart_add", "requested")
 }
 
 func waitForNamedToolCall(t *testing.T, server *Server, sessionID, toolName, status string) {

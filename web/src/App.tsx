@@ -45,7 +45,7 @@ function DemoTools() {
   const itemsRef = useRef<DemoCartItem[]>([]);
 
   useFrontendTool<z.infer<typeof CartAddInputSchema>, z.infer<typeof CartAddResultSchema>>({
-    name: 'cart.add',
+    name: 'cart_add',
     description: 'Add one product to the local browser demo cart.',
     parameters: CartAddInputSchema,
     resultSchema: CartAddResultSchema,
@@ -62,7 +62,7 @@ function DemoTools() {
   }, []);
 
   useHumanTool<z.infer<typeof CheckoutConfirmInputSchema>, z.infer<typeof CheckoutConfirmResultSchema>>({
-    name: 'checkout.confirm',
+    name: 'checkout_confirm',
     description: 'Ask the user to confirm before opening checkout.',
     mode: 'human',
     parameters: CheckoutConfirmInputSchema,
@@ -104,7 +104,7 @@ function DemoTools() {
         <span data-testid="demo-cart-count">{count} item{count === 1 ? '' : 's'} · {checkoutApprovals} approval{checkoutApprovals === 1 ? '' : 's'}</span>
       </div>
       <p className="text-mac-gray-2 mb-2">
-        The page registers a client-side tool named <code className="font-mono">cart.add</code>.
+        The page registers a client-side tool named <code className="font-mono">cart_add</code>.
         Ask the chat to <strong>add boots to cart</strong> to run it in the browser, or <strong>approve checkout</strong> to test a human approval tool.
       </p>
       {items.length === 0 ? (
@@ -133,7 +133,7 @@ export default function App() {
               Type a message to start a conversation. Try: "show me boots", "review my cart", "checkout", "add boots to cart", or "approve checkout".
             </p>
             <p className="text-xs text-mac-gray-3">
-              Smoke test: open the chat bubble and send <span className="font-mono">add boots to cart</span>. The backend will request browser tool <span className="font-mono">cart.add</span>, the page will execute it, and the assistant will continue after the result returns.
+              Smoke test: open the chat bubble and send <span className="font-mono">add boots to cart</span>. The backend will request browser tool <span className="font-mono">cart_add</span>, the page will execute it, and the assistant will continue after the result returns.
             </p>
           </div>
           <DemoTools />

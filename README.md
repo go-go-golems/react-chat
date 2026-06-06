@@ -28,6 +28,10 @@ export function App() {
 }
 ```
 
+## Tool naming convention
+
+Tool names are model-provider-facing identifiers. Use only letters, numbers, underscores, and hyphens (`^[a-zA-Z0-9_-]+$`) so the same names can be sent to providers such as OpenAI Responses. For example, use `cart_add`, `checkout_confirm`, or `catalog_search`; avoid dotted names such as `cart.add`.
+
 ## Backend contract
 
 The provider expects a backend exposing:
