@@ -94,4 +94,41 @@ describe('chat-provider built-in timeline adapters', () => {
     expect(snapshot?.mutation.upsert?.kind).toBe('message');
     expect(snapshot?.mutation.upsert?.id).toBe('m1');
   });
+
+  it('projects live reasoning events as thinking message rows', async () => {
+    const { messageTimelineAdapter } = await import('./timelineEvents');
+    const registry = createTimelineAdapterRegistry();
+    registry.register(messageTimelineAdapter);
+
+    const started = registry.projectLive(
+      {
+        name: 'ChatReasoningSegmentStarted',
+        payload: { messageId: 'm1:thinking:segment-1', parentMessageId: 'm1', role: 'thinking' },
+      },
+      { sessionId: 's1' },
+    );
+    const patch = registry.projectLive(
+      {
+        name: 'ChatReasoningPatch',
+        payload: { messageId: 'm1:thinking:segment-1', parentMessageId: 'm1', text: 'thinking...', role: 'thinking' },
+      },
+      { sessionId: 's1' },
+    );
+    const finished = registry.projectLive(
+      {
+        name: 'ChatReasoningSegmentFinished',
+        payload: { messageId: 'm1:thinking:segment-1', parentMessageId: 'm1', content: 'thinking done', role: 'thinking' },
+      },
+      { sessionId: 's1' },
+    );
+
+    expect(started?.adapterName).toBe('chat-provider.message');
+    expect(started?.mutation.upsert?.kind).toBe('message');
+    expect(started?.mutation.upsert?.props.role).toBe('thinking');
+    expect(patch?.mutation.upsert?.props.contentPatch).toBe('thinking...');
+    expect(patch?.mutation.upsert?.props.parentMessageId).toBe('m1');
+    expect(finished?.mutation.upsert?.props.content).toBe('thinking done');
+    expect(finished?.mutation.upsert?.props.streaming).toBe(false);
+    expect(finished?.mutation.status).toBeUndefined();
+  });
 });

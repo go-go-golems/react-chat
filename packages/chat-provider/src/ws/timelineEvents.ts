@@ -74,7 +74,15 @@ export const messageTimelineAdapter = defineLiveAndHydrateAdapter({
   name: 'chat-provider.message',
   priority: 0,
   live: {
-    accepts: (frame) => ['ChatUserMessageAccepted', 'ChatTextSegmentStarted', 'ChatTextPatch', 'ChatTextSegmentFinished'].includes(frameName(frame)),
+    accepts: (frame) => [
+      'ChatUserMessageAccepted',
+      'ChatTextSegmentStarted',
+      'ChatTextPatch',
+      'ChatTextSegmentFinished',
+      'ChatReasoningSegmentStarted',
+      'ChatReasoningPatch',
+      'ChatReasoningSegmentFinished',
+    ].includes(frameName(frame)),
     project(frame): TimelineMutation | null {
       const name = frameName(frame);
       const payload = framePayload(frame);
@@ -93,6 +101,20 @@ export const messageTimelineAdapter = defineLiveAndHydrateAdapter({
         }
         case 'ChatTextSegmentStarted':
           return { status: 'streaming' };
+        case 'ChatReasoningSegmentStarted': {
+          const messageId = payload.messageId as string;
+          if (!messageId) return null;
+          return {
+            upsert: messageEntity(messageId, definedProps({
+              role: payload.role || 'thinking',
+              content: payload.content || payload.text,
+              status: payload.status || 'streaming',
+              streaming: payload.streaming !== false,
+              parentMessageId: payload.parentMessageId || parentMessageId(messageId, ':thinking:'),
+            })),
+            status: 'streaming',
+          };
+        }
         case 'ChatTextPatch': {
           const messageId = payload.messageId as string;
           if (!messageId) return null;
@@ -107,6 +129,38 @@ export const messageTimelineAdapter = defineLiveAndHydrateAdapter({
             }),
             status: 'streaming',
           };
+        }
+        case 'ChatReasoningPatch': {
+          const messageId = payload.messageId as string;
+          if (!messageId) return null;
+          return {
+            upsert: messageEntity(messageId, {
+              role: payload.role || 'thinking',
+              contentPatch: payload.text || payload.content || '',
+              patchMode: patchModeName(payload.mode),
+              status: payload.status || 'streaming',
+              streaming: !(payload as any).final,
+              parentMessageId: payload.parentMessageId || parentMessageId(messageId, ':thinking:'),
+            }),
+            status: 'streaming',
+          };
+        }
+        case 'ChatReasoningSegmentFinished': {
+          const messageId = payload.messageId as string;
+          if (!messageId) return null;
+          const content = payload.content || payload.text;
+          const upsert = messageEntity(
+            messageId,
+            definedProps({
+              role: payload.role || 'thinking',
+              ...(content ? { content } : {}),
+              status: payload.status || 'finished',
+              streaming: false,
+              parentMessageId: payload.parentMessageId || parentMessageId(messageId, ':thinking:'),
+              ...(payload.final ? { final: payload.final } : {}),
+            }),
+          );
+          return content ? { upsert } : { upsertIfExists: upsert };
         }
         case 'ChatTextSegmentFinished': {
           const messageId = payload.messageId as string;

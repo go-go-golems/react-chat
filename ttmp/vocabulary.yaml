@@ -47,6 +47,8 @@ topics:
       description: Release and artifact publication workflows
     - slug: buf
       description: Buf CLI, Buf Schema Registry, and protobuf module publishing
+    - slug: coinvault
+      description: CoinVault / GEC RAG application and its backend/frontend chat system
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
