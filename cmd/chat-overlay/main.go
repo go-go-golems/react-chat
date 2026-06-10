@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/go-go-golems/chat-overlay/cmd/chat-overlay/cmds"
+	chatdoc "github.com/go-go-golems/chat-overlay/pkg/doc"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
@@ -29,6 +30,7 @@ func main() {
 	}
 
 	helpSystem := help.NewHelpSystem()
+	cobra.CheckErr(chatdoc.AddDocToHelpSystem(helpSystem))
 	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
 	serveCmd, err := cmds.NewServeCommand()
