@@ -22,13 +22,13 @@
 
 ### Phase 2: Run stats slice and selectors
 
-- [ ] Add `runStatsSlice` with public `ChatUsageTotals` and `ChatRunStats` selector shape.
-- [ ] Add usage parsing and `applyRunStatsEvent` for `ChatRunStarted`, `ChatTextPatch`, `ChatProviderCallMetadataUpdated`, `ChatProviderCallFinished`, and terminal run events.
-- [ ] Register `runStats` reducer in `createChatStore`.
-- [ ] Reset run stats in `ChatClient.reset()`.
-- [ ] Export `runStatsSlice`, stats types, and selectors from `@go-go-golems/chat-provider`.
-- [ ] Add provider tests for streaming token estimates, usage override, multi-call run accumulation, terminal run commit, and reset.
-- [ ] Run focused provider tests/typecheck and commit Phase 2.
+- [x] Add `runStatsSlice` with public `ChatUsageTotals` and `ChatRunStats` selector shape.
+- [x] Add usage parsing and `applyRunStatsEvent` for `ChatRunStarted`, `ChatTextPatch`, `ChatProviderCallMetadataUpdated`, `ChatProviderCallFinished`, and terminal run events.
+- [x] Register `runStats` reducer in `createChatStore`.
+- [x] Reset run stats in `ChatClient.reset()`.
+- [x] Export `runStatsSlice`, stats types, and selectors from `@go-go-golems/chat-provider`.
+- [x] Add provider tests for streaming token estimates, usage override, multi-call run accumulation, terminal run commit, and reset.
+- [x] Run focused provider tests/typecheck and commit Phase 2.
 
 ### Phase 3: Extensible ChatMessages renderers
 

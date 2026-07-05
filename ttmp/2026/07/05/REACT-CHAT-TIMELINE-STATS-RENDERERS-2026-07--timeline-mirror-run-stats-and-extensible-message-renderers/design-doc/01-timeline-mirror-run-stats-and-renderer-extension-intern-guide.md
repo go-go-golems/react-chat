@@ -18,6 +18,10 @@ RelatedFiles:
       Note: Downstream duplicated mirror that should be deleted after upstream API
     - Path: packages/chat-overlay/src/overlay/ChatMessages.tsx
       Note: Current hardcoded renderer and silent kind filter
+    - Path: packages/chat-provider/src/store/runStatsSlice.test.ts
+      Note: Phase 2 run stats regression tests (commit 87e1601)
+    - Path: packages/chat-provider/src/store/runStatsSlice.ts
+      Note: Phase 2 run stats state/selectors implementation (commit 87e1601)
     - Path: packages/chat-provider/src/store/store.ts
       Note: Store reducers/selectors to extend with run stats
     - Path: packages/chat-provider/src/store/timelineMerge.ts
@@ -30,6 +34,8 @@ RelatedFiles:
       Note: Current private timeline merge semantics to extract/reuse
     - Path: packages/chat-provider/src/store/timelineTypes.ts
       Note: Shared timeline entity/state types (commit 0c934ee)
+    - Path: packages/chat-provider/src/ws/runStatsEvents.ts
+      Note: Phase 2 provider-call UI event ingestion (commit 87e1601)
     - Path: packages/chat-provider/src/ws/timelineEvents.ts
       Note: Live event projection and run-status handling; future stats hook point
     - Path: packages/chat-provider/src/ws/wsManager.ts
@@ -40,6 +46,7 @@ LastUpdated: 2026-07-05T16:10:00-04:00
 WhatFor: Use before implementing react-chat APIs that replace duplicated launcher/inventory timeline mirrors, stats scraping, and local ChatTimeline renderers.
 WhenToUse: When changing chat-provider timeline state, websocket event projection, chat-overlay ChatMessages, or downstream wesen-os chat imports.
 ---
+
 
 
 

@@ -14,18 +14,23 @@ Owners: []
 RelatedFiles:
     - Path: packages/chat-overlay/src/overlay/ChatMessages.tsx
       Note: Investigation source for renderer extension gap
+    - Path: packages/chat-provider/src/store/runStatsSlice.ts
+      Note: Phase 2 implementation details recorded in Step 4 (commit 87e1601)
     - Path: packages/chat-provider/src/store/timelineMerge.ts
       Note: Phase 1 implementation details recorded in Step 3 (commit 0c934ee)
     - Path: packages/chat-provider/src/store/timelineMirror.ts
       Note: Phase 1 implementation details recorded in Step 3 (commit 0c934ee)
     - Path: packages/chat-provider/src/store/timelineSlice.ts
       Note: Investigation source for Tier 1 timeline semantics
+    - Path: packages/chat-provider/src/ws/runStatsEvents.ts
+      Note: Phase 2 implementation details recorded in Step 4 (commit 87e1601)
 ExternalSources: []
 Summary: Chronological diary for the Tier 1 react-chat upstreaming design.
 LastUpdated: 2026-07-05T16:10:00-04:00
 WhatFor: Resume or review the timeline mirror, run stats, and renderer extension upstreaming work.
 WhenToUse: Before implementing REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07.
 ---
+
 
 
 
@@ -228,4 +233,70 @@ The new mirror API supports immutable mutation folding, subscriptions, snapshot 
 ### Technical details
 - Successful validation:
   - `pnpm --filter @go-go-golems/chat-provider test` — 3 files, 12 tests passed.
+  - `pnpm --filter @go-go-golems/chat-provider typecheck` — passed.
+
+## Step 4: Add provider run stats state and selectors
+
+This step implemented Phase 2. `chat-provider` now has a `runStats` store slice that consumes the provider-call metadata UI events directly in the normal websocket event path. Downstream apps no longer need to scrape `parsed-frame` debug events just to compute token counts and throughput.
+
+The implementation keeps provider-call usage optional. If a backend never emits `ChatProviderCallMetadataUpdated` or `ChatProviderCallFinished`, the stats selectors stay empty instead of fabricating completed usage. Live streaming still exposes a rough output-token estimate from text patch length until real usage arrives.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Implement the run stats phase as a focused provider change after the timeline mirror commit.
+
+**Inferred user intent:** Replace downstream stats stores with a stable upstream provider selector that is fed by protocol events rather than debug scraping.
+
+**Commit (code):** `87e160124eb8d3d1f4cae3b4b6208a5cd38e9eec` — "Add chat run stats state"
+
+### What I did
+- Added `packages/chat-provider/src/store/runStatsSlice.ts` with `ChatUsageTotals`, `ChatRunStats`, public conversion helpers, reducers, and scratch state.
+- Added `packages/chat-provider/src/ws/runStatsEvents.ts` with `usageFromPayload` and `applyRunStatsEvent`.
+- Registered `runStats` in `createChatStore`.
+- Added `selectRunStats` and `selectHasRunUsage` selectors.
+- Called `applyRunStatsEvent` from `applyUIEvent` so stats update on the normal websocket path.
+- Reset stats in `ChatClient.reset()`.
+- Exported stats APIs from `packages/chat-provider/src/index.ts`.
+- Added `packages/chat-provider/src/store/runStatsSlice.test.ts`.
+
+### Why
+- Run stats are provider/session state, not debug UI state.
+- The event stream already carries provider-call usage metadata, so the provider should expose it through stable selectors.
+
+### What worked
+- Focused provider test suite passed: 4 test files, 18 tests.
+- Provider typecheck passed.
+- The stats tests cover live estimates, metadata override, multi-call accumulation, runs without usage, reset, and usage normalization.
+
+### What didn't work
+- No new failures in this phase.
+
+### What I learned
+- `applyUIEvent` is the right narrow hook point: it sees every `ui-event` after hydration buffering and before/alongside timeline projection.
+- Keeping run scratch fields inside the slice makes terminal run handling deterministic and testable.
+
+### What was tricky to build
+- The stats state has two layers: public snapshot fields and per-run scratch fields. The scratch fields must reset on `ChatRunStarted`, accumulate across multiple provider calls, and only commit to public `lastRun`/`totals` when a terminal run event arrives.
+
+### What warrants a second pair of eyes
+- Confirm whether `selectHasRunUsage` should return true while streaming, or only after real provider-call metadata appears.
+- Confirm whether the `ChatTextPatch` token estimate should use `text.length / 4` as downstream did, or be configurable.
+
+### What should be done in the future
+- Build a reusable `StatsFooter` after downstream migration or as part of the later chrome ticket.
+- Consider hydration behavior if future snapshots persist provider-call metadata.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/store/runStatsSlice.ts` for reducer semantics.
+- Review `packages/chat-provider/src/ws/runStatsEvents.ts` for event-name handling and usage parsing.
+- Confirm `applyUIEvent` still applies timeline mutations after stats updates.
+- Validate with:
+  - `pnpm --filter @go-go-golems/chat-provider test`
+  - `pnpm --filter @go-go-golems/chat-provider typecheck`
+
+### Technical details
+- Successful validation:
+  - `pnpm --filter @go-go-golems/chat-provider test` — 4 files, 18 tests passed.
   - `pnpm --filter @go-go-golems/chat-provider typecheck` — passed.

@@ -25,3 +25,14 @@ Phase 1: extracted provider-owned timeline merge semantics and added mirror API 
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/store/timelineMirror.test.ts — Reducer/mirror parity coverage
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/store/timelineMirror.ts — External timeline mirror API
 
+
+## 2026-07-05
+
+Phase 2: added provider run stats slice/selectors fed by provider-call UI events (commit 87e1601)
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/store/runStatsSlice.test.ts — Stats behavior tests
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/store/runStatsSlice.ts — Run stats reducer and public types
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/ws/runStatsEvents.ts — Stats event ingestion
+
