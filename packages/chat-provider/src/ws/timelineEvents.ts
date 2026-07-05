@@ -4,6 +4,7 @@ import type { AppDispatch } from '../store/store';
 import type { ToolRuntime } from '../tools/toolRuntime';
 import type { CanonicalFrame } from './protocol';
 import { asString } from './protocol';
+import { applyRunStatsEvent } from './runStatsEvents';
 import { messageEntity, toolCallEntity, widgetEntity } from './timelineSnapshot';
 import {
   defineHydrateOnlyAdapter,
@@ -371,6 +372,7 @@ export function applyUIEvent(
   toolRuntime?: ToolRuntime,
   adapterRegistry?: TimelineAdapterRegistry,
 ): TimelineProjectionResult | null {
+  applyRunStatsEvent(frame, dispatch);
   toolRuntime?.handleFrontendToolUIEvent(frame);
   const projection = adapterRegistry?.projectLive(frame, { sessionId, toolRuntime }) ?? null;
   if (!projection) return null;

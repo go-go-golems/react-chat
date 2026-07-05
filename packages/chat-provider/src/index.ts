@@ -5,7 +5,7 @@ export { useChatClient, useChatRuntime } from './core/context';
 export { defineChatExtensions, installChatExtension, installChatExtensions, normalizeChatExtensions } from './core/extensions';
 export type { ChatExtension, ChatExtensionConfig, ChatRuntimeApi } from './core/extensions';
 export { useChatExtensions } from './core/useChatExtensions';
-export { createChatStore, ChatReduxContext, useChatDispatch, useChatSelector, useChatStore, selectTimelineEntities, selectOverlay } from './store/store';
+export { createChatStore, ChatReduxContext, useChatDispatch, useChatSelector, useChatStore, selectTimelineEntities, selectOverlay, selectRunStats, selectHasRunUsage } from './store/store';
 export type { ChatStore, RootState, AppDispatch } from './store/store';
 export { timelineSlice } from './store/timelineSlice';
 export type { TimelineEntity, TimelineState } from './store/timelineSlice';
@@ -13,6 +13,9 @@ export { applyStreamPatch, mergePropsWithPatches, mergeTimelineEntityIntoState, 
 export { createEmptyTimelineMirror, cloneTimelineState, applyTimelineMutationToMirror, selectTimelineEntitiesFromState, selectTimelineEntityByIdFromState, createTimelineMirror } from './store/timelineMirror';
 export type { TimelineMirrorState, TimelineMirrorController } from './store/timelineMirror';
 export { overlaySlice } from './store/overlaySlice';
+export { runStatsSlice, emptyUsageTotals, addUsageTotals, estimateOutputTokens, toChatRunStats } from './store/runStatsSlice';
+export type { ChatUsageTotals, ChatRunStats, RunStatsState } from './store/runStatsSlice';
+export { applyRunStatsEvent, usageFromPayload } from './ws/runStatsEvents';
 export { defineWidget, createWidgetRegistry, ChatWidgetRegistry } from './widgets/widgetRegistry';
 export type { WidgetProps, WidgetDefinition, WidgetRegistry } from './widgets/widgetRegistry';
 export { useWidget } from './widgets/useWidget';
