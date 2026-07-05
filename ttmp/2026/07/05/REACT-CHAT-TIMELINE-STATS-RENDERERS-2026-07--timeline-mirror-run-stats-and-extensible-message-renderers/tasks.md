@@ -32,13 +32,13 @@
 
 ### Phase 3: Extensible ChatMessages renderers
 
-- [ ] Add `ChatMessagesProps`, `ChatMessageRenderMode`, `TimelineEntityRenderer`, and renderer context types.
-- [ ] Extract built-in renderers for `message`, `widget`, and `tool_call`.
-- [ ] Add collapsed raw fallback renderer for unknown timeline entity kinds.
-- [ ] Preserve existing default UI when no renderer props are supplied.
-- [ ] Add support for app-supplied per-kind renderers, `fallbackRenderer`, `visibleKinds`, `renderMode`, and custom empty state.
-- [ ] Export renderer types/default helpers from `@go-go-golems/chat-overlay`.
-- [ ] Run overlay typecheck plus full package typecheck/test and commit Phase 3.
+- [x] Add `ChatMessagesProps`, `ChatMessageRenderMode`, `TimelineEntityRenderer`, and renderer context types.
+- [x] Extract built-in renderers for `message`, `widget`, and `tool_call`.
+- [x] Add collapsed raw fallback renderer for unknown timeline entity kinds.
+- [x] Preserve existing default UI when no renderer props are supplied.
+- [x] Add support for app-supplied per-kind renderers, `fallbackRenderer`, `visibleKinds`, `renderMode`, and custom empty state.
+- [x] Export renderer types/default helpers from `@go-go-golems/chat-overlay`.
+- [x] Run overlay typecheck plus full package typecheck/test and commit Phase 3.
 
 ### Phase 4: Final validation and documentation closeout
 

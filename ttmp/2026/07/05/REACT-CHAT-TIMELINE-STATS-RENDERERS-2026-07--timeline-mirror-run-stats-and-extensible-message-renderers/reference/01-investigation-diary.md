@@ -13,7 +13,9 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: packages/chat-overlay/src/overlay/ChatMessages.tsx
-      Note: Investigation source for renderer extension gap
+      Note: |-
+        Investigation source for renderer extension gap
+        Phase 3 implementation details recorded in Step 5 (commit 42e0517)
     - Path: packages/chat-provider/src/store/runStatsSlice.ts
       Note: Phase 2 implementation details recorded in Step 4 (commit 87e1601)
     - Path: packages/chat-provider/src/store/timelineMerge.ts
@@ -30,6 +32,7 @@ LastUpdated: 2026-07-05T16:10:00-04:00
 WhatFor: Resume or review the timeline mirror, run stats, and renderer extension upstreaming work.
 WhenToUse: Before implementing REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07.
 ---
+
 
 
 
@@ -300,3 +303,69 @@ The implementation keeps provider-call usage optional. If a backend never emits 
 - Successful validation:
   - `pnpm --filter @go-go-golems/chat-provider test` — 4 files, 18 tests passed.
   - `pnpm --filter @go-go-golems/chat-provider typecheck` — passed.
+
+## Step 5: Make ChatMessages extensible and non-dropping
+
+This step implemented Phase 3. `ChatMessages` now accepts app-supplied per-kind renderers while preserving built-in rendering for `message`, `widget`, and `tool_call`. Unknown timeline kinds are no longer silently filtered out; they render through a collapsed raw fallback by default.
+
+This turns the local downstream `ChatTimeline` replacement into an upstream extension point. Apps can keep domain-specific entity renderers app-side, but the overlay owns the generic renderer map, fallback behavior, render mode, visible-kind filtering, and empty state plumbing.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Implement the renderer extension phase after provider timeline and stats foundations.
+
+**Inferred user intent:** Allow downstream apps to delete local timeline renderer forks while still supporting custom timeline entity kinds.
+
+**Commit (code):** `42e0517cf9adc0e31d065be2c790137a6843ddc2` — "Add extensible chat message renderers"
+
+### What I did
+- Reworked `packages/chat-overlay/src/overlay/ChatMessages.tsx` around `ChatMessagesProps`.
+- Added `ChatMessageRenderMode`, `TimelineEntityRendererContext`, and `TimelineEntityRenderer` types.
+- Extracted built-in default renderers for `message`, `widget`, and `tool_call`.
+- Added `RawTimelineEntityFallback` for unknown timeline entity kinds.
+- Added `renderers`, `fallbackRenderer`, `visibleKinds`, `renderMode`, and `empty` props.
+- Exported renderer helpers/types from `packages/chat-overlay/src/index.ts`.
+- Ran overlay typecheck, overlay tests, and workspace typecheck.
+
+### Why
+- The previous `ChatMessages` filtered to three hardcoded kinds and dropped every other timeline entity.
+- A reusable chat foundation must let applications render custom timeline kinds without replacing the entire message list.
+
+### What worked
+- Existing default usage remains simple: `<ChatMessages bottomRef={...} />` still works.
+- Unknown kinds now have a safe default representation.
+- Overlay typecheck passed and the package test command handled no-test-files successfully.
+
+### What didn't work
+- There are no overlay test files currently, so `pnpm --filter @go-go-golems/chat-overlay test` reports “No test files found” with exit code 0 due `--passWithNoTests`. This validates command wiring, not renderer DOM behavior.
+
+### What I learned
+- The renderer API can be added without changing `ChatPanel`; `ChatPanel` continues using default renderers.
+- Exporting renderer types from `chat-overlay` is enough for downstream apps to type their custom renderer maps.
+
+### What was tricky to build
+- The non-dropping behavior changes the default visible set from “only known kinds” to “everything unless filtered.” That is correct for debugging and safety, but it means apps that intentionally want a narrow view should pass `visibleKinds`.
+
+### What warrants a second pair of eyes
+- Confirm the wrapper `<div data-timeline-kind=...>` around each rendered entity does not disrupt existing widget/tool styling.
+- Confirm whether the raw fallback should truncate very large payloads before the first release.
+
+### What should be done in the future
+- Add React/DOM tests or Storybook stories for custom renderer and unknown fallback behavior.
+- Migrate downstream local `ChatTimeline` components to `ChatMessages` renderer maps after publish.
+
+### Code review instructions
+- Start with `packages/chat-overlay/src/overlay/ChatMessages.tsx` and check default render parity.
+- Verify unknown timeline entities render through `RawTimelineEntityFallback`.
+- Validate with:
+  - `pnpm --filter @go-go-golems/chat-overlay typecheck`
+  - `pnpm --filter @go-go-golems/chat-overlay test`
+  - `pnpm typecheck`
+
+### Technical details
+- Successful validation:
+  - `pnpm --filter @go-go-golems/chat-overlay typecheck` — passed.
+  - `pnpm --filter @go-go-golems/chat-overlay test` — no test files found, exit 0 due `--passWithNoTests`.
+  - `pnpm typecheck` — provider and overlay passed.

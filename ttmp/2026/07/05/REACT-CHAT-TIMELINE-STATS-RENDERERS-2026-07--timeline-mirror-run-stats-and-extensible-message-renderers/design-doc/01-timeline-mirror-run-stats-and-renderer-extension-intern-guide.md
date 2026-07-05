@@ -16,8 +16,12 @@ RelatedFiles:
       Note: Downstream debug-event stats scraping to replace with provider selectors
     - Path: ../../../../../../../../../../workspaces/2026-03-02/os-openai-app-server/wesen-os/apps/os-launcher/src/chat/timelineMirror.ts
       Note: Downstream duplicated mirror that should be deleted after upstream API
+    - Path: packages/chat-overlay/src/index.ts
+      Note: Phase 3 renderer type/helper exports (commit 42e0517)
     - Path: packages/chat-overlay/src/overlay/ChatMessages.tsx
-      Note: Current hardcoded renderer and silent kind filter
+      Note: |-
+        Current hardcoded renderer and silent kind filter
+        Phase 3 renderer extension and raw fallback implementation (commit 42e0517)
     - Path: packages/chat-provider/src/store/runStatsSlice.test.ts
       Note: Phase 2 run stats regression tests (commit 87e1601)
     - Path: packages/chat-provider/src/store/runStatsSlice.ts
@@ -46,6 +50,7 @@ LastUpdated: 2026-07-05T16:10:00-04:00
 WhatFor: Use before implementing react-chat APIs that replace duplicated launcher/inventory timeline mirrors, stats scraping, and local ChatTimeline renderers.
 WhenToUse: When changing chat-provider timeline state, websocket event projection, chat-overlay ChatMessages, or downstream wesen-os chat imports.
 ---
+
 
 
 

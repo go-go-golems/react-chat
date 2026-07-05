@@ -36,3 +36,13 @@ Phase 2: added provider run stats slice/selectors fed by provider-call UI events
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/store/runStatsSlice.ts — Run stats reducer and public types
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/ws/runStatsEvents.ts — Stats event ingestion
 
+
+## 2026-07-05
+
+Phase 3: made ChatMessages extensible with renderer maps and unknown-kind fallback (commit 42e0517)
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/index.ts — Renderer API exports
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/overlay/ChatMessages.tsx — Renderer extension implementation
+
