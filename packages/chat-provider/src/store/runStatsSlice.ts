@@ -12,6 +12,8 @@ export interface ChatRunStats {
   isStreaming: boolean;
   streamStartTime: number | null;
   streamOutputTokens: number;
+  model: string | null;
+  provider: string | null;
   lastRun: ChatUsageTotals | null;
   lastRunDurationMs: number | null;
   lastRunStopReason: string | null;
@@ -19,12 +21,20 @@ export interface ChatRunStats {
   completedRuns: number;
 }
 
+export type ChatProviderCallInfo = {
+  usage: ChatUsageTotals | null;
+  model: string | null;
+  provider: string | null;
+};
+
 export type RunStatsState = ChatRunStats & {
   streamChars: number;
   usageOutputSoFar: number;
   runUsage: ChatUsageTotals;
   runDurationMs: number;
   runStopReason: string | null;
+  runModel: string | null;
+  runProvider: string | null;
   runHadCalls: boolean;
 };
 
@@ -57,6 +67,8 @@ function createInitialState(): RunStatsState {
     isStreaming: false,
     streamStartTime: null,
     streamOutputTokens: 0,
+    model: null,
+    provider: null,
     lastRun: null,
     lastRunDurationMs: null,
     lastRunStopReason: null,
@@ -67,6 +79,8 @@ function createInitialState(): RunStatsState {
     runUsage: emptyUsageTotals(),
     runDurationMs: 0,
     runStopReason: null,
+    runModel: null,
+    runProvider: null,
     runHadCalls: false,
   };
 }
@@ -76,12 +90,25 @@ export function toChatRunStats(state: RunStatsState): ChatRunStats {
     isStreaming: state.isStreaming,
     streamStartTime: state.streamStartTime,
     streamOutputTokens: state.streamOutputTokens,
+    model: state.model,
+    provider: state.provider,
     lastRun: state.lastRun,
     lastRunDurationMs: state.lastRunDurationMs,
     lastRunStopReason: state.lastRunStopReason,
     totals: state.totals,
     completedRuns: state.completedRuns,
   };
+}
+
+function noteProviderCall(state: RunStatsState, info: Pick<ChatProviderCallInfo, 'model' | 'provider'>): void {
+  if (info.model) {
+    state.runModel = info.model;
+    state.model = info.model;
+  }
+  if (info.provider) {
+    state.runProvider = info.provider;
+    state.provider = info.provider;
+  }
 }
 
 export const runStatsSlice = createSlice({
@@ -94,6 +121,8 @@ export const runStatsSlice = createSlice({
       state.runUsage = emptyUsageTotals();
       state.runDurationMs = 0;
       state.runStopReason = null;
+      state.runModel = null;
+      state.runProvider = null;
       state.runHadCalls = false;
       state.isStreaming = true;
       state.streamStartTime = action.payload;
@@ -106,8 +135,12 @@ export const runStatsSlice = createSlice({
         ? state.usageOutputSoFar
         : estimateOutputTokens(state.streamChars);
     },
-    providerCallMetadataUpdated(state, action: PayloadAction<{ usage: ChatUsageTotals | null }>) {
+    providerCallStarted(state, action: PayloadAction<{ model: string | null; provider: string | null }>) {
+      noteProviderCall(state, action.payload);
+    },
+    providerCallMetadataUpdated(state, action: PayloadAction<ChatProviderCallInfo>) {
       const { usage } = action.payload;
+      noteProviderCall(state, action.payload);
       if (!usage || usage.outputTokens <= 0) return;
       state.usageOutputSoFar = usage.outputTokens;
       if (state.isStreaming) {
@@ -116,9 +149,10 @@ export const runStatsSlice = createSlice({
     },
     providerCallFinished(
       state,
-      action: PayloadAction<{ usage: ChatUsageTotals | null; durationMs: number; stopReason: string | null }>,
+      action: PayloadAction<ChatProviderCallInfo & { durationMs: number; stopReason: string | null }>,
     ) {
       const { usage, durationMs, stopReason } = action.payload;
+      noteProviderCall(state, action.payload);
       if (usage) {
         state.runUsage = addUsageTotals(state.runUsage, usage);
         state.runHadCalls = true;
@@ -140,12 +174,16 @@ export const runStatsSlice = createSlice({
         state.lastRun = finishedRun;
         state.lastRunDurationMs = state.runDurationMs;
         state.lastRunStopReason = state.runStopReason;
+        state.model = state.runModel;
+        state.provider = state.runProvider;
         state.totals = addUsageTotals(state.totals, finishedRun);
         state.completedRuns += 1;
       }
       state.runUsage = emptyUsageTotals();
       state.runDurationMs = 0;
       state.runStopReason = null;
+      state.runModel = null;
+      state.runProvider = null;
       state.runHadCalls = false;
     },
     reset() {

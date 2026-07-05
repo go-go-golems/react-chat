@@ -28,6 +28,7 @@
 - [x] Reset run stats in `ChatClient.reset()`.
 - [x] Export `runStatsSlice`, stats types, and selectors from `@go-go-golems/chat-provider`.
 - [x] Add provider tests for streaming token estimates, usage override, multi-call run accumulation, terminal run commit, and reset.
+- [x] Add model/provider fields to `ChatRunStats`, parse them from provider-call payload metadata, and test extraction.
 - [x] Run focused provider tests/typecheck and commit Phase 2.
 
 ### Phase 3: Extensible ChatMessages renderers

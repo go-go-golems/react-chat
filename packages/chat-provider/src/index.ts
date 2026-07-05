@@ -14,8 +14,8 @@ export { createEmptyTimelineMirror, cloneTimelineState, applyTimelineMutationToM
 export type { TimelineMirrorState, TimelineMirrorController } from './store/timelineMirror';
 export { overlaySlice } from './store/overlaySlice';
 export { runStatsSlice, emptyUsageTotals, addUsageTotals, estimateOutputTokens, toChatRunStats } from './store/runStatsSlice';
-export type { ChatUsageTotals, ChatRunStats, RunStatsState } from './store/runStatsSlice';
-export { applyRunStatsEvent, usageFromPayload } from './ws/runStatsEvents';
+export type { ChatUsageTotals, ChatRunStats, ChatProviderCallInfo, RunStatsState } from './store/runStatsSlice';
+export { applyRunStatsEvent, providerCallInfoFromPayload, usageFromPayload } from './ws/runStatsEvents';
 export { defineWidget, createWidgetRegistry, ChatWidgetRegistry } from './widgets/widgetRegistry';
 export type { WidgetProps, WidgetDefinition, WidgetRegistry } from './widgets/widgetRegistry';
 export { useWidget } from './widgets/useWidget';
