@@ -20,8 +20,16 @@ RelatedFiles:
       Note: Current hardcoded renderer and silent kind filter
     - Path: packages/chat-provider/src/store/store.ts
       Note: Store reducers/selectors to extend with run stats
+    - Path: packages/chat-provider/src/store/timelineMerge.ts
+      Note: Phase 1 provider-owned timeline merge helper implementation (commit 0c934ee)
+    - Path: packages/chat-provider/src/store/timelineMirror.test.ts
+      Note: Phase 1 reducer/mirror parity tests (commit 0c934ee)
+    - Path: packages/chat-provider/src/store/timelineMirror.ts
+      Note: Phase 1 external mirror/controller API implementation (commit 0c934ee)
     - Path: packages/chat-provider/src/store/timelineSlice.ts
       Note: Current private timeline merge semantics to extract/reuse
+    - Path: packages/chat-provider/src/store/timelineTypes.ts
+      Note: Shared timeline entity/state types (commit 0c934ee)
     - Path: packages/chat-provider/src/ws/timelineEvents.ts
       Note: Live event projection and run-status handling; future stats hook point
     - Path: packages/chat-provider/src/ws/wsManager.ts
@@ -32,6 +40,7 @@ LastUpdated: 2026-07-05T16:10:00-04:00
 WhatFor: Use before implementing react-chat APIs that replace duplicated launcher/inventory timeline mirrors, stats scraping, and local ChatTimeline renderers.
 WhenToUse: When changing chat-provider timeline state, websocket event projection, chat-overlay ChatMessages, or downstream wesen-os chat imports.
 ---
+
 
 
 # Timeline mirror, run stats, and renderer extension intern guide

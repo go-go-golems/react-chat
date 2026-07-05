@@ -14,6 +14,10 @@ Owners: []
 RelatedFiles:
     - Path: packages/chat-overlay/src/overlay/ChatMessages.tsx
       Note: Investigation source for renderer extension gap
+    - Path: packages/chat-provider/src/store/timelineMerge.ts
+      Note: Phase 1 implementation details recorded in Step 3 (commit 0c934ee)
+    - Path: packages/chat-provider/src/store/timelineMirror.ts
+      Note: Phase 1 implementation details recorded in Step 3 (commit 0c934ee)
     - Path: packages/chat-provider/src/store/timelineSlice.ts
       Note: Investigation source for Tier 1 timeline semantics
 ExternalSources: []
@@ -22,6 +26,7 @@ LastUpdated: 2026-07-05T16:10:00-04:00
 WhatFor: Resume or review the timeline mirror, run stats, and renderer extension upstreaming work.
 WhenToUse: Before implementing REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07.
 ---
+
 
 
 # Diary
@@ -157,3 +162,70 @@ The intent is to keep commits reviewable and avoid mixing provider state changes
 
 ### Technical details
 - Task list: `ttmp/2026/07/05/REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07--timeline-mirror-run-stats-and-extensible-message-renderers/tasks.md`.
+
+## Step 3: Implement provider-owned timeline merge and mirror API
+
+This step implemented Phase 1. The provider timeline merge semantics are now in a shared pure helper module, and both the Redux timeline slice and the new mirror API use those same semantics. This removes the need for downstream detached windows to copy provider merge logic.
+
+The new mirror API supports immutable mutation folding, subscriptions, snapshot replacement, clearing, and ordered timeline selectors. The tests compare mirror results against the Redux reducer for streaming text patches, widget prop patches, `upsertIfExists`, and deletion.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Implement the first phase of the timeline/stats/renderers ticket and commit it separately.
+
+**Inferred user intent:** Land the provider-owned timeline mirror foundation before building stats and renderer features on top.
+
+**Commit (code):** `0c934eea310f568f430d1a897b458c69b2c78ba2` — "Add timeline mirror API"
+
+### What I did
+- Added `packages/chat-provider/src/store/timelineTypes.ts` for shared `TimelineEntity` and `TimelineState` types.
+- Added `packages/chat-provider/src/store/timelineMerge.ts` for provider-owned patch and entity merge helpers.
+- Added `packages/chat-provider/src/store/timelineMirror.ts` with `createTimelineMirror`, `applyTimelineMutationToMirror`, and mirror selectors.
+- Rewrote `timelineSlice.ts` so reducers call `mergeTimelineEntityIntoState` instead of carrying private duplicate logic.
+- Exported mirror, merge, and type APIs from `packages/chat-provider/src/index.ts`.
+- Added `packages/chat-provider/src/store/timelineMirror.test.ts`.
+- Ran focused tests and typecheck.
+
+### Why
+- Detached timeline consumers need provider-owned merge semantics without copying private reducer code.
+- Timeline Debug in the later chrome/devtools ticket should depend on this API rather than another local mirror copy.
+
+### What worked
+- The reducer and mirror parity tests passed.
+- Existing provider tests continued to pass.
+- Typecheck passed after installing workspace dependencies.
+
+### What didn't work
+- Initial test command failed because dependencies were not installed:
+  - Command: `pnpm --filter @go-go-golems/chat-provider test`
+  - Error: `sh: 1: vitest: not found` and `Local package.json exists, but node_modules missing, did you mean to install?`
+- Fix: ran `pnpm install`, which restored workspace `node_modules`, then reran tests/typecheck successfully.
+
+### What I learned
+- The existing timeline merge helpers were small enough to extract without changing reducer behavior.
+- Testing mirror vs reducer directly is an effective guard against drift.
+
+### What was tricky to build
+- The widget props patch semantics are subtle: `propsPatch` updates nested `entity.props.props`, and `patchPaths` can append array fields instead of replacing them. The parity test explicitly covers this because it is the kind of behavior downstream mirrors are likely to get wrong.
+
+### What warrants a second pair of eyes
+- Confirm whether exporting `mergePropsWithPatches` and `mergeTimelineEntityIntoState` is acceptable API surface, or whether only the mirror-level functions should remain public.
+- Review whether `cloneTimelineState` should deep-clone only one `props` level, as implemented, or recursively clone for stronger isolation.
+
+### What should be done in the future
+- Build Timeline Debug on `createTimelineMirror` instead of copying merge logic.
+- Consider documenting public/private stability levels for merge helper exports before npm publish.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/store/timelineMerge.ts` and compare behavior to the removed helper code in `timelineSlice.ts`.
+- Then review `packages/chat-provider/src/store/timelineMirror.ts` for immutable snapshot behavior and subscription semantics.
+- Validate with:
+  - `pnpm --filter @go-go-golems/chat-provider test`
+  - `pnpm --filter @go-go-golems/chat-provider typecheck`
+
+### Technical details
+- Successful validation:
+  - `pnpm --filter @go-go-golems/chat-provider test` — 3 files, 12 tests passed.
+  - `pnpm --filter @go-go-golems/chat-provider typecheck` — passed.

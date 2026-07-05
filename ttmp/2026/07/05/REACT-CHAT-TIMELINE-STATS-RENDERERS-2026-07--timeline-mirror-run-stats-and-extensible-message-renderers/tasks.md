@@ -11,14 +11,14 @@
 
 ### Phase 1: Provider-owned timeline merge and mirror API
 
-- [ ] Extract `TimelineEntity` / `TimelineState` into reusable provider store types without breaking existing imports from `timelineSlice.ts`.
-- [ ] Move `applyStreamPatch`, `mergePropsWithPatches`, and `mergeTimelineEntity` semantics into a pure merge helper module.
-- [ ] Update `timelineSlice` reducers to call the pure helper module.
-- [ ] Add `applyTimelineMutationToTimelineState` for provider-owned mutation folding.
-- [ ] Add `createEmptyTimelineMirror`, `applyTimelineMutationToMirror`, `createTimelineMirror`, and mirror selectors.
-- [ ] Export the mirror/types API from `@go-go-golems/chat-provider`.
-- [ ] Add provider tests proving mirror and Redux reducer produce equivalent timeline state for append/replace patches, widget prop patches, `upsertIfExists`, and delete.
-- [ ] Run focused provider tests/typecheck and commit Phase 1.
+- [x] Extract `TimelineEntity` / `TimelineState` into reusable provider store types without breaking existing imports from `timelineSlice.ts`.
+- [x] Move `applyStreamPatch`, `mergePropsWithPatches`, and `mergeTimelineEntity` semantics into a pure merge helper module.
+- [x] Update `timelineSlice` reducers to call the pure helper module.
+- [x] Add `applyTimelineMutationToTimelineState` for provider-owned mutation folding.
+- [x] Add `createEmptyTimelineMirror`, `applyTimelineMutationToMirror`, `createTimelineMirror`, and mirror selectors.
+- [x] Export the mirror/types API from `@go-go-golems/chat-provider`.
+- [x] Add provider tests proving mirror and Redux reducer produce equivalent timeline state for append/replace patches, widget prop patches, `upsertIfExists`, and delete.
+- [x] Run focused provider tests/typecheck and commit Phase 1.
 
 ### Phase 2: Run stats slice and selectors
 
