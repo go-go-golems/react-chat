@@ -38,6 +38,9 @@ export const selectTimelineEntities = createSelector(
 
 export const selectOverlay = (s: RootState) => s.overlay;
 
-export const selectRunStats = (s: RootState) => toChatRunStats(s.runStats);
+export const selectRunStats = createSelector(
+  (s: RootState) => s.runStats,
+  (runStats) => toChatRunStats(runStats),
+);
 
 export const selectHasRunUsage = (s: RootState) => s.runStats.completedRuns > 0 || s.runStats.isStreaming;
