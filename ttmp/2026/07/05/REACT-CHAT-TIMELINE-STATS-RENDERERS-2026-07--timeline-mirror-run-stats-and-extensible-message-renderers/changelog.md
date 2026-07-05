@@ -46,3 +46,13 @@ Phase 3: made ChatMessages extensible with renderer maps and unknown-kind fallba
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/index.ts — Renderer API exports
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/overlay/ChatMessages.tsx — Renderer extension implementation
 
+
+## 2026-07-05
+
+Closeout: validated Tier 1 implementation, aligned guide with implemented API, and refreshed reMarkable bundle
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/ttmp/2026/07/05/REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07--timeline-mirror-run-stats-and-extensible-message-renderers/design-doc/01-timeline-mirror-run-stats-and-renderer-extension-intern-guide.md — Guide aligned with implemented selector API
+- /home/manuel/code/wesen/go-go-golems/react-chat/ttmp/2026/07/05/REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07--timeline-mirror-run-stats-and-extensible-message-renderers/reference/01-investigation-diary.md — Final validation and upload notes
+

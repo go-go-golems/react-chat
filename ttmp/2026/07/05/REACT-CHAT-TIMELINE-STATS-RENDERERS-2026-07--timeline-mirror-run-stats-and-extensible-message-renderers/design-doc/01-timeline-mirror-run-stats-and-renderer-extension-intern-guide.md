@@ -263,13 +263,14 @@ export interface ChatRunStats {
 }
 ```
 
-Selectors:
+Selectors implemented in this pass:
 
 ```ts
 selectRunStats(state): ChatRunStats
-selectRunStatsSummary(state): string
 selectHasRunUsage(state): boolean
 ```
+
+A formatted `selectRunStatsSummary` helper is intentionally deferred to the later chrome/footer work so the provider exports facts rather than one UI-specific string format.
 
 Actions/reducers:
 
@@ -298,7 +299,7 @@ export function applyRunStatsEvent(frame: CanonicalFrame, dispatch: AppDispatch,
     case 'ChatProviderCallFinished': dispatch(runStatsSlice.actions.providerCallFinished({ usage, durationMs, stopReason })); break
     case 'ChatRunFinished':
     case 'ChatRunStopped':
-    case 'ChatRunFailed': dispatch(runStatsSlice.actions.runFinished({ status: frame.name })); break
+    case 'ChatRunFailed': dispatch(runStatsSlice.actions.runFinished()); break
   }
 }
 ```

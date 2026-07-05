@@ -7,7 +7,7 @@
 - [x] Create ticket, design guide, and investigation diary.
 - [x] Relate current provider/overlay/downstream evidence files.
 - [x] Add detailed phase/task breakdown before implementation.
-- [ ] Record each implementation phase in the diary with commands, failures, and commit hashes.
+- [x] Record each implementation phase in the diary with commands, failures, and commit hashes.
 
 ### Phase 1: Provider-owned timeline merge and mirror API
 
@@ -42,11 +42,11 @@
 
 ### Phase 4: Final validation and documentation closeout
 
-- [ ] Run repository-level tests/typecheck for the implemented scope.
-- [ ] Update design guide if implementation differs from the proposed API.
-- [ ] Check off completed tasks and update changelog with commit hashes.
-- [ ] Run `docmgr doctor` for the ticket.
-- [ ] Upload updated bundle to reMarkable.
+- [x] Run repository-level tests/typecheck for the implemented scope.
+- [x] Update design guide if implementation differs from the proposed API.
+- [x] Check off completed tasks and update changelog with commit hashes.
+- [x] Run `docmgr doctor` for the ticket.
+- [x] Upload updated bundle to reMarkable.
 
 ## Deferred / explicitly out of scope
 

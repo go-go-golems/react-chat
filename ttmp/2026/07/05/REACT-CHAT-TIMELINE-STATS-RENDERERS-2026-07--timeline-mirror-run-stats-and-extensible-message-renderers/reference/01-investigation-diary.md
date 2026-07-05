@@ -369,3 +369,72 @@ This turns the local downstream `ChatTimeline` replacement into an upstream exte
   - `pnpm --filter @go-go-golems/chat-overlay typecheck` — passed.
   - `pnpm --filter @go-go-golems/chat-overlay test` — no test files found, exit 0 due `--passWithNoTests`.
   - `pnpm typecheck` — provider and overlay passed.
+
+## Step 6: Final validation, doc closeout, and reMarkable refresh
+
+This step closed out the implemented Tier 1 scope. I ran repository-level validation, aligned the design guide with the exact implemented selector API, checked off completed tasks, ran docmgr doctor, and refreshed the reMarkable bundle.
+
+The implementation now has three focused code commits plus diary commits. The only remaining work in this ticket is downstream migration/publish work that was explicitly deferred.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 2)
+
+**Assistant interpretation:** Finish the current implementation pass with validation, documentation bookkeeping, and upload.
+
+**Inferred user intent:** Leave the ticket in a reviewable state with code, docs, validation evidence, and reMarkable copy synchronized.
+
+**Commit (code):** N/A — validation/documentation closeout after code commits `0c934ee`, `87e1601`, and `42e0517`.
+
+### What I did
+- Ran repository-level tests: `pnpm test`.
+- Ran repository-level typecheck: `pnpm typecheck`.
+- Ran `docmgr --root /home/manuel/code/wesen/go-go-golems/react-chat/ttmp doctor --ticket REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07 --stale-after 30`.
+- Updated the design guide to reflect the implemented selector set: `selectRunStats` and `selectHasRunUsage`; a formatted summary selector is deferred to chrome/footer work.
+- Uploaded the updated bundle to reMarkable with `--force` because the original ticket bundle already existed.
+- Checked off completed task-list items.
+
+### Why
+- The code and docs had diverged slightly around the proposed `selectRunStatsSummary`; the guide now matches implementation.
+- ReMarkable needed to be refreshed after implementation diary updates.
+
+### What worked
+- `pnpm test` passed: 4 test files, 18 tests.
+- `pnpm typecheck` passed for provider and overlay packages.
+- `docmgr doctor` passed.
+- reMarkable upload succeeded after using `--force`.
+
+### What didn't work
+- The first non-dry-run upload skipped because the bundle already existed:
+  - `SKIP: REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07 - Tier 1 upstreaming already exists in /ai/2026/07/05/REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07 (use --force to overwrite)`
+- Fix: reran `remarquee upload bundle --force ...`.
+
+### What I learned
+- The final docs upload path already existed from the design-only pass, so implementation refreshes need `--force`.
+- The repository-level test command currently exercises provider tests; overlay has no test files yet.
+
+### What was tricky to build
+- The closeout needed to preserve the distinction between completed upstream implementation and deferred downstream migration. I left publish/migration, Storybook examples, and chrome/devtools work unchecked under the deferred section.
+
+### What warrants a second pair of eyes
+- Review the exported API surface before npm publish, especially whether merge helper exports should be considered stable public API.
+- Review `RawTimelineEntityFallback` for payload size/privacy behavior before downstream apps enable it broadly.
+
+### What should be done in the future
+- Add DOM/Storybook coverage for `ChatMessages` custom renderers and fallback rendering.
+- Implement the chrome/devtools ticket on top of the new mirror API.
+- Publish package versions and migrate downstream `wesen-os` local copies.
+
+### Code review instructions
+- Review code commits in this order:
+  1. `0c934ee` — timeline merge/mirror API.
+  2. `87e1601` — run stats state/selectors.
+  3. `42e0517` — extensible `ChatMessages` renderers.
+- Validate with:
+  - `pnpm test`
+  - `pnpm typecheck`
+  - `docmgr --root /home/manuel/code/wesen/go-go-golems/react-chat/ttmp doctor --ticket REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07 --stale-after 30`
+
+### Technical details
+- reMarkable path: `/ai/2026/07/05/REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07`.
+- Bundle: `REACT-CHAT-TIMELINE-STATS-RENDERERS-2026-07 - Tier 1 upstreaming`.
