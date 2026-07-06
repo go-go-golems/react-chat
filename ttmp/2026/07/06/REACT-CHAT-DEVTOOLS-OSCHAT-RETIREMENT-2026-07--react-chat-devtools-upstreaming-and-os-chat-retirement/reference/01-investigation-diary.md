@@ -406,3 +406,63 @@ The publish ran through the repository's trusted GitHub Actions workflow rather 
   - `@go-go-golems/chat-provider@0.4.0`
   - `@go-go-golems/chat-overlay@0.4.0`
 - Workflow URL: `https://github.com/go-go-golems/react-chat/actions/runs/28826410685`.
+
+
+## Step 6: Fix provider root debug export for publish artifacts
+
+This step fixed a publish-artifact issue found during downstream launcher validation. TypeScript accepted the provider root export `./debug`, but the dist rewrite produced `./debug.js` even though the emitted file is `debug/index.js`. Vite then failed to build downstream apps from the published package.
+
+The fix changes the provider root source export to `./debug/index` and bumps both packages to `0.4.1` so overlay and provider versions stay aligned for npm consumers.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementation, record failures immediately, and commit the packaging fix as its own reviewable step.
+
+**Inferred user intent:** Keep the migration reproducible from published packages and avoid hidden local-link success.
+
+**Commit (code):** pending at diary-write time — "Fix provider debug export package path"
+
+### What I did
+- Changed provider root exports from `./debug` to `./debug/index` in `packages/chat-provider/src/index.ts`.
+- Bumped `@go-go-golems/chat-provider` and `@go-go-golems/chat-overlay` to `0.4.1`.
+- Ran:
+  - `pnpm install --lockfile-only`
+  - `pnpm test`
+  - `pnpm typecheck`
+  - `npm run build:publish`
+  - `npm run pack:smoke`
+- Confirmed `packages/chat-provider/dist/index.js` now imports `./debug/index.js`.
+
+### Why
+- Downstream `vite build` failed with the published `0.4.0` provider because `index.js` referenced a non-existent `./debug.js`.
+- Overlay depends on the provider package, so publishing both as `0.4.1` keeps dependency versions aligned.
+
+### What worked
+- The publish artifact now contains the correct provider root debug re-export path.
+- Full tests, typecheck, publish build, and pack smoke passed.
+
+### What didn't work
+- Downstream launcher build exposed the bug with this exact error:
+  - `Could not resolve "./debug.js" from "../../node_modules/@go-go-golems/chat-provider/index.js"`
+
+### What I learned
+- The build-dist import rewriter handles file paths reliably, but directory barrel exports should be written explicitly as `./debug/index` when the emitted artifact is an index file under a directory.
+
+### What was tricky to build
+- This was not visible in source typechecking because TypeScript module resolution accepts directory index exports. It only failed after npm-package dist rewriting and Vite bundling from `node_modules`.
+
+### What warrants a second pair of eyes
+- Other directory barrel exports in future package changes should be checked against emitted dist import paths.
+
+### What should be done in the future
+- Publish `0.4.1` and update downstream lockfiles to resolve the fixed provider/overlay pair.
+
+### Code review instructions
+- Inspect `packages/chat-provider/src/index.ts` and the generated dist path from `npm run build:publish`.
+- Validate with `npm run pack:smoke`.
+
+### Technical details
+- Bad published path: `./debug.js`.
+- Fixed emitted path: `./debug/index.js`.

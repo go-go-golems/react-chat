@@ -54,3 +54,14 @@ Step 5: Published chat-provider and chat-overlay 0.4.0 to npm via workflow run 2
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/package.json — Published overlay 0.4.0
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/package.json — Published provider 0.4.0
 
+
+## 2026-07-06
+
+Step 6: Fixed provider root debug re-export path and prepared 0.4.1 packages after downstream build exposed ./debug.js resolution failure.
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/package.json — Overlay 0.4.1
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/package.json — Provider 0.4.1
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/index.ts — Root debug export path fix
+
