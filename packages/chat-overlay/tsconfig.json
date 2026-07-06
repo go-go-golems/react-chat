@@ -4,6 +4,6 @@
     "composite": true,
     "rootDir": "src"
   },
-  "include": ["src/overlay", "src/index.ts", "src/theme"],
+  "include": ["src/overlay", "src/devtools", "src/index.ts", "src/theme"],
   "exclude": ["src/stories"]
 }

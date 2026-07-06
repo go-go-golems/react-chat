@@ -6,3 +6,5 @@ export { ChatComposer } from './overlay/ChatComposer';
 export { ChatMessages, RawTimelineEntityFallback, defaultTimelineEntityRenderers } from './overlay/ChatMessages';
 export type { ChatMessagesProps, ChatMessageRenderMode, TimelineEntityRenderer, TimelineEntityRendererContext } from './overlay/ChatMessages';
 export { useStickyScrollFollow } from './overlay/useStickyScrollFollow';
+export { ChatWindowChrome } from './overlay/ChatWindowChrome';
+export type { ChatWindowChromeProps } from './overlay/ChatWindowChrome';

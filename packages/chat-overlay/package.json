@@ -1,6 +1,6 @@
 {
   "name": "@go-go-golems/chat-overlay",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": false,
   "type": "module",
   "sideEffects": [
@@ -8,7 +8,8 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./theme/retro-mac.css": "./src/theme/retro-mac.css"
+    "./theme/retro-mac.css": "./src/theme/retro-mac.css",
+    "./devtools": "./src/devtools/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
