@@ -46,7 +46,7 @@ RelatedFiles:
       Note: Bounded per-conversation debug event store implemented in Step 2
 ExternalSources: []
 Summary: Chronological investigation diary for upstreaming devtools into react-chat and retiring os-chat.
-LastUpdated: 2026-07-06T17:45:00-04:00
+LastUpdated: 2026-07-06T18:55:00-04:00
 WhatFor: Resume or review the devtools upstreaming and os-chat retirement work.
 WhenToUse: Before implementing REACT-CHAT-DEVTOOLS-OSCHAT-RETIREMENT-2026-07.
 ---
@@ -631,3 +631,94 @@ The active downstream apps no longer directly import `@go-go-golems/os-chat` or 
 - Published packages consumed downstream: `@go-go-golems/chat-provider@0.4.1`, `@go-go-golems/chat-overlay@0.4.1`.
 - Launcher commit: `e256183`.
 - Inventory commit: `d9232a6`.
+
+## Step 9: Clean go-go-os-frontend npm publishing path and remove transitive os-chat package dependencies
+
+This step continued the retirement work in the `go-go-os-frontend` workspace. The goal was to make the still-active federated OS packages publishable on npmjs without carrying `@go-go-golems/os-chat` as an active package dependency, while leaving the legacy `packages/os-chat` source present for now.
+
+The resulting commit prepares a publishable `0.2.0` package wave for the OS package set, adds an npmjs trusted-publishing workflow modeled after `react-chat`, and moves the few reusable syntax/structured-data helpers that `os-scripting` still needed into `os-scripting` itself.
+
+### Prompt Context
+
+**User prompt (verbatim):** The exact pre-compaction prompt is unavailable in this transcript segment; the preserved turn context says the user asked to “clean them” in `wesen-os`, specifically around federated modules and npmjs publishing, and to inspect/align publishing with how `chat-overlay` is published via GitHub Actions.
+
+**Assistant interpretation:** Remove active/transitive `os-chat` dependencies from the publishable `go-go-os-frontend` package graph and add npmjs publishing infrastructure comparable to the already-working `react-chat` workflow.
+
+**Inferred user intent:** The user wants the federated frontend packages to be publishable to npmjs cleanly, without publishing or depending on the legacy `os-chat` package.
+
+**Commit (code):** `1cd61689e3971efb31c544fcb430893da37a85f5` — "Prepare OS frontend packages for npm publishing" in `go-go-os-frontend`.
+
+### What I did
+- Removed active publish-stack dependency edges on `@go-go-golems/os-chat` from `apps/apps-browser`, `apps/crm`, and `packages/os-scripting`.
+- Replaced `os-scripting` imports from `os-chat` with local utilities and local timeline types:
+  - `packages/os-scripting/src/devtools/SyntaxHighlight.tsx`
+  - `packages/os-scripting/src/utils/yamlFormat.ts`
+  - `packages/os-scripting/src/utils/structured.ts`
+  - `packages/os-scripting/src/hypercard/timeline/types.ts`
+- Reworked `artifactProjectionMiddleware` to listen for timeline action type strings instead of importing `timelineSlice` from `os-chat`.
+- Updated `apps/apps-browser` to import `SyntaxHighlight` and `toYaml` from `@go-go-golems/os-scripting`.
+- Removed CRM `os-chat` reducer and theme imports.
+- Bumped publishable packages to `0.2.0`, removed `private: true`, and set `publishConfig.access = "public"`.
+- Added npmjs publishing support:
+  - `.github/workflows/publish-npm.yml`
+  - `scripts/packages/publish-npm-package-set.mjs`
+- Updated package sets and existing GitHub Packages canary workflow to exclude `os-chat` and include the full active `all` set.
+- Added root `typescript` dev dependency so package typecheck scripts have `tsc` available in clean installs.
+- Committed the work on branch `clean/npmjs-os-frontend-packages`.
+
+### Why
+- The active publishable package graph should not force consumers to install legacy `os-chat`.
+- Publishing to npmjs needs public package metadata and an explicit npm workflow; the previous canary path targeted GitHub Packages.
+- Keeping small syntax/structured helpers local to `os-scripting` is lower risk than importing from a deprecated chat package.
+
+### What worked
+- `pnpm why @go-go-golems/os-chat --recursive` produced no remaining active dependency output after reinstalling the workspace.
+- `pnpm run build:publish-v1` passed for the active publishable package set.
+- `pack-smoke` and `install-smoke` passed for `os-core`, `os-repl`, `os-scripting`, `os-shell`, `os-confirm`, `os-ui-cards`, `os-widgets`, and `os-kanban`.
+- `node scripts/packages/publish-npm-package-set.mjs all --tag latest --dry-run --skip-existing --no-provenance` dry-ran all eight npmjs publishes successfully.
+- `pnpm run deps:check`, `pnpm run storybook:check`, `pnpm --filter @go-go-golems/apps-browser test`, and `pnpm --filter @go-go-golems/os-scripting test` passed.
+
+### What didn't work
+- After reinstalling with `CI=true pnpm install --force`, `pnpm --filter @go-go-golems/os-scripting typecheck` failed with:
+  - `sh: 1: tsc: not found`
+  - `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL @go-go-golems/os-scripting@0.2.0 typecheck: tsc -b`
+- I fixed that by adding `typescript@~5.7.3` to the root dev dependencies.
+- Running `node scripts/packages/build-dist.mjs all` from the workspace root failed because that script is package-directory-oriented:
+  - `.tsconfig.build-dist.tmp.json(2,12): error TS18002: The 'files' list in config file ... is empty.`
+- I used the intended root `pnpm run build:publish-v1` script instead.
+
+### What I learned
+- The previous `apps-browser` test failure was caused by stale dependency resolution; after a force reinstall, Vitest resolved workspace `os-scripting` and the tests passed.
+- `pnpm-lock.yaml` is intentionally ignored in this repository, so the new npm workflow must use `pnpm install` rather than `pnpm install --frozen-lockfile`.
+- `packages/os-chat` is still present as legacy source, but it is no longer part of the active publish package sets or dependency graph.
+
+### What was tricky to build
+- The artifact projection path depended on `os-chat` only for the Redux action creators and timeline entity type. Importing those action creators kept the dependency alive even though the middleware only needed action payload shape, so the fix was to predicate on the stable action type strings and define a minimal `TimelineEntityLike` shape locally.
+- Removing `private: true` was necessary for npm publishing; changing only `publishConfig` would still leave packages unpublished. The publish script and workflow now publish from each package `dist` directory after `build:dist` rewrites package metadata.
+
+### What warrants a second pair of eyes
+- Review the `artifactProjectionMiddleware` action-type predicates because they now encode the timeline action names as strings.
+- Confirm the eight-package `all` publish set is the intended public npm surface and that no demo/private app package should be included.
+- Verify whether the legacy `packages/os-chat` package should now be deleted, kept unpublished, or deprecated separately.
+
+### What should be done in the future
+- Push the `clean/npmjs-os-frontend-packages` branch and open a PR.
+- Run the GitHub Actions npm workflow in dry-run mode from the PR branch or after merge.
+- If dry-run succeeds in Actions, perform the real npmjs `0.2.0` publish with `CONFIRM_LATEST`.
+
+### Code review instructions
+- Start with `packages/os-scripting/src/hypercard/artifacts/artifactProjectionMiddleware.ts` and its test to review the dependency-removal behavior.
+- Then inspect package metadata changes for the eight publishable packages and the new `.github/workflows/publish-npm.yml` workflow.
+- Validate locally with:
+  - `pnpm --filter @go-go-golems/os-scripting typecheck`
+  - `pnpm --filter @go-go-golems/os-scripting test`
+  - `pnpm --filter @go-go-golems/apps-browser test`
+  - `pnpm run build:publish-v1`
+  - `node scripts/packages/pack-smoke.mjs packages/os-core packages/os-repl packages/os-scripting packages/os-shell packages/os-confirm packages/os-ui-cards packages/os-widgets packages/os-kanban`
+  - `node scripts/packages/install-smoke.mjs packages/os-core packages/os-repl packages/os-scripting packages/os-shell packages/os-confirm packages/os-ui-cards packages/os-widgets packages/os-kanban`
+  - `node scripts/packages/publish-npm-package-set.mjs all --tag latest --dry-run --skip-existing --no-provenance`
+
+### Technical details
+- `go-go-os-frontend` branch: `clean/npmjs-os-frontend-packages`.
+- Commit: `1cd61689e3971efb31c544fcb430893da37a85f5`.
+- Remaining ignored/unrelated local noise in that workspace: untracked `packages/macos1-react/`.
