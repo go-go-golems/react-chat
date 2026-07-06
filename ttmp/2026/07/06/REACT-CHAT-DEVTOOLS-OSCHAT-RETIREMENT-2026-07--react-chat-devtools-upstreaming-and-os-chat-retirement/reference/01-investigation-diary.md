@@ -339,3 +339,70 @@ The downstream migration should not be committed against `^0.3.0`, because `@go-
 
 ### Technical details
 - Package versions prepared: `@go-go-golems/chat-provider@0.4.0`, `@go-go-golems/chat-overlay@0.4.0`.
+
+
+## Step 5: Publish react-chat 0.4.0 packages
+
+This step published the new `react-chat` APIs to npm so downstream apps can migrate using normal semver dependencies instead of committed workspace links. The published version includes the provider debug primitives and the overlay `devtools` subpath.
+
+The publish ran through the repository's trusted GitHub Actions workflow rather than a local `npm publish`, preserving the existing release path and npm provenance setup.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Make the just-implemented upstream APIs available so later downstream tasks can use published packages.
+
+**Inferred user intent:** Avoid another temporary workspace-link migration and keep downstream builds reproducible from npm packages.
+
+**Commit (code):** N/A — workflow publish only; version bump was committed in Step 4.
+
+### What I did
+- Triggered GitHub Actions workflow `publish-npm` on branch `task/devtools-oschat-retirement`.
+- Inputs:
+  - `package_set=all`
+  - `npm_tag=latest`
+  - `dry_run=false`
+  - `skip_existing=true`
+  - `confirm_latest_publish=CONFIRM_LATEST`
+- Watched run `28826410685` to completion.
+- Verified npm:
+  - `npm view @go-go-golems/chat-provider@0.4.0 version`
+  - `npm view @go-go-golems/chat-overlay@0.4.0 version`
+  - `npm view @go-go-golems/chat-overlay dist-tags --json`
+
+### Why
+- Downstream Phase 6/7 migrations import new package exports that do not exist in `0.3.0`.
+- Publishing first lets downstream manifests use `^0.4.0` and keeps CI aligned with installed packages.
+
+### What worked
+- Workflow run `28826410685` succeeded.
+- Both packages published as `0.4.0`.
+- `latest` now points to `0.4.0`.
+
+### What didn't work
+- The workflow emitted a Node.js 20 deprecation annotation for GitHub Actions internals, but the job still succeeded.
+
+### What I learned
+- The existing trusted publishing workflow works from the feature branch when invoked with `--ref task/devtools-oschat-retirement`.
+- The npm registry reflects the new packages immediately enough for downstream dependency updates.
+
+### What was tricky to build
+- The release was necessary before downstream migration. Without it, source changes could compile only through local links, which would violate the desired published-package dependency model.
+
+### What warrants a second pair of eyes
+- Publishing from a feature branch should be acceptable for this package workflow, but reviewers may still prefer to merge the branch quickly so `main` contains the published source.
+
+### What should be done in the future
+- Update downstream manifests to `^0.4.0`.
+- Migrate launcher and inventory to `@go-go-golems/chat-overlay/devtools`.
+
+### Code review instructions
+- Verify GitHub Actions run `28826410685`.
+- Verify npm versions with `npm view @go-go-golems/chat-provider@0.4.0 version` and `npm view @go-go-golems/chat-overlay@0.4.0 version`.
+
+### Technical details
+- Published packages:
+  - `@go-go-golems/chat-provider@0.4.0`
+  - `@go-go-golems/chat-overlay@0.4.0`
+- Workflow URL: `https://github.com/go-go-golems/react-chat/actions/runs/28826410685`.

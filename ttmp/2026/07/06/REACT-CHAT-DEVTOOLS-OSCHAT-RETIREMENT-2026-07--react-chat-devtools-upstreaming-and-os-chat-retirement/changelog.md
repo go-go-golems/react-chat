@@ -44,3 +44,13 @@ Step 4: Bumped chat-provider and chat-overlay to 0.4.0 for the devtools release.
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/package.json — Overlay release version
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/package.json — Provider release version
 
+
+## 2026-07-06
+
+Step 5: Published chat-provider and chat-overlay 0.4.0 to npm via workflow run 28826410685.
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/package.json — Published overlay 0.4.0
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/package.json — Published provider 0.4.0
+
