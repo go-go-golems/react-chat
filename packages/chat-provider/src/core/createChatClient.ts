@@ -1,4 +1,5 @@
 import { overlaySlice } from '../store/overlaySlice';
+import { runStatsSlice } from '../store/runStatsSlice';
 import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
 import type { ToolRegistry } from '../tools/toolRegistry';
@@ -201,6 +202,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       persistSessionId(config, null);
       dispatch(overlaySlice.actions.reset());
       dispatch(timelineSlice.actions.clear());
+      dispatch(runStatsSlice.actions.reset());
     },
 
     getStore: () => args.store,

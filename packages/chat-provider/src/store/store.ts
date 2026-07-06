@@ -8,12 +8,14 @@ import {
 } from 'react-redux';
 import { timelineSlice } from './timelineSlice';
 import { overlaySlice } from './overlaySlice';
+import { runStatsSlice, toChatRunStats } from './runStatsSlice';
 
 export function createChatStore() {
   return configureStore({
     reducer: {
       timeline: timelineSlice.reducer,
       overlay: overlaySlice.reducer,
+      runStats: runStatsSlice.reducer,
     },
   });
 }
@@ -35,3 +37,10 @@ export const selectTimelineEntities = createSelector(
 );
 
 export const selectOverlay = (s: RootState) => s.overlay;
+
+export const selectRunStats = createSelector(
+  (s: RootState) => s.runStats,
+  (runStats) => toChatRunStats(runStats),
+);
+
+export const selectHasRunUsage = (s: RootState) => s.runStats.completedRuns > 0 || s.runStats.isStreaming;
