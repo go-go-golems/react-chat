@@ -466,3 +466,63 @@ The fix changes the provider root source export to `./debug/index` and bumps bot
 ### Technical details
 - Bad published path: `./debug.js`.
 - Fixed emitted path: `./debug/index.js`.
+
+
+## Step 7: Publish react-chat 0.4.1 patch packages
+
+This step published the packaging fix from Step 6. Both provider and overlay were published as `0.4.1`; the overlay package contains the devtools files and depends on the fixed provider version.
+
+The npm registry briefly returned a 404 for `chat-overlay@0.4.1` immediately after the workflow completed, but a retry after propagation succeeded and confirmed `latest` points to `0.4.1`.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue release sequencing after the downstream build found a publish-artifact defect.
+
+**Inferred user intent:** Make sure downstream apps can consume a fixed published package set.
+
+**Commit (code):** N/A — workflow publish only; code/version fix was committed in Step 6.
+
+### What I did
+- Triggered GitHub Actions workflow `publish-npm` on branch `task/devtools-oschat-retirement`.
+- Watched run `28826642631` to completion.
+- Verified:
+  - `npm view @go-go-golems/chat-provider@0.4.1 version`
+  - `npm view @go-go-golems/chat-overlay@0.4.1 version`
+  - `npm view @go-go-golems/chat-overlay dist-tags --json`
+
+### Why
+- The `0.4.0` provider package had a bad root debug export path.
+- Downstream migration needs a published package pair that works in Vite production builds.
+
+### What worked
+- Workflow run `28826642631` succeeded.
+- Publish summary reported both packages as published.
+- npm now reports `@go-go-golems/chat-provider@0.4.1` and `@go-go-golems/chat-overlay@0.4.1`.
+- `latest` now points to `0.4.1`.
+
+### What didn't work
+- Immediate npm verification returned `E404 No match found for version 0.4.1` for `chat-overlay`; retrying after a short propagation delay succeeded.
+
+### What I learned
+- npm registry propagation can lag slightly after workflow success, so verification should allow a short retry window.
+
+### What was tricky to build
+- The prior published `0.4.0` remains in the registry and should not be used downstream. Downstream lockfiles should resolve `0.4.1`.
+
+### What warrants a second pair of eyes
+- The published package set now includes a superseded `0.4.0`; if desired, npm deprecation can warn users to use `0.4.1`.
+
+### What should be done in the future
+- Update downstream manifests to `^0.4.1` or refresh lockfiles so `^0.4.0` resolves to `0.4.1`.
+
+### Code review instructions
+- Verify GitHub Actions run `28826642631`.
+- Verify npm dist-tags show `latest: 0.4.1`.
+
+### Technical details
+- Published packages:
+  - `@go-go-golems/chat-provider@0.4.1`
+  - `@go-go-golems/chat-overlay@0.4.1`
+- Workflow URL: `https://github.com/go-go-golems/react-chat/actions/runs/28826642631`.
