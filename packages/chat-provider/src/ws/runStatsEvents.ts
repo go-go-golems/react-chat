@@ -78,7 +78,7 @@ export function applyRunStatsEvent(frame: CanonicalFrame, dispatch: AppDispatch,
       return;
     case 'ChatTextPatch': {
       const text = asString(payload.text) || asString(payload.content);
-      dispatch(runStatsSlice.actions.textPatchObserved({ chars: text.length }));
+      dispatch(runStatsSlice.actions.textPatchObserved({ chars: text.length, mode: payload.mode }));
       return;
     }
     case 'ChatProviderCallStarted': {

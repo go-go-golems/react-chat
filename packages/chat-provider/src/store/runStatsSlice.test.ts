@@ -23,6 +23,20 @@ describe('runStatsSlice', () => {
     });
   });
 
+  it('replaces live output estimates for snapshot and replace text patch modes', () => {
+    const store = createChatStore();
+
+    applyRunStatsEvent(uiEvent('ChatRunStarted'), store.dispatch, 1100);
+    applyRunStatsEvent(uiEvent('ChatTextPatch', { text: 'abcdefgh' }), store.dispatch, 1101);
+    applyRunStatsEvent(uiEvent('ChatTextPatch', { text: 'abcdefghijkl', mode: 'SNAPSHOT' }), store.dispatch, 1102);
+
+    expect(selectRunStats(store.getState()).streamOutputTokens).toBe(3);
+
+    applyRunStatsEvent(uiEvent('ChatTextPatch', { text: 'abcd', mode: 'CHAT_STREAM_PATCH_MODE_REPLACE' }), store.dispatch, 1103);
+
+    expect(selectRunStats(store.getState()).streamOutputTokens).toBe(1);
+  });
+
   it('uses provider metadata to override live token estimates and commits finished run usage', () => {
     const store = createChatStore();
 

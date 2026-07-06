@@ -62,6 +62,13 @@ export function estimateOutputTokens(chars: number): number {
   return Math.max(0, Math.ceil(chars / 4));
 }
 
+function isSnapshotOrReplacePatchMode(mode: unknown): boolean {
+  if (typeof mode !== 'string') return false;
+  const normalized = mode.trim().toUpperCase();
+  return normalized === 'CHAT_STREAM_PATCH_MODE_SNAPSHOT' || normalized === 'CHAT_STREAM_PATCH_MODE_REPLACE'
+    || normalized === 'SNAPSHOT' || normalized === 'REPLACE';
+}
+
 function createInitialState(): RunStatsState {
   return {
     isStreaming: false,
@@ -128,9 +135,12 @@ export const runStatsSlice = createSlice({
       state.streamStartTime = action.payload;
       state.streamOutputTokens = 0;
     },
-    textPatchObserved(state, action: PayloadAction<{ chars: number }>) {
+    textPatchObserved(state, action: PayloadAction<{ chars: number; mode?: unknown }>) {
       if (!state.isStreaming) return;
-      state.streamChars += Math.max(0, action.payload.chars);
+      const chars = Math.max(0, action.payload.chars);
+      state.streamChars = isSnapshotOrReplacePatchMode(action.payload.mode)
+        ? chars
+        : state.streamChars + chars;
       state.streamOutputTokens = state.usageOutputSoFar > 0
         ? state.usageOutputSoFar
         : estimateOutputTokens(state.streamChars);
