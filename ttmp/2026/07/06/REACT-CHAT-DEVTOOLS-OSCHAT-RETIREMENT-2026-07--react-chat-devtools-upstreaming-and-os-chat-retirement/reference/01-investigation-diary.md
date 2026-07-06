@@ -277,3 +277,65 @@ The implementation uses the launcher-local debug windows as the behavioral sourc
 - `@go-go-golems/chat-overlay/devtools` is the intended downstream import path for devtools.
 - `ChatTimelineDebug` does not fetch snapshots; downstream adapters should call `seedTimelineMirrorFromSnapshot` and `foldTimelineMutationsFromDebugEntries`.
 - `ChatEventViewerFromStore` binds to any `ChatDebugEventStore` created by `chat-provider/debug`.
+
+
+## Step 4: Prepare react-chat 0.4.0 package release for downstream migration
+
+This step bumped both publishable `react-chat` packages to `0.4.0` so downstream apps can depend on a semver version that includes the new devtools subpath exports. This is a release-preparation step rather than a feature implementation step.
+
+The downstream migration should not be committed against `^0.3.0`, because `@go-go-golems/chat-overlay/devtools` and the provider debug primitives do not exist in the already-published `0.3.0` packages. Version `0.4.0` is the intended published package boundary for these APIs.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementation and commit the release-preparation step separately because downstream migration needs a published package version.
+
+**Inferred user intent:** The user wants downstream code to move to real reusable packages rather than local workspace links.
+
+**Commit (code):** pending at diary-write time — "Bump react-chat packages to 0.4.0"
+
+### What I did
+- Bumped `packages/chat-provider/package.json` from `0.3.0` to `0.4.0`.
+- Bumped `packages/chat-overlay/package.json` from `0.3.0` to `0.4.0`.
+- Ran `pnpm install --lockfile-only`.
+- Ran:
+  - `pnpm test`
+  - `pnpm typecheck`
+  - `npm run build:publish`
+  - `npm run pack:smoke`
+
+### Why
+- Downstream apps should import `@go-go-golems/chat-overlay/devtools` from a published version, not from a temporary workspace link.
+- A minor version bump is appropriate because the package gains new exported APIs without intentionally breaking existing ones.
+
+### What worked
+- Full repo tests passed.
+- Full repo typecheck passed.
+- Publish artifact build succeeded for both provider and overlay.
+- Pack smoke succeeded for `go-go-golems-chat-provider-0.4.0.tgz` and `go-go-golems-chat-overlay-0.4.0.tgz`.
+
+### What didn't work
+- `npm version 0.4.0 -w packages/chat-overlay --no-git-tag-version` failed with `EUNSUPPORTEDPROTOCOL` because npm attempted to process the workspace dependency protocol. I updated the overlay version with a small JSON edit instead, then ran `pnpm install --lockfile-only`.
+
+### What I learned
+- The dist build script correctly rewrites the new package subpath exports into publishable declaration targets.
+- The lockfile did not need a meaningful version diff for workspace packages, but `pnpm install --lockfile-only` completed cleanly.
+
+### What was tricky to build
+- The main tricky point is release sequencing: downstream source can be migrated now, but CI against published dependencies will only pass after `0.4.0` is actually published or otherwise made available. The implementation should avoid reintroducing `workspace-links/react-chat` as a committed dependency.
+
+### What warrants a second pair of eyes
+- Whether to publish `0.4.0` from this branch or wait until the branch is merged into `main`.
+- Whether these API additions should be `0.4.0` or a larger version bump.
+
+### What should be done in the future
+- Publish provider and overlay `0.4.0` before merging downstream PRs that import the new devtools subpath.
+- Update downstream package manifests from `^0.3.0` to `^0.4.0` during migration.
+
+### Code review instructions
+- Review the package version diffs only.
+- Validate with `pnpm test`, `pnpm typecheck`, `npm run build:publish`, and `npm run pack:smoke`.
+
+### Technical details
+- Package versions prepared: `@go-go-golems/chat-provider@0.4.0`, `@go-go-golems/chat-overlay@0.4.0`.

@@ -34,3 +34,13 @@ Step 3: Added chat-overlay devtools, timeline debug, and chrome primitives with 
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/devtools/ChatTimelineDebug.tsx — Timeline Debug
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/overlay/ChatWindowChrome.tsx — Chat chrome
 
+
+## 2026-07-06
+
+Step 4: Bumped chat-provider and chat-overlay to 0.4.0 for the devtools release.
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/package.json — Overlay release version
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/package.json — Provider release version
+
