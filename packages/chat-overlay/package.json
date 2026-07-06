@@ -8,7 +8,8 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./theme/retro-mac.css": "./src/theme/retro-mac.css"
+    "./theme/retro-mac.css": "./src/theme/retro-mac.css",
+    "./devtools": "./src/devtools/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

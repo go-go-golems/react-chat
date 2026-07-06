@@ -16,34 +16,34 @@
 
 ## Phase 2: Overlay devtool utilities
 
-- [ ] Port `StructuredDataTree`
-- [ ] Port `SyntaxHighlight`
-- [ ] Port `yamlFormat`
-- [ ] Port clipboard helper
-- [ ] Port and generalize `timelineDebugModel` for `TimelineMirrorState`
-- [ ] Add utility tests
+- [x] Port `StructuredDataTree`
+- [x] Port `SyntaxHighlight`
+- [x] Port `yamlFormat`
+- [x] Port clipboard helper
+- [x] Port and generalize `timelineDebugModel` for `TimelineMirrorState`
+- [x] Add utility tests
 
 ## Phase 3: Reusable Event Viewer
 
-- [ ] Add pure `ChatEventViewer`
-- [ ] Add store-bound `ChatEventViewerFromStore`
-- [ ] Preserve pause, clear, hold/follow, hide text patch, copy, export controls
-- [ ] Ensure rows are memoized and payload YAML is lazy
-- [ ] Add tests/stories
+- [x] Add pure `ChatEventViewer`
+- [x] Add store-bound `ChatEventViewerFromStore`
+- [x] Preserve pause, clear, hold/follow, hide text patch, copy, export controls
+- [x] Ensure rows are memoized and payload YAML is lazy
+- [x] Add tests/stories
 
 ## Phase 4: Reusable Timeline Debug
 
-- [ ] Add `ChatTimelineDebug` over `TimelineMirrorState`
-- [ ] Preserve entity list, kind counts, selected detail, tree/YAML toggle, copy/export
-- [ ] Keep REST snapshot fetching out of the reusable component
-- [ ] Add tests/stories
+- [x] Add `ChatTimelineDebug` over `TimelineMirrorState`
+- [x] Preserve entity list, kind counts, selected detail, tree/YAML toggle, copy/export
+- [x] Keep REST snapshot fetching out of the reusable component
+- [x] Add tests/stories
 
 ## Phase 5: Reusable ChatWindowChrome
 
-- [ ] Add slot-based `ChatWindowChrome`
-- [ ] Add stable classes/CSS parts
-- [ ] Keep profile fetching, desktop routing, and domain policy downstream
-- [ ] Add stories for chrome slot combinations
+- [x] Add slot-based `ChatWindowChrome`
+- [x] Add stable classes/CSS parts
+- [x] Keep profile fetching, desktop routing, and domain policy downstream
+- [x] Add stories for chrome slot combinations
 
 ## Phase 6: Migrate wesen-os launcher
 

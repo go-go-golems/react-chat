@@ -18,6 +18,16 @@ RelatedFiles:
       Note: Evidence source for inventory-local devtools and remaining os-chat helper imports.
     - Path: /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/workspace-links/go-go-os-frontend/packages/os-chat/src/chat/index.ts
       Note: Evidence source for legacy os-chat export surface.
+    - Path: repo://packages/chat-overlay/src/devtools/ChatEventViewer.tsx
+      Note: Reusable Event Viewer implemented in Step 3
+    - Path: repo://packages/chat-overlay/src/devtools/ChatTimelineDebug.tsx
+      Note: Reusable Timeline Debug implemented in Step 3
+    - Path: repo://packages/chat-overlay/src/devtools/devtools.test.ts
+      Note: Overlay devtools utility tests
+    - Path: repo://packages/chat-overlay/src/devtools/timelineMirrorFolding.ts
+      Note: Detached timeline mirror seed/fold helpers implemented in Step 3
+    - Path: repo://packages/chat-overlay/src/overlay/ChatWindowChrome.tsx
+      Note: Reusable slot-based chat chrome primitive implemented in Step 3
     - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
       Note: Provider debug classification primitive implemented in Step 2
     - Path: repo://packages/chat-provider/src/debug/debugEventStore.test.ts
@@ -30,6 +40,7 @@ LastUpdated: 2026-07-06T17:45:00-04:00
 WhatFor: Resume or review the devtools upstreaming and os-chat retirement work.
 WhenToUse: Before implementing REACT-CHAT-DEVTOOLS-OSCHAT-RETIREMENT-2026-07.
 ---
+
 
 
 # Diary
@@ -185,3 +196,84 @@ The implementation deliberately keeps protocol semantics in `chat-provider`. The
 - `ChatDebugEntry.seq` is monotonic across conversations inside one store instance. This matches the previous downstream store and supports mutation-fold cursors.
 - `maxEntriesPerConversation` is clamped to at least one entry to avoid surprising empty buffers.
 - The store does not implement pause; pause remains UI-level behavior so detached windows can decide whether pausing should drop or only hide events.
+
+
+## Step 3: Implement overlay devtools, timeline debug, and chat chrome primitives
+
+This step implemented the reusable overlay side of the ticket. `chat-overlay` now exports devtools utilities, `ChatEventViewer`, `ChatTimelineDebug`, and a policy-free `ChatWindowChrome` primitive. The components are intentionally source-agnostic: Event Viewer accepts entries or a provider debug store, while Timeline Debug accepts a `TimelineMirrorState` rather than fetching app-specific REST endpoints.
+
+The implementation uses the launcher-local debug windows as the behavioral source but keeps app policy out of the reusable package. Snapshot fetching, desktop window routing, inventory-specific labels, and assistant profile controls remain downstream responsibilities.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue implementing the ticket phase by phase, then validate, document, and commit the completed chunk.
+
+**Inferred user intent:** The user wants reusable devtools/chrome APIs landed upstream before downstream apps are migrated off `os-chat`.
+
+**Commit (code):** pending at diary-write time — "Add chat overlay devtools primitives"
+
+### What I did
+- Added shared devtools utilities under `packages/chat-overlay/src/devtools/`:
+  - `clipboard.ts`
+  - `download.ts`
+  - `yamlFormat.ts`
+  - `StructuredDataTree.tsx`
+  - `SyntaxHighlight.tsx`
+  - `timelineDebugModel.ts`
+  - `timelineMirrorFolding.ts`
+- Added `ChatEventViewer` and `ChatEventViewerFromStore`.
+- Added `ChatTimelineDebug` over `TimelineMirrorState`.
+- Added slot-based `ChatWindowChrome` under `packages/chat-overlay/src/overlay/ChatWindowChrome.tsx`.
+- Added `packages/chat-overlay/src/devtools/index.ts` and a package subpath export `@go-go-golems/chat-overlay/devtools`.
+- Added root exports for `ChatWindowChrome`.
+- Added utility and model tests in `packages/chat-overlay/src/devtools/devtools.test.ts`.
+- Added a devtools Storybook sketch in `packages/chat-overlay/src/stories/ChatDevtools.stories.tsx`.
+- Ran:
+  - `pnpm --filter @go-go-golems/chat-overlay test -- --runInBand`
+  - `pnpm --filter @go-go-golems/chat-overlay typecheck`
+  - `pnpm test`
+  - `pnpm typecheck`
+
+### Why
+- Downstream apps need reusable Event Viewer and Timeline Debug components before local debug windows and `os-chat` helper imports can be removed.
+- Keeping devtools in `chat-overlay/devtools` matches the dependency direction: UI depends on provider types and mirror helpers.
+- `ChatWindowChrome` gives apps a reusable shell without pulling profile fetching or desktop policy upstream.
+
+### What worked
+- The overlay tests pass and cover YAML formatting, sanitization, event filtering/export, timeline snapshot building, and mutation folding.
+- Typecheck passes across the repo.
+- The devtools subpath export compiles with the existing package setup.
+
+### What didn't work
+- I intentionally did not port the CodeMirror/Lezer syntax highlighter dependency from launcher/os-chat. `react-chat` does not currently depend on CodeMirror packages, so the first reusable `SyntaxHighlight` is a lightweight preformatted renderer with truncation support. This avoids expanding dependencies while preserving the debug UX contract.
+
+### What I learned
+- The reusable component boundary is clean if Timeline Debug accepts a mirror state and separate helper functions handle snapshot seeding/mutation folding.
+- The existing launcher implementation had useful performance details: memoized event rows and lazy YAML payload rendering. Those carried over directly.
+
+### What was tricky to build
+- Controlled vs uncontrolled selected entity state in `ChatTimelineDebug` needed care. Detached windows can let the component own selection, while richer apps may want the selected id in app state. The component now supports both with `selectedEntityId` and `onSelectedEntityIdChange`.
+- Copy/export helpers need browser APIs, but tests should stay Node-friendly. The tests cover pure export string builders and avoid invoking DOM download or clipboard behavior.
+
+### What warrants a second pair of eyes
+- Whether the first `SyntaxHighlight` should remain dependency-free or reintroduce CodeMirror as an optional enhancement.
+- Whether `ChatEventViewer` pause semantics should freeze the displayed entries, as implemented, or drop new entries before state updates like the launcher-local store did.
+- Whether `ChatWindowChrome` should expose CSS files instead of inline styles in a later pass.
+
+### What should be done in the future
+- Migrate launcher `ChatDebugWindows.tsx` to `ChatEventViewerFromStore`/`ChatTimelineDebug`.
+- Migrate inventory `InventoryDebugWindows.tsx` and remove `os-chat` helper imports.
+- Publish the new subpath exports after downstream migration validates them.
+
+### Code review instructions
+- Start with `packages/chat-overlay/src/devtools/ChatEventViewer.tsx` and verify controls/filtering/export behavior.
+- Review `packages/chat-overlay/src/devtools/ChatTimelineDebug.tsx` for source-agnostic timeline display.
+- Review `packages/chat-overlay/src/devtools/timelineMirrorFolding.ts` to confirm detached-window folding semantics.
+- Validate with `pnpm test` and `pnpm typecheck`.
+
+### Technical details
+- `@go-go-golems/chat-overlay/devtools` is the intended downstream import path for devtools.
+- `ChatTimelineDebug` does not fetch snapshots; downstream adapters should call `seedTimelineMirrorFromSnapshot` and `foldTimelineMutationsFromDebugEntries`.
+- `ChatEventViewerFromStore` binds to any `ChatDebugEventStore` created by `chat-provider/debug`.

@@ -23,3 +23,14 @@ Step 2: Added chat-provider debug classifier/store primitives and tests.
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/debug/classifyDebugEvent.ts — Debug classifier
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/src/debug/debugEventStore.ts — Debug event store
 
+
+## 2026-07-06
+
+Step 3: Added chat-overlay devtools, timeline debug, and chrome primitives with tests/stories.
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/devtools/ChatEventViewer.tsx — Event Viewer
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/devtools/ChatTimelineDebug.tsx — Timeline Debug
+- /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/src/overlay/ChatWindowChrome.tsx — Chat chrome
+
