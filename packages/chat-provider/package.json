@@ -10,7 +10,8 @@
     "./store": "./src/store/store.ts",
     "./tools": "./src/tools/index.ts",
     "./widgets": "./src/widgets/index.ts",
-    "./ws": "./src/ws/index.ts"
+    "./ws": "./src/ws/index.ts",
+    "./debug": "./src/debug/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -9,10 +9,10 @@
 
 ## Phase 1: Provider debug primitives
 
-- [ ] Add `packages/chat-provider/src/debug/classifyDebugEvent.ts`
-- [ ] Add `packages/chat-provider/src/debug/debugEventStore.ts`
-- [ ] Export debug primitives from provider
-- [ ] Add classifier/store tests
+- [x] Add `packages/chat-provider/src/debug/classifyDebugEvent.ts`
+- [x] Add `packages/chat-provider/src/debug/debugEventStore.ts`
+- [x] Export debug primitives from provider
+- [x] Add classifier/store tests
 
 ## Phase 2: Overlay devtool utilities
 

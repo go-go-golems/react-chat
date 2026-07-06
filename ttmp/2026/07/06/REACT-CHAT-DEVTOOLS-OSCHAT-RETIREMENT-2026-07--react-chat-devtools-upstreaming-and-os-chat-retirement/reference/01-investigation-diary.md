@@ -18,12 +18,19 @@ RelatedFiles:
       Note: Evidence source for inventory-local devtools and remaining os-chat helper imports.
     - Path: /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/workspace-links/go-go-os-frontend/packages/os-chat/src/chat/index.ts
       Note: Evidence source for legacy os-chat export surface.
+    - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
+      Note: Provider debug classification primitive implemented in Step 2
+    - Path: repo://packages/chat-provider/src/debug/debugEventStore.test.ts
+      Note: Regression coverage for classifier and store behavior
+    - Path: repo://packages/chat-provider/src/debug/debugEventStore.ts
+      Note: Bounded per-conversation debug event store implemented in Step 2
 ExternalSources: []
 Summary: Chronological investigation diary for upstreaming devtools into react-chat and retiring os-chat.
 LastUpdated: 2026-07-06T17:45:00-04:00
 WhatFor: Resume or review the devtools upstreaming and os-chat retirement work.
 WhenToUse: Before implementing REACT-CHAT-DEVTOOLS-OSCHAT-RETIREMENT-2026-07.
 ---
+
 
 # Diary
 
@@ -111,3 +118,70 @@ Create  a detailed analysis / design / implementation guide that is for a new in
 ### Technical details
 - Ticket path: `ttmp/2026/07/06/REACT-CHAT-DEVTOOLS-OSCHAT-RETIREMENT-2026-07--react-chat-devtools-upstreaming-and-os-chat-retirement`.
 - Main guide: `design-doc/01-react-chat-devtools-and-os-chat-retirement-intern-guide.md`.
+
+
+## Step 2: Implement provider debug classifier and external event store
+
+This step implemented Phase 1 from the ticket: the provider now exposes reusable debug classification and a bounded per-conversation event store. These primitives replace the launcher-local `chatDebugStore` logic with package-level APIs that downstream detached windows can reuse.
+
+The implementation deliberately keeps protocol semantics in `chat-provider`. The classifier understands `ChatDebugEvent` variants from `wsManager`, while `chat-overlay/devtools` can later focus on rendering, filtering, and export behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead, implement task by task, keep a detailed diary, commit at appropriate intervals"
+
+**Assistant interpretation:** Work through the ticket phases incrementally, updating the diary and committing coherent chunks as implementation progresses.
+
+**Inferred user intent:** The user wants the design ticket converted into code while preserving a reviewable implementation history and continuation-friendly documentation.
+
+**Commit (code):** pending at diary-write time — "Add chat provider debug event primitives"
+
+### What I did
+- Added `packages/chat-provider/src/debug/classifyDebugEvent.ts`.
+- Added `packages/chat-provider/src/debug/debugEventStore.ts`.
+- Added `packages/chat-provider/src/debug/index.ts`.
+- Added `packages/chat-provider/src/debug/debugEventStore.test.ts`.
+- Added a `./debug` subpath export to `packages/chat-provider/package.json`.
+- Re-exported debug primitives from `packages/chat-provider/src/index.ts`.
+- Checked Phase 1 tasks in `tasks.md`.
+- Ran:
+  - `pnpm --filter @go-go-golems/chat-provider test -- --runInBand`
+  - `pnpm --filter @go-go-golems/chat-provider typecheck`
+
+### Why
+- Launcher and inventory debug windows need a shared event model instead of local copies.
+- Classification belongs near `ChatDebugEvent` because it depends on provider websocket/debug frame semantics.
+- A bounded external store supports detached desktop windows that are not children of the active `ChatProvider` React tree.
+
+### What worked
+- Existing provider tests continued to pass.
+- New tests cover event classification, family aliases, per-conversation isolation, bounded buffers, clear, and subscription notifications.
+- TypeScript accepted the new `./debug` package export and root re-exports.
+
+### What didn't work
+- The first validation command included an extra `-- --runInBand` argument. Vitest ignored it harmlessly and all tests passed.
+
+### What I learned
+- `ChatDebugEvent` is already exported from the provider root, so the new primitives only needed to build a stable derived entry shape around it.
+- The downstream local store had the right shape; moving it upstream mostly required making timestamps/classification injectable for tests.
+
+### What was tricky to build
+- The classifier has two related but different event rows for UI events: parsed provider frames classify by their original event name and family, while projected `ui-event` debug records classify as `timeline` because they represent timeline mutation application. Preserving that distinction keeps the Event Viewer useful for both raw protocol inspection and projection inspection.
+
+### What warrants a second pair of eyes
+- Whether root-level re-exports should stay, or whether consumers should import debug primitives only from `@go-go-golems/chat-provider/debug`.
+- Whether the default event family heuristics should include more app-specific names before inventory migration.
+
+### What should be done in the future
+- Build `chat-overlay/devtools` on top of these provider primitives.
+- Replace downstream local debug stores with `createChatDebugEventStore` after the overlay components exist.
+
+### Code review instructions
+- Start with `packages/chat-provider/src/debug/classifyDebugEvent.ts` to verify event family semantics.
+- Then inspect `packages/chat-provider/src/debug/debugEventStore.ts` for bounded-buffer and subscription behavior.
+- Validate with `pnpm --filter @go-go-golems/chat-provider test` and `pnpm --filter @go-go-golems/chat-provider typecheck`.
+
+### Technical details
+- `ChatDebugEntry.seq` is monotonic across conversations inside one store instance. This matches the previous downstream store and supports mutation-fold cursors.
+- `maxEntriesPerConversation` is clamped to at least one entry to avoid surprising empty buffers.
+- The store does not implement pause; pause remains UI-level behavior so detached windows can decide whether pausing should drop or only hide events.
