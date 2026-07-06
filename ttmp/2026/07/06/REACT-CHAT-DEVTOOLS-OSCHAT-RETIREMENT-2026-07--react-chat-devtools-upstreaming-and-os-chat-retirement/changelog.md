@@ -75,3 +75,13 @@ Step 7: Published chat-provider and chat-overlay 0.4.1 to npm via workflow run 2
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-overlay/package.json — Published overlay 0.4.1
 - /home/manuel/code/wesen/go-go-golems/react-chat/packages/chat-provider/package.json — Published provider 0.4.1
 
+
+## 2026-07-06
+
+Step 8: Migrated launcher and inventory to published react-chat 0.4.1 devtools and removed active direct os-chat imports.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/apps/os-launcher/src/chat/ChatDebugWindows.tsx — Launcher migration
+- /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/workspace-links/go-go-app-inventory/apps/inventory/src/launcher/chat/InventoryDebugWindows.tsx — Inventory migration
+

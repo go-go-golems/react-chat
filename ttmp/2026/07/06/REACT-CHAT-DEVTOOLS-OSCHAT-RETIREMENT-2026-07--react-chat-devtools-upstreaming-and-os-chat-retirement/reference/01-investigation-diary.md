@@ -13,11 +13,21 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/apps/os-launcher/src/chat/ChatDebugWindows.tsx
-      Note: Evidence source for launcher-local devtools rebuilt on chat-provider events.
+      Note: |-
+        Evidence source for launcher-local devtools rebuilt on chat-provider events.
+        Launcher adapter migrated to upstream react-chat devtools in Step 8
     - Path: /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/workspace-links/go-go-app-inventory/apps/inventory/src/launcher/chat/InventoryDebugWindows.tsx
-      Note: Evidence source for inventory-local devtools and remaining os-chat helper imports.
+      Note: |-
+        Evidence source for inventory-local devtools and remaining os-chat helper imports.
+        Inventory adapter migrated to upstream react-chat devtools in Step 8
     - Path: /home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/workspace-links/go-go-os-frontend/packages/os-chat/src/chat/index.ts
       Note: Evidence source for legacy os-chat export surface.
+    - Path: abs:///home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/apps/os-launcher/src/app/store.ts
+      Note: Removed direct os-chat reducers from launcher app store
+    - Path: abs:///home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/apps/os-launcher/src/chat/chatDebugStore.ts
+      Note: Launcher debug store now uses provider primitive
+    - Path: abs:///home/manuel/workspaces/2026-03-02/os-openai-app-server/wesen-os/workspace-links/go-go-app-inventory/apps/inventory/src/app/store.ts
+      Note: Removed direct os-chat reducers from inventory app store
     - Path: repo://packages/chat-overlay/src/devtools/ChatEventViewer.tsx
       Note: Reusable Event Viewer implemented in Step 3
     - Path: repo://packages/chat-overlay/src/devtools/ChatTimelineDebug.tsx
@@ -40,6 +50,7 @@ LastUpdated: 2026-07-06T17:45:00-04:00
 WhatFor: Resume or review the devtools upstreaming and os-chat retirement work.
 WhenToUse: Before implementing REACT-CHAT-DEVTOOLS-OSCHAT-RETIREMENT-2026-07.
 ---
+
 
 
 
@@ -526,3 +537,97 @@ The npm registry briefly returned a 404 for `chat-overlay@0.4.1` immediately aft
   - `@go-go-golems/chat-provider@0.4.1`
   - `@go-go-golems/chat-overlay@0.4.1`
 - Workflow URL: `https://github.com/go-go-golems/react-chat/actions/runs/28826642631`.
+
+
+## Step 8: Migrate launcher and inventory to published react-chat devtools
+
+This step migrated the active downstream launcher and inventory chat debug windows to the published `react-chat` devtools APIs. The duplicated local Event Viewer / Timeline Debug implementations are now thin adapters that provide the app-specific debug store, REST snapshot fetch, and desktop-window route inputs.
+
+The active downstream apps no longer directly import `@go-go-golems/os-chat` or `@go-go-golems/os-chat/theme`. `os-chat` still appears transitively through older `go-go-os-frontend` packages such as `os-scripting`, `apps-browser`, and `crm`, so complete package retirement is not finished.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 2)
+
+**Assistant interpretation:** Continue with the downstream migration phases after publishing the fixed upstream packages.
+
+**Inferred user intent:** Replace local/downstream copies with the reusable upstream devtools and remove active `os-chat` usage from launcher and inventory.
+
+**Commit (code):**
+- `e256183` — "Use upstream react-chat devtools" in `wesen-os`.
+- `d9232a6` — "Use upstream react-chat devtools" in `go-go-app-inventory`.
+
+### What I did
+- Updated downstream package manifests to use:
+  - `@go-go-golems/chat-provider: ^0.4.1`
+  - `@go-go-golems/chat-overlay: ^0.4.1`
+- Migrated launcher:
+  - `apps/os-launcher/src/chat/ChatDebugWindows.tsx` now uses `ChatEventViewerFromStore`, `ChatTimelineDebug`, `seedTimelineMirrorFromSnapshot`, `latestDebugEntrySeq`, and `foldTimelineMutationsFromDebugEntries`.
+  - `chatDebugStore.ts` now wraps `createChatDebugEventStore` from `chat-provider`.
+  - `useChatDebugEvents.ts` now uses `useChatDebugEntries` from `chat-provider`.
+  - Deleted local copied debug helpers: `StructuredDataTree.tsx`, `SyntaxHighlight.tsx`, `clipboard.ts`, `timelineDebugModel.ts`, and `yamlFormat.ts`.
+  - Removed old `os-chat` reducers from launcher store.
+  - Removed `@go-go-golems/os-chat/theme` from launcher main entry.
+- Migrated inventory:
+  - `InventoryDebugWindows.tsx` now uses `@go-go-golems/chat-overlay/devtools`.
+  - `inventoryChatDebugStore.ts` now wraps `createChatDebugEventStore`.
+  - `useInventoryChatDebugEvents.ts` now uses `useChatDebugEntries`.
+  - Removed old `os-chat` reducers from inventory store.
+  - Removed `@go-go-golems/os-chat/theme` from inventory main entry.
+  - Deleted obsolete `renderInventoryApp.chat.test.tsx`, which tested the retired SEM/os-chat projection path.
+- Ran `pnpm install` in `wesen-os` to refresh published package resolution.
+- Validated:
+  - `pnpm --filter @go-go-golems/os-launcher typecheck:published`
+  - `pnpm --filter @go-go-golems/os-launcher build:published`
+  - `pnpm --filter @go-go-golems/inventory typecheck:published`
+  - `pnpm --filter @go-go-golems/inventory build:federation`
+- Checked active app imports:
+  - `rg "from '@go-go-golems/os-chat'|@go-go-golems/os-chat/theme" apps/os-launcher/src workspace-links/go-go-app-inventory/apps/inventory/src`
+
+### Why
+- Launcher and inventory were maintaining duplicate debug UIs that should now be reusable upstream components.
+- Removing direct reducers/theme imports eliminates active app dependence on the old `os-chat` runtime package.
+- Published `0.4.1` packages make the migration reproducible without workspace links.
+
+### What worked
+- Launcher published typecheck and production build passed.
+- Inventory published typecheck and federation build passed.
+- Active source no longer imports `@go-go-golems/os-chat` or `@go-go-golems/os-chat/theme`.
+- The launcher CSS bundle shrank after removing the old os-chat theme import and local helper copies.
+
+### What didn't work
+- The first launcher build against `0.4.0` failed before the `0.4.1` patch with:
+  - `Could not resolve "./debug.js" from "../../node_modules/@go-go-golems/chat-provider/index.js"`
+- `pnpm --filter @go-go-golems/inventory test` still fails for unrelated/stale test-runner reasons:
+  - stale built `dist/launcher/renderInventoryApp.chat.test.js` still runs even after deleting the source test;
+  - `dist/domain/pluginBundle.test.js` cannot find `./vm/00-runtimePrelude.vm.js`;
+  - `src/domain/pluginBundle.test.ts` fails with `Runtime bundle packageIds mismatch. Declared: kanban, ui; installed: ui`.
+
+### What I learned
+- The active app-level `os-chat` removal is separable from full monorepo `os-chat` retirement. `pnpm why @go-go-golems/os-chat --recursive` shows transitive consumers in `go-go-os-frontend` packages, especially `os-scripting`, `os-shell`, `os-kanban`, `os-ui-cards`, `apps-browser`, and old demo apps.
+- Removing the old Redux reducers from launcher/inventory app stores did not break published typecheck/build, confirming active chat state is provider-owned now.
+
+### What was tricky to build
+- The adapters still need app-specific REST snapshot seeding. The reusable `ChatTimelineDebug` intentionally does not fetch snapshots, so launcher and inventory each keep a small wrapper that calls their `/api/chat/sessions/:convId` endpoint and folds later debug mutations on top.
+- Deleting `renderInventoryApp.chat.test.tsx` removes obsolete SEM/os-chat coverage. This is correct for the new runtime path, but reviewers should confirm no current artifact behavior depended on that old test.
+
+### What warrants a second pair of eyes
+- Whether deleted SEM projection test coverage should be replaced with a current `chat-provider`/artifact-widget integration test.
+- Whether the transitive `os-chat` consumers in `go-go-os-frontend` should be handled in this same ticket or a follow-up package cleanup ticket.
+- Whether browser smoke should be rerun manually after the downstream PRs merge.
+
+### What should be done in the future
+- Run browser smoke for Assistant Event Viewer/Timeline Debug and Inventory Event Viewer/Timeline Debug.
+- Audit and remove transitive `os-chat` dependencies from `go-go-os-frontend` packages.
+- Decide whether to delete `packages/os-chat`, keep a deprecated stub, or publish an npm deprecation notice.
+
+### Code review instructions
+- In `wesen-os`, start with `apps/os-launcher/src/chat/ChatDebugWindows.tsx`, then inspect the deleted helper files and store/main changes.
+- In inventory, start with `apps/inventory/src/launcher/chat/InventoryDebugWindows.tsx`, then inspect `inventoryChatDebugStore.ts`, `useInventoryChatDebugEvents.ts`, and store/main changes.
+- Validate with the four typecheck/build commands listed above.
+- Do not treat the inventory full test failure as caused by this step without first cleaning stale `dist` tests and fixing the plugin bundle package-id mismatch.
+
+### Technical details
+- Published packages consumed downstream: `@go-go-golems/chat-provider@0.4.1`, `@go-go-golems/chat-overlay@0.4.1`.
+- Launcher commit: `e256183`.
+- Inventory commit: `d9232a6`.

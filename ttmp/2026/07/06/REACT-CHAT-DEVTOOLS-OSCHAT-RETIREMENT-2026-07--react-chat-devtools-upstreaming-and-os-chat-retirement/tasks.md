@@ -47,22 +47,22 @@
 
 ## Phase 6: Migrate wesen-os launcher
 
-- [ ] Replace local `ChatDebugWindows` implementation with react-chat devtools wrappers
-- [ ] Remove local copied debug helpers once unused
-- [ ] Remove launcher `@go-go-golems/os-chat` reducer imports after verifying they are unused
-- [ ] Remove launcher `@go-go-golems/os-chat/theme` import
-- [ ] Validate launcher typecheck/build/browser smoke
+- [x] Replace local `ChatDebugWindows` implementation with react-chat devtools wrappers
+- [x] Remove local copied debug helpers once unused
+- [x] Remove launcher `@go-go-golems/os-chat` reducer imports after verifying they are unused
+- [x] Remove launcher `@go-go-golems/os-chat/theme` import
+- [x] Validate launcher typecheck/build/build validation (browser smoke still pending)
 
 ## Phase 7: Migrate inventory
 
-- [ ] Replace `InventoryDebugWindows` os-chat helper imports with react-chat devtools exports
-- [ ] Remove inventory `@go-go-golems/os-chat` reducer imports after verifying they are unused
-- [ ] Remove inventory `@go-go-golems/os-chat/theme` import
-- [ ] Validate inventory typecheck/build/browser smoke
+- [x] Replace `InventoryDebugWindows` os-chat helper imports with react-chat devtools exports
+- [x] Remove inventory `@go-go-golems/os-chat` reducer imports after verifying they are unused
+- [x] Remove inventory `@go-go-golems/os-chat/theme` import
+- [x] Validate inventory typecheck/build/build validation (browser smoke still pending)
 
 ## Phase 8: Retire os-chat
 
-- [ ] Remove `@go-go-golems/os-chat` from downstream manifests and lockfiles
+- [x] Remove `@go-go-golems/os-chat` from downstream direct downstream manifests (lockfile still has transitive os-frontend consumers)
 - [ ] Decide whether to delete `packages/os-chat` or keep a deprecated stub in go-go-os-frontend
 - [ ] If published, deprecate npm package with replacement guidance
 - [ ] Audit separate Go `go-go-os-chat` repository before any archive action
