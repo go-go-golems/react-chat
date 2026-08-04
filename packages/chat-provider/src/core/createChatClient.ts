@@ -15,6 +15,15 @@ export type ChatProviderConfig = ChatExtensionConfig & {
   apiBase?: string;
   sessionIdParam?: string;
   sessionStorageKey?: string;
+  /**
+   * Persist the active session ID in localStorage so a later page load can
+   * hydrate the same conversation. Defaults to true.
+   *
+   * Set this to false for applications where every page load must start a new
+   * conversation. URL hydration remains independently controlled by
+   * `sessionIdParam`; set it to an empty string to disable URL hydration too.
+   */
+  persistSession?: boolean;
   onSessionIdChange?: (sessionId: string | null) => void;
   onDebugEvent?: ChatDebugHandler;
   createSessionBody?: () => ChatRequestBody | Promise<ChatRequestBody>;
@@ -64,6 +73,7 @@ function persistedSessionId(config: ChatProviderConfig): string {
     const sessionIdParam = config.sessionIdParam ?? DEFAULT_SESSION_ID_PARAM;
     const fromURL = sessionIdParam ? new URL(window.location.href).searchParams.get(sessionIdParam) || '' : '';
     if (fromURL.trim()) return fromURL.trim();
+    if (config.persistSession === false) return '';
     return window.localStorage.getItem(config.sessionStorageKey ?? DEFAULT_SESSION_STORAGE_KEY)?.trim() || '';
   } catch {
     return '';
@@ -73,9 +83,11 @@ function persistedSessionId(config: ChatProviderConfig): string {
 function persistSessionId(config: ChatProviderConfig, sessionId: string | null) {
   if (typeof window === 'undefined') return;
   try {
-    const storageKey = config.sessionStorageKey ?? DEFAULT_SESSION_STORAGE_KEY;
-    if (sessionId) window.localStorage.setItem(storageKey, sessionId);
-    else window.localStorage.removeItem(storageKey);
+    if (config.persistSession !== false) {
+      const storageKey = config.sessionStorageKey ?? DEFAULT_SESSION_STORAGE_KEY;
+      if (sessionId) window.localStorage.setItem(storageKey, sessionId);
+      else window.localStorage.removeItem(storageKey);
+    }
     config.onSessionIdChange?.(sessionId);
   } catch {
     // Ignore storage failures in embedded contexts/private windows.
