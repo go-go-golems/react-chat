@@ -15,3 +15,11 @@
 - [ ] Rebuild and restart the real full-corpus Garden Assistant using ~/.cache/rag-ttc caches <!-- t:ed9b -->
 - [ ] Verify more than three heartbeat intervals, a tool/widget run, and forced reconnect/resume <!-- t:3adu -->
 - [ ] Publish or record the consumable ChatProvider version and update CoinVault issue #9 <!-- t:s1hr -->
+- [ ] Replace generic canonical frames with a typed codec and bigint-safe decimal ordinals <!-- t:38ji -->
+- [ ] Extract a React and Redux independent SessionStreamTransport with deterministic platform seams <!-- t:fxeg -->
+- [ ] Introduce explicit connection readiness typed failures and deterministic disposal <!-- t:kfrt -->
+- [ ] Add injectable HTTP request authentication and WebSocket URL hooks <!-- t:1f1d -->
+- [ ] Replace ad hoc persistence flags with a declarative session policy and update known consumers <!-- t:sfr7 -->
+- [ ] Add first-class message attachment references and upload removal client operations <!-- t:79mr -->
+- [ ] Make diagnostics metadata-only by default and gate unsafe raw frames explicitly <!-- t:sakh -->
+- [ ] Add reusable protocol lifecycle resume hydration and projection conformance fixtures <!-- t:fw69 -->

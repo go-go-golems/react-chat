@@ -114,3 +114,87 @@ docmgr doc add --ticket REACT-CHAT-TRANSPORT-001 --doc-type reference --title 'I
 - RAG-TTC Garden Assistant declared ChatProvider version: `0.2.1`.
 - CoinVault GitHub handoff: `https://github.com/goldeneagle/coinvault/issues/9`.
 - Estimated CoinVault transport-only adoption after the shared API lands: 1–2 focused engineering days; full provider/store migration is a separate 3–5 day effort.
+
+## Step 2: Expand the scope into a complete intern implementation guide
+
+The initial design intentionally separated the minimum transport correction from optional platform work. The user chose to build the solid foundation in one coordinated project so RAG-TTC can validate it before CoinVault adopts it. This step converted that decision into a second, canonical design document rather than erasing the earlier scope discussion.
+
+The expanded guide now connects the system architecture to concrete TypeScript APIs, lifecycle invariants, test cases, commit boundaries, RAG-TTC rollout steps, and the later CoinVault integration. No runtime code changed in this step.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Actually I think it would be good to just do it at once, that way we can have a solid foundation _and_ an already updated rag-ttc for when we are ready to carry over coinvault.
+
+Create a new design doc with a full implementation plan for all, from heartbeat to all the things we described.
+
+Create  a detailed analysis / design / implementation guide that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Create a new comprehensive guide inside the existing ticket, preserve the earlier document as historical context, document the full foundation and RAG-TTC migration in intern-usable detail, then validate, commit, and upload it to reMarkable.
+
+**Inferred user intent:** Make the future implementation executable by a new contributor and ensure CoinVault later integrates against a foundation already proven by a real downstream application.
+
+### What I did
+
+- Added `design-doc/02-complete-chatprovider-transport-foundation-intern-implementation-guide.md` through `docmgr`.
+- Documented the existing React Chat, RAG-TTC, CoinVault, and sessionstream responsibilities.
+- Specified a Redux-independent transport API, typed codec, opaque ordinal type, lifecycle states, reconnect policy, delivery acknowledgment, hydration ordering, buffer policy, HTTP/auth hooks, session policy, attachments, and safe diagnostics.
+- Added ASCII architecture and state diagrams that remain readable in Markdown and PDF.
+- Defined deterministic unit/conformance tests, real full-corpus RAG-TTC validation, phased commits, review gates, and the future CoinVault integration example.
+- Related seven central implementation files and retained CoinVault issue #9 as an external source.
+
+### Why
+
+- Building and validating the complete boundary in React Chat and RAG-TTC reduces uncertainty during the later CoinVault migration.
+- A separate document preserves the rationale of the earlier pragmatic scope while making the user's expanded decision explicit.
+- The intern needs both conceptual ownership boundaries and copyable API/test sketches; a task list alone would not be sufficient.
+
+### What worked
+
+- The existing timeline adapter abstraction provided a clean boundary between transport delivery and product projection.
+- CoinVault's local manager and parsing tests supplied concrete downstream requirements without requiring CoinVault changes in this ticket.
+- ASCII diagrams avoided requiring a Mermaid rendering extension during reMarkable PDF conversion.
+
+### What didn't work
+
+- `docmgr doc relate` again normalized absolute paths: React Chat paths became `repo://...`, while paths containing the workspace's `ws` directory segment became `ws://...`. The command reported success, but the generated paths were not the requested absolute paths. I corrected all seven `RelatedFiles` entries directly and will verify them with `docmgr doctor`.
+
+### What I learned
+
+- The complete project has one essential dependency direction: platform and codec feed transport; transport feeds product projection. CoinVault reuse fails if Redux imports cross downward into transport.
+- Attachment references, safe diagnostics, and session policy are not separate UI features; they shape the public client API that CoinVault will eventually consume.
+- Commit-after-consumer-delivery is the key invariant connecting reconnect, resume, projection errors, and deduplication.
+
+### What was tricky to build
+
+- The guide had to be complete without prematurely deciding facts that must be verified against the server, such as whether resume is strictly greater than the supplied ordinal or whether multiple events can share an ordinal. Those are marked as Phase 0 questions rather than hidden assumptions.
+- The plan avoids backwards-compatibility overloads while still producing reviewable commits. Known consumers are updated directly after the shared API changes.
+- The design separates historical hydration from live tool execution so replay cannot repeat side effects.
+
+### What warrants a second pair of eyes
+
+- Review the proposed codec boundary against the generated sessionstream protobuf schema.
+- Verify the committed-ordinal definition and poison-frame behavior.
+- Confirm attachment endpoints are sufficiently aligned before making upload/remove behavior non-injectable.
+- Confirm the proposed terminal-versus-retryable close classification against deployed auth behavior.
+- Review diagnostic fields for accidental payload or credential exposure.
+
+### What should be done in the future
+
+- Implement the phases in the documented order and record code commits and test evidence as new diary steps.
+- Update CoinVault issue #9 with the final published package version and exact integration API after RAG-TTC validation.
+- Report the repeatable `docmgr doc relate` URI normalization behavior with a minimal reproduction.
+
+### Code review instructions
+
+- Start with the new guide's Executive Summary, Target Architecture, Transport API, and Implementation Plan.
+- Compare its boundaries with `packages/chat-provider/src/ws/wsManager.ts` and `core/createChatClient.ts`.
+- Compare the future consumer API with CoinVault's `web/src/ws/wsManager.ts`.
+- Run `docmgr doctor --ticket REACT-CHAT-TRANSPORT-001` and inspect the rendered PDF for code-block and diagram readability.
+
+### Technical details
+
+- New canonical guide: `design-doc/02-complete-chatprovider-transport-foundation-intern-implementation-guide.md`.
+- Downstream validation target: the real full-corpus RAG-TTC Garden Assistant using `~/.cache/rag-ttc/...` caches.
+- Planned shared ordinal representation: branded decimal string, compared through `BigInt`.
+- Planned transport observer commits an ordinal only after successful snapshot/event consumption.
+- Planned reMarkable destination: `/ai/2026/08/18/REACT-CHAT-TRANSPORT-001/`.

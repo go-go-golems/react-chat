@@ -28,6 +28,7 @@ Make ChatProvider the canonical owner of sessionstream WebSocket heartbeat, reco
 
 ## Key Links
 
+- [Complete intern implementation guide](./design-doc/02-complete-chatprovider-transport-foundation-intern-implementation-guide.md) — canonical full-foundation plan
 - [Implementation design](./design-doc/01-chatprovider-transport-convergence-and-downstream-migration-guide.md)
 - [Investigation diary](./reference/01-investigation-diary.md)
 - [CoinVault downstream issue](https://github.com/goldeneagle/coinvault/issues/9)
