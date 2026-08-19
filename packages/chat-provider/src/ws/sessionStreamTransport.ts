@@ -371,8 +371,8 @@ export class SessionStreamTransport {
   private fail(error: TransportError): void {
     const observer = this.observer;
     this.intentionalStop = true;
-    this.stopCurrent(true);
     this.transition(error.kind === 'aborted' ? 'stopped' : 'failed');
+    this.stopCurrent(true);
     observer?.onError?.(error);
     this.readyDeferred?.reject(error.cause ?? new Error(error.message));
     this.readyDeferred = null;

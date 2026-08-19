@@ -70,7 +70,15 @@ export class WsManager {
   }
 
   connect(args: ConnectArgs): Promise<void> {
-    if (this.transport && this.sessionId === args.sessionId && this.connectionPromise) return this.connectionPromise;
+    if (
+      this.transport
+      && this.sessionId === args.sessionId
+      && this.connectionPromise
+      && this.transport.status !== 'failed'
+      && this.transport.status !== 'stopped'
+    ) {
+      return this.connectionPromise;
+    }
     this.disconnect();
     this.sessionId = args.sessionId;
     this.lastOnStatus = args.onStatus ?? null;

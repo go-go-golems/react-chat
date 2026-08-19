@@ -186,10 +186,12 @@ describe('SessionStreamTransport', () => {
 
   it('does not commit an event whose observer rejects it', async () => {
     const h = harness();
+    const onStatus = vi.fn();
     const transport = new SessionStreamTransport({ platform: h.platform, buildURL: () => 'ws://test' });
     const connected = transport.connect({ sessionId: 's-1', sinceOrdinal: parseEventOrdinal('3') }, {
       onSnapshot: vi.fn(),
       onEvent: () => { throw new Error('projection failed'); },
+      onStatus,
     });
     establish(h.sockets[0], 's-1', '10');
     await connected;
@@ -197,5 +199,6 @@ describe('SessionStreamTransport', () => {
     await vi.waitFor(() => expect(transport.status).toBe('failed'));
     expect(transport.status).toBe('failed');
     expect(transport.lastCommittedOrdinal).toBe('10');
+    expect(onStatus).toHaveBeenLastCalledWith('failed');
   });
 });

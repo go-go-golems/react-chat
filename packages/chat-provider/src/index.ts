@@ -31,5 +31,6 @@ export { useHumanTool } from './tools/useHumanTool';
 export { useToolUI } from './tools/useToolUI';
 export { ToolCallOutlet } from './tools/ToolCallOutlet';
 export type { ChatDebugEvent, ChatDebugHandler } from './ws/wsManager';
+export type { TransportStatus } from './ws/sessionStreamTransport';
 export { createDefaultChatDebugClassifier, defaultChatDebugClassifier, createChatDebugEventStore, useChatDebugEntries } from './debug/index';
 export type { ChatDebugClassifier, ChatDebugClassifierOptions, ChatDebugEntry, ChatDebugFamily, ChatDebugEventStore, CreateChatDebugEventStoreOptions } from './debug/index';
