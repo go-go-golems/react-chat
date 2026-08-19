@@ -155,14 +155,83 @@ describe('SessionStreamTransport', () => {
 
   it('does not reconnect after intentional disconnect', async () => {
     const h = harness();
+    const onStatus = vi.fn();
     const transport = new SessionStreamTransport({ platform: h.platform, buildURL: () => 'ws://test' });
-    const connected = transport.connect({ sessionId: 's-1' }, { onSnapshot: vi.fn(), onEvent: vi.fn() });
+    const connected = transport.connect({ sessionId: 's-1' }, { onSnapshot: vi.fn(), onEvent: vi.fn(), onStatus });
     establish(h.sockets[0]);
     await connected;
     transport.disconnect();
     h.sockets[0].onclose?.({ code: 1000, reason: 'client close' });
     expect(transport.status).toBe('stopped');
+    expect(onStatus).toHaveBeenLastCalledWith('stopped');
     expect(h.timers.size).toBe(0);
+  });
+
+  it('does not let a replaced snapshot mutate the new connection generation', async () => {
+    const h = harness();
+    let finishOldSnapshot!: () => void;
+    const oldSnapshot = new Promise<void>((resolve) => { finishOldSnapshot = resolve; });
+    const transport = new SessionStreamTransport({ platform: h.platform, buildURL: () => 'ws://test' });
+    const firstConnection = transport.connect({ sessionId: 's-1' }, {
+      onSnapshot: () => oldSnapshot,
+      onEvent: vi.fn(),
+    });
+    void firstConnection.catch(() => undefined);
+    const first = h.sockets[0];
+    first.open();
+    first.message({ hello: {} });
+    first.message({ snapshot: { sessionId: 's-1', snapshotOrdinal: '99', entities: [] } });
+    await vi.waitFor(() => expect(transport.status).toBe('hydrating'));
+
+    const delivered = vi.fn();
+    const secondConnection = transport.connect({ sessionId: 's-2' }, {
+      onSnapshot: vi.fn(),
+      onEvent: delivered,
+    });
+    const second = h.sockets[1];
+    second.open();
+    second.message({ hello: {} });
+    second.message({ uiEvent: { sessionId: 's-2', eventOrdinal: '1', name: 'early', payload: {} } });
+    finishOldSnapshot();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(delivered).not.toHaveBeenCalled();
+    expect(transport.lastCommittedOrdinal).toBe('0');
+
+    second.message({ snapshot: { sessionId: 's-2', snapshotOrdinal: '0', entities: [] } });
+    second.message({ subscribed: { sessionId: 's-2', sinceSnapshotOrdinal: '0' } });
+    await secondConnection;
+    expect(delivered).toHaveBeenCalledWith(expect.objectContaining({ name: 'early', ordinal: '1' }));
+  });
+
+  it('does not commit an old event after its consumer is replaced', async () => {
+    const h = harness();
+    let finishOldEvent!: () => void;
+    const oldEvent = new Promise<void>((resolve) => { finishOldEvent = resolve; });
+    const transport = new SessionStreamTransport({ platform: h.platform, buildURL: () => 'ws://test' });
+    const firstConnection = transport.connect({ sessionId: 's-1' }, {
+      onSnapshot: vi.fn(),
+      onEvent: () => oldEvent,
+    });
+    establish(h.sockets[0], 's-1', '10');
+    await firstConnection;
+    h.sockets[0].message({ uiEvent: { sessionId: 's-1', eventOrdinal: '11', name: 'slow', payload: {} } });
+
+    const secondConnection = transport.connect({ sessionId: 's-2' }, {
+      onSnapshot: vi.fn(),
+      onEvent: vi.fn(),
+    });
+    const second = h.sockets[1];
+    second.open();
+    second.message({ hello: {} });
+    finishOldEvent();
+    await vi.waitFor(() => expect(second.sent).toHaveLength(1));
+    expect(second.sent).toContain('{"subscribe":{"sessionId":"s-2","sinceSnapshotOrdinal":"0"}}');
+    expect(transport.lastCommittedOrdinal).toBe('0');
+
+    second.message({ snapshot: { sessionId: 's-2', snapshotOrdinal: '0', entities: [] } });
+    second.message({ subscribed: { sessionId: 's-2', sinceSnapshotOrdinal: '0' } });
+    await secondConnection;
   });
 
   it('fails explicitly when hydration buffering exceeds its limit', async () => {

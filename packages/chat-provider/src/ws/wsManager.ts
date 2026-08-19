@@ -85,7 +85,7 @@ export class WsManager {
     this.transport = createSessionStreamTransport({ ...this.transportConfig, basePrefix: args.basePrefix });
     const observer = {
       onSnapshot: async (frame: Parameters<typeof applySnapshot>[0]) => {
-        const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId, args.adapterRegistry);
+        const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId, args.adapterRegistry, args.toolRuntime);
         args.onDebugEvent?.({
           type: 'snapshot',
           sessionId: args.sessionId,

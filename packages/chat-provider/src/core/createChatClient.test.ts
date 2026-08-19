@@ -29,6 +29,7 @@ function clientWith(config: ChatProviderConfig) {
     toolRuntime: {
       cancelActiveFrontendTools: vi.fn(),
       handleFrontendToolUIEvent: vi.fn(),
+      reconcileFrontendToolRequests: vi.fn(),
       isPendingHumanTool: vi.fn(() => false),
       respondToHumanTool: vi.fn(async () => undefined),
     },

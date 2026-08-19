@@ -193,8 +193,8 @@ export class SessionStreamTransport {
 
   disconnect(reason = 'intentional disconnect'): void {
     this.intentionalStop = true;
-    this.stopCurrent(true);
     this.transition('stopped');
+    this.stopCurrent(true);
     this.readyDeferred?.reject(new DOMException(reason, 'AbortError'));
     this.readyDeferred = null;
   }
@@ -288,9 +288,10 @@ export class SessionStreamTransport {
       case 'snapshot':
         this.transition('hydrating');
         await this.observer?.onSnapshot(frame);
+        if (!this.isCurrent(generation, socket)) return;
         this.committedOrdinal = frame.ordinal;
         this.snapshotOrdinal = frame.ordinal;
-        await this.flushBufferedEvents();
+        await this.flushBufferedEvents(generation, socket);
         return;
       case 'ui-event':
         if (this.snapshotOrdinal === null) {
@@ -298,7 +299,7 @@ export class SessionStreamTransport {
           return;
         }
         if (compareEventOrdinals(frame.ordinal, this.snapshotOrdinal) <= 0) return;
-        await this.deliverEvent(frame);
+        await this.deliverEvent(frame, generation, socket);
         return;
       case 'subscribed':
         if (this.snapshotOrdinal === null) {
@@ -320,18 +321,22 @@ export class SessionStreamTransport {
     this.observer?.onDiagnostic?.({ type: 'buffer-depth', frames: this.bufferedEvents.length, bytes: this.bufferedBytes });
   }
 
-  private async flushBufferedEvents(): Promise<void> {
+  private async flushBufferedEvents(generation: number, socket: WebSocketLike): Promise<void> {
     const snapshotOrdinal = this.snapshotOrdinal;
     if (snapshotOrdinal === null) return;
     const buffered = this.bufferedEvents
       .filter(({ frame }) => compareEventOrdinals(frame.ordinal, snapshotOrdinal) > 0)
       .sort((left, right) => compareEventOrdinals(left.frame.ordinal, right.frame.ordinal) || left.order - right.order);
     this.clearBuffer();
-    for (const { frame } of buffered) await this.deliverEvent(frame);
+    for (const { frame } of buffered) {
+      await this.deliverEvent(frame, generation, socket);
+      if (!this.isCurrent(generation, socket)) return;
+    }
   }
 
-  private async deliverEvent(frame: UIEventFrame): Promise<void> {
+  private async deliverEvent(frame: UIEventFrame, generation: number, socket: WebSocketLike): Promise<void> {
     await this.observer?.onEvent(frame);
+    if (!this.isCurrent(generation, socket)) return;
     if (compareEventOrdinals(frame.ordinal, this.committedOrdinal) > 0) this.committedOrdinal = frame.ordinal;
   }
 

@@ -12,6 +12,7 @@ type SubmitToolResult = (result: {
 export type ToolRuntime = {
   cancelActiveFrontendTools: () => void;
   handleFrontendToolUIEvent: (frame: CanonicalFrame) => void;
+  reconcileFrontendToolRequests: (requests: Array<Record<string, unknown>>) => void;
   isPendingHumanTool: (toolCallId: string) => boolean;
   respondToHumanTool: (args: {
     toolCallId: string;
@@ -41,10 +42,17 @@ export function createToolRuntime(args: { registry: ToolRegistry; submitToolResu
     void executeFrontendTool(payload);
   }
 
+  function reconcileFrontendToolRequests(requests: Array<Record<string, unknown>>) {
+    for (const request of requests) {
+      void executeFrontendTool(request);
+    }
+  }
+
   async function executeFrontendTool(payload: Record<string, unknown>) {
     const toolCallId = String(payload.toolCallId || '');
     const toolName = String(payload.toolName || '');
     if (!toolCallId || !toolName) return;
+    if (activeControllers.has(toolCallId) || pendingHumanTools.has(toolCallId)) return;
 
     const tool = args.registry.get(toolName);
     if (!tool) {
@@ -125,7 +133,13 @@ export function createToolRuntime(args: { registry: ToolRegistry; submitToolResu
     });
   }
 
-  return { cancelActiveFrontendTools, handleFrontendToolUIEvent, isPendingHumanTool, respondToHumanTool };
+  return {
+    cancelActiveFrontendTools,
+    handleFrontendToolUIEvent,
+    reconcileFrontendToolRequests,
+    isPendingHumanTool,
+    respondToHumanTool,
+  };
 }
 
 function normalizeRecord(value: unknown): Record<string, unknown> {
