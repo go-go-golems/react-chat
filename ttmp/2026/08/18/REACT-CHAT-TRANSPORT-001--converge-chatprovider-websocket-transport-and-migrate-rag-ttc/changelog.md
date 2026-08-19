@@ -31,3 +31,12 @@ Step 7: diagnosed missing publish directories, added actionable pack preflight, 
 
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/scripts/packages/pack-smoke.mjs — Packaging validation fix and successful smoke gate
 
+
+## 2026-08-19
+
+Completed real full-corpus Garden Assistant heartbeat, widget, forced-reconnect, and committed-ordinal resume acceptance
+
+### Related Files
+
+- packages/chat-provider/src/ws/protocol.ts — Decode omitted protobuf uint64 ordinals as zero while retaining strict malformed-value rejection
+

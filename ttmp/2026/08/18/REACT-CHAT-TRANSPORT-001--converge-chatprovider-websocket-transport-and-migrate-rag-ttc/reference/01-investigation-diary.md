@@ -13,6 +13,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://packages/chat-provider/src/ws/protocol.test.ts
+      Note: Regression coverage for omitted snapshot and subscribed ordinals
+    - Path: repo://packages/chat-provider/src/ws/protocol.ts
+      Note: Protobuf JSON omitted-zero ordinal compatibility fix discovered by real acceptance
     - Path: repo://scripts/packages/pack-smoke.mjs
       Note: Preflights publish directories and reports the correct build prerequisite before npm pack (commit d17b450)
 ExternalSources: []
@@ -21,6 +25,7 @@ LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 
 # Investigation diary
@@ -747,3 +752,62 @@ The pack script now validates each package's publish directory before spawning n
 - Node version: `v22.22.1`.
 - npm version: `10.9.4`.
 - The package script uses `npm pack --json` from each generated `dist/` directory and rejects leaked `.test.*` and `.stories.*` artifacts.
+
+## Step 8: Complete real Garden Assistant heartbeat and resume acceptance
+
+This step exercised the rebuilt ChatProvider against the real full-corpus Garden Assistant rather than a mock transport. The first browser run exposed a protobuf JSON presence mismatch in the new strict ordinal decoder. After repairing that boundary and rebuilding the embedded frontend, sustained heartbeat, real tool/widget execution, forced disconnect, reconnect, snapshot hydration, and nonzero committed-ordinal resume all passed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, 2. and then I want to test things for myself too"
+
+**Assistant interpretation:** Complete acceptance task 2 against the real Garden Assistant, repair any release-blocking integration defect found, leave the real server running, and provide a concise manual test path.
+
+**Inferred user intent:** Confirm the transport foundation behaves correctly under the actual RAG bundle and backend before the user performs independent browser testing.
+
+### What I did
+
+- Started the real Garden Assistant in tmux session `rag-ttc-garden-real` with developer mode, the full-corpus bundle `rk-2b0b331202f55eadcd1b485720a9cbc2`, `GOWORK=off`, and caches under `~/.cache/rag-ttc/garden`.
+- Inspected browser lifecycle diagnostics and found `SessionStreamProtocolError: invalid event ordinal: undefined` immediately after subscription.
+- Traced the failure to protobuf JSON omission of zero-valued `uint64` fields when the Go server marshals with `EmitUnpopulated: false`.
+- Updated `parseProtoUint64Ordinal` so an omitted protobuf scalar ordinal decodes as protocol-default zero for snapshot and subscribed frames, while an explicitly malformed value remains an error.
+- Added protocol tests for omitted `snapshotOrdinal` and `sinceSnapshotOrdinal`, then ran provider typecheck and all 41 tests.
+- Rebuilt the Garden Assistant embedded frontend and restarted the real server.
+- Observed four inbound pings and exactly four outbound pongs while lifecycle status remained `ready`.
+- Ran real status, search, and source-results widget tools successfully.
+- Tested browser offline emulation; recorded that Chromium did not close the already-open WebSocket, so this was not a valid reconnect test.
+- Interrupted and restarted the server directly. The client subscribed again, received a second snapshot, returned to `ready`, and reported no protocol errors.
+- Repeated the forced restart after a real tool run and verified the second subscribe sent `sinceSnapshotOrdinal: "206"` rather than zero.
+
+### Why
+
+- Protobuf JSON omits absent scalar defaults by design, so a strict client must distinguish omission from malformed explicit input.
+- A real server restart exercises the connection-close path that browser network emulation did not trigger.
+- The nonzero cursor is the decisive evidence that resume uses the last committed snapshot rather than replaying from the beginning.
+
+### What worked
+
+- Four heartbeat intervals completed with one pong for each ping.
+- Real `ttc_search` calls and `ttc_search_results_show` rendered successfully.
+- Forced restart produced a second subscribe and snapshot with lifecycle recovery to `ready`.
+- The final resume subscription used committed ordinal `206`.
+- Browser diagnostics contained no protocol errors after the ordinal fix.
+
+### What didn't work
+
+- The first real run remained in `subscribing` because omitted protobuf zero ordinals were treated as invalid JavaScript values.
+- Chromium `context.setOffline(true)` left the established loopback WebSocket open; status remained `ready`, so it could not prove reconnect behavior.
+
+### What I learned
+
+- Presence rules at protobuf JSON boundaries are part of the wire contract even when generated language types make scalar fields appear mandatory.
+- Network emulation APIs are not sufficient evidence that an existing WebSocket was interrupted; acceptance should assert actual close and resubscribe events.
+- Heartbeat health, widget execution, and cursor resume can be verified in one real session without inspecting or logging conversation content.
+
+### Technical details
+
+- React Chat protocol-fix commit: `b2e5cc1a77347408cc9d74f652e75aa3610813b9`.
+- RAG-TTC embedded-frontend commit: `5b1ef6a991c1233f0bca2f1cdf4b4342264764f2`.
+- Real assistant URL: `http://127.0.0.1:8080/`.
+- Acceptance cursor sequence: initial `sinceSnapshotOrdinal: "0"`, resumed `sinceSnapshotOrdinal: "206"`.
+- Acceptance result: two subscriptions, two snapshots, six observed closes during controlled restart attempts, and zero protocol errors in the final run.

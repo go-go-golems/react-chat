@@ -13,7 +13,7 @@
 - [x] Run React Chat unit tests, typecheck, lint, and production build <!-- t:lscp -->
 - [ ] Update RAG-TTC Garden Assistant to consume the fixed ChatProvider package <!-- t:yvbu -->
 - [x] Rebuild and restart the real full-corpus Garden Assistant using ~/.cache/rag-ttc caches <!-- t:ed9b -->
-- [ ] Verify more than three heartbeat intervals, a tool/widget run, and forced reconnect/resume <!-- t:3adu -->
+- [x] Verify more than three heartbeat intervals, a tool/widget run, and forced reconnect/resume <!-- t:3adu -->
 - [ ] Publish or record the consumable ChatProvider version and update CoinVault issue #9 <!-- t:s1hr -->
 - [x] Replace generic canonical frames with a typed codec and bigint-safe decimal ordinals <!-- t:38ji -->
 - [x] Extract a React and Redux independent SessionStreamTransport with deterministic platform seams <!-- t:fxeg -->
