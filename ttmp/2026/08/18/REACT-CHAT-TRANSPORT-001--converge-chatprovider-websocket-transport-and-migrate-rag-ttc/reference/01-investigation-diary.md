@@ -438,3 +438,111 @@ Diagnostics are now metadata-only by default. Raw frames and full timeline mutat
 - Chat Overlay result: 1 file, 5 tests passed.
 - Safe diagnostic events include lifecycle, frame metadata, heartbeat, reconnect, resume, buffer depth, snapshot mapping metadata, and UI event identity/adapter metadata.
 - HTTP operations are named so auth/lease hooks can distinguish session creation, messages, stop, tools, and attachments.
+
+## Step 5: Migrate RAG-TTC and restart the real full-corpus assistant
+
+This step moved the Garden Assistant source onto the new ChatProvider contract, rebuilt its embedded frontend, and restarted the real provider runtime with the full corpus. The runtime is deliberately using the RAG-TTC repository's pinned Go dependencies because the surrounding multi-repository workspace currently contains a newer, incompatible Ragkit checkout.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, implement, commit at appropriate intervals and keep a detailed diary as you work (using the diary format from the skill)"
+
+**Assistant interpretation:** Complete the downstream migration, keep reviewable commits in both repositories, and validate the result against the real indexed Garden Assistant rather than only mock fixtures.
+
+**Inferred user intent:** Leave RAG-TTC ready to consume the converged transport release and provide operational evidence for the heartbeat regression that initiated the work.
+
+**Commits:**
+
+- React Chat follow-up: `970195ff5f68183c0ed6617c6991e0434ab2da07` — "fix(chat-provider): support downstream TypeScript and safe tool metadata"
+- RAG-TTC source migration: `65d3f1b0c128e66ac91dbe3caf685b428045b524` — "feat(garden-assistant): adopt shared chat transport APIs"
+
+### What I did
+
+- Changed the Garden composer to call `send({ prompt })` instead of the removed string overload.
+- Configured `sessionPolicy: { kind: 'never' }` for the Garden Assistant and removed imperative local-storage cleanup.
+- Restricted Garden console diagnostics to safe tool identity/status metadata; prompts, arguments, results, and arbitrary payloads are not logged.
+- Updated the Garden provider-shell tests so their mock WebSocket completes the real `hello -> subscribe -> snapshot -> subscribed` readiness handshake.
+- Added safe `toolCallId`, `toolName`, and `status` fields to shared UI-event diagnostics so RAG-TTC can retain useful operator logging without content-bearing payloads.
+- Rebuilt the production frontend and copied the hashed assets into `cmd/ttc-garden/static` for Go embedding.
+- Restarted `rag-ttc-garden-real` in tmux on port 8080 with provider profile `ttc-live-luna-low`, the `rk-2b0b331202f55eadcd1b485720a9cbc2` full-corpus bundle, and durable timeline/turn databases in `~/.cache/rag-ttc/garden`.
+
+### Why
+
+- Keeping session choice declarative prevents consumer code from racing ChatProvider's restoration behavior.
+- Safe diagnostics must still identify which tool lifecycle changed, but must not duplicate chat/tool content into browser logs.
+- A realistic test double must acknowledge subscription readiness; opening a socket alone is no longer equivalent to a usable chat transport.
+- The embedded web build is what the real Go binary serves, so source-only validation would not exercise the deployed local application.
+
+### What worked
+
+- RAG-TTC typechecking passed against the local React Chat source package.
+- All 47 Garden frontend tests in 13 files passed.
+- The Garden production build completed successfully with 389 transformed modules.
+- The real server returned HTTP 200 from `http://127.0.0.1:8080/` and served the newly generated `index-CZLa8BQV.js` bundle.
+- The full-corpus manifest reports 3,149 documents, 17,753 chunks, and 35,506 raw/summary representations.
+
+### What didn't work
+
+- `pnpm link` was initially unsuitable for validation: it attempted to edit the tracked root manifest/workspace/lockfile and then retried an unavailable registry request. I restored every tracked link-related change and used a node_modules-only symlink for local verification.
+- The first real-server launch inherited the top-level `go.work` and failed against the newer Ragkit checkout:
+
+  ```text
+  internal/customer/ragsearch/ragsearch.go:102:83: h.bundle.Chunks undefined
+  ```
+
+  Starting with `GOWORK=off` selects the RAG-TTC module's pinned, compatible dependency.
+- The next launch used an absolute bundle argument and failed its path-containment contract:
+
+  ```text
+  RAG index bundle path must be relative to the RAG repository root
+  ```
+
+  The repository-local `.cache/rag-ttc/indexes/...` path is a symlink into `~/.cache/rag-ttc`, so the corrected relative argument satisfies both the application contract and the requested cache location.
+- The first headless-browser command could not resolve Playwright from the workspace root. Running through the Garden package resolved it.
+- The second browser attempt reached the page but its assumed `textarea` selector never became visible within 15 seconds. Per the repository's two-attempt debugging rule, I stopped this browser-harness path instead of adding speculative selector workarounds.
+- I invoked `docmgr status --summary`, but this installed docmgr version has no `--summary` flag. The immediately following ticket-specific doctor command still completed and reported all checks passed.
+
+### What I learned
+
+- This checkout must use `GOWORK=off` for the real Garden server until Ragkit and RAG-TTC are advanced together.
+- RAG-TTC intentionally validates that bundle paths are repository-relative; its cache symlink is the supported bridge to the user cache.
+- The embedded application can be proven current from its hashed script reference even when a browser automation harness needs separate maintenance.
+- A source migration and an npm release are separate checkpoints. RAG-TTC's tracked manifest still names published ChatProvider `0.2.1`; it must be advanced only when the new provider version exists in the registry, otherwise a frozen-lockfile checkout becomes unreproducible.
+
+### What was tricky to build
+
+- The Garden tests previously treated WebSocket `open` as readiness. They now need to parse the subscribe request and emit protocol frames in server order.
+- Preserving useful tool lifecycle logs without exposing tool inputs or results required adding narrowly selected metadata at the shared diagnostic boundary.
+- Local cross-repository validation needed to exercise uncommitted package source without encoding a machine-specific filesystem link in either repository.
+
+### What warrants a second pair of eyes
+
+- Re-run the browser smoke with a selector derived from the current rendered shell, then leave it connected for at least two heartbeat intervals and force one network reconnect.
+- Confirm `GOWORK=off` remains the intended operational mode for this workspace rather than aligning the local Ragkit checkout in a separate task.
+- Review the generated embedded JavaScript diff as a build artifact tied to the source migration.
+- Decide the ChatProvider release version and publish it before updating RAG-TTC's manifest and lockfile from `0.2.1`.
+
+### What should be done in the future
+
+- Publish the converged ChatProvider package through the repository's guarded `publish-npm` workflow.
+- Update the Garden package dependency and frozen lockfile to that published version, reinstall without the local node_modules symlink, and repeat typecheck/test/build.
+- Complete the manual/automated real-browser heartbeat, tool-widget, and forced-reconnect scenarios.
+
+### Code review instructions
+
+- In RAG-TTC, review `TtcChatProviderShell.tsx`, `TtcChatComposer.tsx`, their tests, and the newly embedded static asset as one change.
+- In React Chat, review the safe tool metadata in `wsManager.ts` and its classifier/test coverage.
+- Verify the running server with:
+
+  ```bash
+  tmux capture-pane -pt rag-ttc-garden-real -S -160
+  curl -fsS -D - http://127.0.0.1:8080/ -o /tmp/rag-ttc-garden-index.html
+  ```
+
+### Technical details
+
+- Real runtime URL: `http://127.0.0.1:8080/`.
+- Runtime session: `rag-ttc-garden-real`.
+- Bundle: `rk-2b0b331202f55eadcd1b485720a9cbc2`, created 2026-08-18T23:09:11Z.
+- Durable state: `/home/manuel/.cache/rag-ttc/garden/timeline.db` and `turns.db`.
+- Known incomplete acceptance evidence: a browser stayed connected long enough to prove multiple heartbeat cycles only in transport-level fake-clock tests, not yet in the real UI smoke.
