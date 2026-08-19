@@ -23,8 +23,12 @@ RelatedFiles:
       Note: Breaking 0.5 downstream migration contract in commit 2b5f62d
     - Path: repo://packages/chat-provider/package.json
       Note: ChatProvider 0.5.0 immutable release version in commit 2b5f62d
+    - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
+      Note: Unknown-extension attachment regression in commit d5dba1b
     - Path: repo://packages/chat-provider/src/core/createChatClient.ts
-      Note: Stop error storage and rethrow in commit 60345fe
+      Note: |-
+        Stop error storage and rethrow in commit 60345fe
+        Blank MIME normalization and binary fallback in commit d5dba1b
     - Path: repo://packages/chat-provider/src/store/overlaySlice.ts
       Note: Uses the closed transport status vocabulary in c9aa18a
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
@@ -52,6 +56,7 @@ LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 
 
@@ -1250,4 +1255,76 @@ The correction makes each socket generation own its consumer queue while heartbe
 
 - New thread IDs: `PRRT_kwDOSr1N4s6al33C`, `PRRT_kwDOSr1N4s6al33I`, and `PRRT_kwDOSr1N4s6al33M`.
 - Provider tarball: 82 entries, 33,670 bytes.
+- Overlay tarball: 39 entries, 17,669 bytes.
+
+## Step 13: Normalize unknown attachment media types
+
+The final review sweep found one new local edge case and no additional transport-level pattern. Browser files with unknown extensions expose `File.type` as an empty string, so nullish coalescing accepted an invalid blank media type instead of reaching the binary fallback.
+
+Attachment normalization now treats blank response and browser media types as absent. Unknown uploads produce `application/octet-stream` and remain ordinary file attachments.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, we're nearing the end I think: https://github.com/go-go-golems/react-chat/pull/8"
+
+**Assistant interpretation:** Perform a final thread-aware review sweep, address any genuinely new actionable finding, validate the complete release candidate, and record whether the result indicates remaining architectural risk.
+
+**Inferred user intent:** Close the last correctness edge cases and establish that PR 8 is ready for final review and merge.
+
+**Commit (code):** `d5dba1b55c602660364bc9951f5c24ca851b2ea2` — "fix(chat-provider): normalize attachment media type"
+
+### What I did
+
+- Fetched current review threads and distinguished one new comment from older addressed or outdated threads.
+- Trimmed the upload response's camel- or snake-case media type.
+- Fell back to a trimmed browser `File.type`.
+- Used `application/octet-stream` when both values are blank or absent.
+- Added a regression using an unknown-extension `File` with no response media type.
+- Ran provider, workspace, and publish-artifact validation.
+
+### Why
+
+- Empty strings are present values for `??`, but semantically absent media types.
+- Every returned `ChatAttachmentRef` must carry a non-empty media type before it can be submitted or rendered.
+
+### What worked
+
+- The unknown upload returns `kind: "file"` and `mediaType: "application/octet-stream"`.
+- Existing image upload behavior remains unchanged.
+- Provider tests passed: 11 files, 53 tests.
+- Workspace tests passed: 13 files, 59 tests.
+- Full typecheck and both publish package smoke tests passed.
+
+### What didn't work
+
+- No implementation or validation failures occurred in this step.
+
+### What I learned
+
+- Browser file metadata uses empty strings to represent unknown types, so boundary normalization must handle semantic absence rather than only nullish absence.
+- This finding does not indicate a broader transport defect; it is confined to attachment response normalization.
+
+### What was tricky to build
+
+- Both server response naming conventions and browser metadata participate in precedence. Trimming each candidate before fallback prevents whitespace-only response values from masking a valid browser type.
+
+### What warrants a second pair of eyes
+
+- Confirm backend attachment validation accepts `application/octet-stream` for unknown file types.
+- Review whether filename extension inference is intentionally excluded; the client currently trusts server/browser MIME metadata and uses a safe generic fallback.
+
+### What should be done in the future
+
+- Rerun PR CI and final review on commit `d5dba1b`.
+- If no new findings appear, merge before publishing 0.5.0.
+
+### Code review instructions
+
+- Review the media-type precedence in `ChatClientAttachments.upload`.
+- Run `pnpm --filter @go-go-golems/chat-provider test` and `npm run pack:smoke`.
+
+### Technical details
+
+- New review thread: `PRRT_kwDOSr1N4s6amF7s`.
+- Provider tarball: 82 entries, 33,688 bytes.
 - Overlay tarball: 39 entries, 17,669 bytes.

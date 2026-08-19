@@ -84,3 +84,12 @@ Step 12: separated immediate control frames from generation-local consumer proje
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/sessionStreamTransport.ts — Control/data queue separation
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/timelineSnapshot.ts — Latest-message reconciliation
 
+
+## 2026-08-19
+
+Step 13: normalized blank upload media types to application/octet-stream (commit d5dba1b)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/core/createChatClient.ts — Attachment media type boundary
+
