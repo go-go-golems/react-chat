@@ -13,6 +13,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://packages/chat-provider/README.md
+      Note: Breaking 0.5 downstream migration contract in commit 2b5f62d
+    - Path: repo://packages/chat-provider/package.json
+      Note: ChatProvider 0.5.0 immutable release version in commit 2b5f62d
     - Path: repo://packages/chat-provider/src/ws/protocol.test.ts
       Note: Regression coverage for omitted snapshot and subscribed ordinals
     - Path: repo://packages/chat-provider/src/ws/protocol.ts
@@ -25,6 +29,7 @@ LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 
 
@@ -811,3 +816,93 @@ This step exercised the rebuilt ChatProvider against the real full-corpus Garden
 - Real assistant URL: `http://127.0.0.1:8080/`.
 - Acceptance cursor sequence: initial `sinceSnapshotOrdinal: "0"`, resumed `sinceSnapshotOrdinal: "206"`.
 - Acceptance result: two subscriptions, two snapshots, six observed closes during controlled restart attempts, and zero protocol errors in the final run.
+
+## Step 9: Prepare the immutable ChatProvider 0.5.0 candidate
+
+This step converted the accepted transport implementation into a versioned package candidate. Because the convergence changes public request and lifecycle APIs and the package remains pre-1.0, the provider advanced from 0.4.2 to 0.5.0. The package README now states the breaking migration contract so downstream consumers do not retain competing heartbeat or reconnect owners.
+
+The candidate passed the repository's complete local release path. The generated tarball contains the 0.5.0 provider and the existing 0.4.1 overlay remains unchanged.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, go"
+
+**Additional user prompt (verbatim):** "commit at appropriate intervals and keep a detailed diary as you work (using the diary format from the skill), as usual"
+
+**Assistant interpretation:** Execute the release and downstream handoff plan, committing focused checkpoints and recording all validation and publication evidence in the existing transport diary.
+
+**Inferred user intent:** Produce a reproducible ChatProvider release that RAG-TTC and later CoinVault can consume without workspace links or copied transport behavior.
+
+**Commit (code):** `2b5f62d3558b6e8a8469f2a9367378ae80071b05` — "release(chat-provider): prepare 0.5.0"
+
+### What I did
+
+- Queried npm and confirmed published provider versions stop at 0.4.2; the existing tags were `latest=0.4.2` and `next=0.1.1`.
+- Bumped `packages/chat-provider/package.json` to 0.5.0.
+- Added a 0.5 migration section describing typed requests, session policy, transport ownership, attachment inputs, authentication/URL hooks, and safe diagnostics.
+- Ran `pnpm install --frozen-lockfile`.
+- Ran provider typecheck and all 41 provider tests.
+- Ran `npm run build:publish` and `npm run pack:smoke`.
+- Inspected the focused diff and committed only the provider manifest and README.
+
+### Why
+
+- Pre-1.0 semver uses a minor version for an intentional public breaking change.
+- Publishing an immutable candidate under `next` permits a clean-registry consumer test without moving the default install target.
+- Explicit migration notes prevent downstream applications from keeping a second heartbeat/reconnect implementation beside the shared transport.
+
+### What worked
+
+- The frozen install completed without lockfile changes.
+- TypeScript compilation passed.
+- Eight test files and 41 tests passed.
+- The provider packed as `go-go-golems-chat-provider-0.5.0.tgz` with 82 entries and 32,857 bytes.
+- The companion overlay still packed successfully as 0.4.1.
+
+### What didn't work
+
+- No release-gate failures occurred in this step.
+- pnpm reported that the optional esbuild install script was ignored; the existing build and test gates were unaffected.
+
+### What I learned
+
+- The existing npm `next` tag is stale at 0.1.1, so a successful 0.5.0 candidate publication will also repair the useful meaning of that tag.
+- The package version is not represented separately in the workspace lockfile, so the manifest bump correctly produced no lockfile diff.
+
+### What was tricky to build
+
+- The release must distinguish package immutability from channel promotion. Publishing 0.5.0 under `next` creates the consumable version without implicitly declaring it the default for every user.
+- The overlay consumes the provider through `workspace:*`, but its own source and version did not change. The release is therefore provider-only while the full local pack smoke still verifies cross-package artifact generation.
+
+### What warrants a second pair of eyes
+
+- Review the README's breaking-change inventory against the exported public types.
+- Verify the GitHub Actions run checks out the committed candidate and publishes only `@go-go-golems/chat-provider`.
+- Confirm `latest` remains 0.4.2 until the registry-installed RAG-TTC acceptance pass is complete.
+
+### What should be done in the future
+
+- Push the release branch and land the candidate on the repository's publishable branch.
+- Publish 0.5.0 under `next` through npm Trusted Publishing.
+- Install exact version 0.5.0 in RAG-TTC, regenerate its lockfile, and repeat its build and browser acceptance.
+- Promote 0.5.0 to `latest` only after downstream validation.
+
+### Code review instructions
+
+- Start with `packages/chat-provider/package.json` and the `Migrating to 0.5` section of `packages/chat-provider/README.md`.
+- Validate with:
+
+  ```bash
+  pnpm install --frozen-lockfile
+  pnpm --filter @go-go-golems/chat-provider typecheck
+  pnpm --filter @go-go-golems/chat-provider test
+  npm run build:publish
+  npm run pack:smoke
+  ```
+
+### Technical details
+
+- Candidate: `@go-go-golems/chat-provider@0.5.0`.
+- Intended initial dist-tag: `next`.
+- Previous registry state: `latest=0.4.2`, `next=0.1.1`.
+- Release authentication: npm Trusted Publishing from `.github/workflows/publish-npm.yml`.

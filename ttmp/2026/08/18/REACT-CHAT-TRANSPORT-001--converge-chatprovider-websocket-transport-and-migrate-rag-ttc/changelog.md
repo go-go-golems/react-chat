@@ -40,3 +40,13 @@ Completed real full-corpus Garden Assistant heartbeat, widget, forced-reconnect,
 
 - packages/chat-provider/src/ws/protocol.ts — Decode omitted protobuf uint64 ordinals as zero while retaining strict malformed-value rejection
 
+
+## 2026-08-19
+
+Step 9: prepared and locally validated the immutable ChatProvider 0.5.0 candidate (commit 2b5f62d)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/README.md — Migration notes
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/package.json — Release version
+
