@@ -50,3 +50,15 @@ Step 9: prepared and locally validated the immutable ChatProvider 0.5.0 candidat
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/README.md — Migration notes
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/package.json — Release version
 
+
+## 2026-08-19
+
+Step 10: addressed all four actionable PR 8 transport and overlay review threads (commit c9aa18a)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-overlay/src/overlay/ChatComposer.tsx — Rejected send handling
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-overlay/src/overlay/ChatPanel.tsx — Lifecycle status presentation
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/sessionStreamTransport.ts — Terminal observer notification ordering
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/wsManager.ts — Terminal transport recreation
+

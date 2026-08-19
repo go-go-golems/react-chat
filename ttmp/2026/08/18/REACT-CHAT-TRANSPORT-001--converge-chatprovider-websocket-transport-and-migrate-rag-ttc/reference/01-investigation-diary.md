@@ -13,14 +13,24 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://packages/chat-overlay/src/overlay/ChatComposer.tsx
+      Note: Consumes event-handler send rejections in c9aa18a
+    - Path: repo://packages/chat-overlay/src/overlay/ChatPanel.tsx
+      Note: Renders all lifecycle states exhaustively in c9aa18a
     - Path: repo://packages/chat-provider/README.md
       Note: Breaking 0.5 downstream migration contract in commit 2b5f62d
     - Path: repo://packages/chat-provider/package.json
       Note: ChatProvider 0.5.0 immutable release version in commit 2b5f62d
+    - Path: repo://packages/chat-provider/src/store/overlaySlice.ts
+      Note: Uses the closed transport status vocabulary in c9aa18a
     - Path: repo://packages/chat-provider/src/ws/protocol.test.ts
       Note: Regression coverage for omitted snapshot and subscribed ordinals
     - Path: repo://packages/chat-provider/src/ws/protocol.ts
       Note: Protobuf JSON omitted-zero ordinal compatibility fix discovered by real acceptance
+    - Path: repo://packages/chat-provider/src/ws/sessionStreamTransport.ts
+      Note: Emits terminal status before observer teardown in c9aa18a
+    - Path: repo://packages/chat-provider/src/ws/wsManager.ts
+      Note: Recreates terminal same-session transports in c9aa18a
     - Path: repo://scripts/packages/pack-smoke.mjs
       Note: Preflights publish directories and reports the correct build prerequisite before npm pack (commit d17b450)
 ExternalSources: []
@@ -29,6 +39,7 @@ LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 
 
@@ -906,3 +917,104 @@ The candidate passed the repository's complete local release path. The generated
 - Intended initial dist-tag: `next`.
 - Previous registry state: `latest=0.4.2`, `next=0.1.1`.
 - Release authentication: npm Trusted Publishing from `.github/workflows/publish-npm.yml`.
+
+## Step 10: Address PR 8 transport and overlay review findings
+
+This step resolved all four actionable review threads on PR 8. The fixes close two terminal-failure lifecycle gaps in the provider and align the overlay with the new transport contract: failed same-session connections can be recreated, observers see the terminal state before teardown, every lifecycle status has a deliberate presentation, and rejected sends no longer escape as unhandled promises.
+
+Regression tests now cover failed-transport recreation, terminal status delivery, and the complete status vocabulary. The full workspace and publish-artifact gates pass with the review corrections.
+
+### Prompt Context
+
+**User prompt (verbatim):** "https://github.com/go-go-golems/react-chat/pull/8 Address cod review issues."
+
+**Assistant interpretation:** Inspect thread-aware review state for PR 8, implement every unresolved actionable code request, validate the release candidate, commit the code and diary separately, and push the updates for renewed review.
+
+**Inferred user intent:** Remove correctness and user-interface defects identified during review before merging or publishing ChatProvider 0.5.0.
+
+**Commit (code):** `c9aa18a0d34bcdf910f9c9b86b59f25729a9dee6` — "fix(chat-provider): address transport review feedback"
+
+### What I did
+
+- Fetched PR metadata through the GitHub connector and unresolved thread state through the GraphQL-backed review helper.
+- Changed `WsManager.connect` to reuse a same-session promise only while its transport is nonterminal.
+- Reordered terminal failure handling so `failed` or `stopped` reaches the installed observer before request and observer teardown.
+- Typed Redux `wsStatus` as `TransportStatus` and changed its initial value from the retired `disconnected` vocabulary to `idle`.
+- Exported `TransportStatus` from the provider package root.
+- Replaced the overlay's legacy status map with an exhaustive `Record<TransportStatus, ...>`.
+- Added a rejection handler to the composer send path while retaining the store-owned error display.
+- Added manager recreation, terminal notification, and exhaustive presentation tests.
+- Ran package-level tests/typechecks, then the full workspace tests/typecheck and publish build/pack gates.
+
+### Why
+
+- A fulfilled connection promise is not evidence that its transport remains usable after a later terminal failure.
+- Observer teardown must occur after the terminal transition or Redux and diagnostics retain a false healthy status.
+- An exhaustive status map makes lifecycle vocabulary changes fail at compile time instead of rendering an unknown glyph.
+- The client deliberately rethrows HTTP failures for programmatic callers; event-handler callers must explicitly consume that rejection.
+
+### What worked
+
+- The new same-session regression establishes a connection, injects a malformed frame, observes `failed`, and verifies that the next connect creates another socket and promise.
+- The projection-failure regression now proves `failed` is the observer's last status.
+- The overlay test enumerates all nine `TransportStatus` values and verifies none render the unknown marker.
+- Provider tests passed: 9 files, 42 tests.
+- Overlay tests passed: 2 files, 6 tests.
+- Full workspace tests passed: 11 files, 48 tests.
+- Both 0.5.0 provider and 0.4.1 overlay publish tarballs passed smoke inspection.
+
+### What didn't work
+
+- The first overlay typecheck failed with:
+
+  ```text
+  src/overlay/ChatPanel.test.ts(2,15): error TS2305: Module '"@go-go-golems/chat-provider"' has no exported member 'TransportStatus'.
+  src/overlay/ChatPanel.tsx(2,30): error TS2305: Module '"@go-go-golems/chat-provider"' has no exported member 'TransportStatus'.
+  ```
+
+- The lifecycle type existed at `@go-go-golems/chat-provider/ws` but not at the package root. Exporting it from `src/index.ts` fixed the consumer boundary; the second targeted run and all full gates passed.
+
+### What I learned
+
+- Connection reuse decisions must examine current transport state rather than only session identity and historical promise presence.
+- Terminal status emission and resource teardown have a strict ordering requirement.
+- The overlay status model had retained pre-convergence vocabulary even though Redux was already receiving new transport values.
+- A public state field should use the same exported union as its producer so downstream mappings remain exhaustive.
+
+### What was tricky to build
+
+- A transport can be in `backoff` after its original connection promise has resolved. That state is still genuinely reconnecting and must be reused; only `failed` and `stopped` are terminal recreation boundaries.
+- `fail` still needs a captured observer for `onError`, but status and diagnostics must be emitted through the live observer before `stopCurrent(true)` clears it.
+- The initial Redux status needed to move to `idle`; retaining `disconnected` would have forced an unnecessary compatibility member into the new closed vocabulary.
+
+### What warrants a second pair of eyes
+
+- Confirm that `backoff` reuse is desired while an HTTP message submission proceeds during reconnect.
+- Review the composer decision to clear submitted text immediately and show failures through the existing error bar.
+- Check the overlay glyph/color choices for accessibility and theme contrast.
+
+### What should be done in the future
+
+- Let PR CI rerun on the review-fix commit.
+- Reply to and resolve the four GitHub review threads after the pushed commit is visible.
+- Do not merge or publish 0.5.0 until the refreshed checks pass.
+
+### Code review instructions
+
+- Start with `WsManager.connect` and `SessionStreamTransport.fail`.
+- Review `overlaySlice.ts` beside `ChatPanel.tsx` for the closed lifecycle vocabulary.
+- Review `ChatComposer.tsx` together with `createChatClient.send`, which stores and rethrows failures.
+- Validate with:
+
+  ```bash
+  pnpm typecheck
+  pnpm test
+  npm run build:publish
+  npm run pack:smoke
+  ```
+
+### Technical details
+
+- Addressed thread IDs: `PRRT_kwDOSr1N4s6alKs4`, `PRRT_kwDOSr1N4s6alKs8`, `PRRT_kwDOSr1N4s6alKtD`, and `PRRT_kwDOSr1N4s6alKtF`.
+- Provider tarball after fixes: 82 entries, 32,924 bytes.
+- Overlay tarball after fixes: 39 entries, 17,664 bytes.
