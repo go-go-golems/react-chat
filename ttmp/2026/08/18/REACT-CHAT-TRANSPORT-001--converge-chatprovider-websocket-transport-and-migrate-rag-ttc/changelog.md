@@ -12,3 +12,8 @@ Documented heartbeat root cause, shared lifecycle design, RAG-TTC integration pr
 ## 2026-08-18
 
 Expanded the project into a complete intern implementation guide covering typed protocol, independent transport, lifecycle and resume correctness, HTTP/auth hooks, session policy, attachments, safe diagnostics, conformance tests, RAG-TTC adoption, and future CoinVault integration
+
+## 2026-08-19
+
+Step 3: implemented typed uint64-safe protocol and independent heartbeat/reconnect/resume transport (commit a8152b3)
+

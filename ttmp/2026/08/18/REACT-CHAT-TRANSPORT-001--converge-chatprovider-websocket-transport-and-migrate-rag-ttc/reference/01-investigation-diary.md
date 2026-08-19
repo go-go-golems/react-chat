@@ -198,3 +198,116 @@ Create  a detailed analysis / design / implementation guide that is for a new in
 - Planned shared ordinal representation: branded decimal string, compared through `BigInt`.
 - Planned transport observer commits an ordinal only after successful snapshot/event consumption.
 - Planned reMarkable destination: `/ai/2026/08/18/REACT-CHAT-TRANSPORT-001/`.
+
+## Step 3: Implement the typed protocol and independent transport core
+
+This step implemented the first executable foundation: a strict sessionstream codec and a transport that has no React, Redux, timeline, tool, or widget dependency. The transport now owns heartbeat response, connection generations, lifecycle status, bounded reconnect, committed ordinals, hydration buffering, and safe metadata diagnostics.
+
+Reading the server source corrected an assumption in the design before it became code. `sinceSnapshotOrdinal` is currently advisory: the server always sends a current snapshot, filters hydration fanout at the snapshot boundary, and then transitions live. Multiple UI events in one published batch also share an ordinal, so ordinal-only deduplication would incorrectly drop valid events. The implementation preserves stable same-ordinal batch order and only filters events covered by the current snapshot.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, implement, commit at appropriate intervals and keep a detailed diary as you work (using the diary format from the skill)"
+
+**Assistant interpretation:** Implement the complete ticket in phased, tested commits while maintaining the strict implementation diary throughout the work.
+
+**Inferred user intent:** Produce a production-quality shared ChatProvider foundation and an already migrated RAG-TTC application, with enough evidence and history for review and later CoinVault adoption.
+
+**Commit (code):** `a8152b323d7be0dfb9c2077005332741b5798612` — "feat(chat-provider): add resilient sessionstream transport"
+
+### What I did
+
+- Replaced loose protocol normalization with a typed `SessionStreamFrame` union and `SessionStreamCodec`.
+- Added branded decimal-string `EventOrdinal` values and `BigInt` comparison.
+- Added strict subscribe and pong encoders and validation for malformed/unknown frames.
+- Added a Redux-independent `SessionStreamTransport` with injected WebSocket, timers, and randomness.
+- Implemented explicit lifecycle states, generation-safe callbacks, intentional disconnect, disposal, bounded exponential reconnect, committed ordinal tracking, bounded hydration buffering, and metadata-only diagnostics.
+- Added deterministic protocol and transport tests using fake sockets and timers.
+- Inspected sessionstream server implementation and hydration race tests to verify actual subscribe ordering and cursor behavior.
+
+### Why
+
+- CoinVault cannot reuse the former manager because it directly imported ChatProvider Redux and projection code.
+- Decimal strings preserve protobuf `uint64` ordinals beyond JavaScript's safe integer range.
+- Deterministic platform seams make timing and stale-callback behavior testable without browser sleeps.
+- The server's fresh-snapshot contract makes snapshot-boundary filtering the reliable recovery mechanism today.
+
+### What worked
+
+- `pnpm install --frozen-lockfile` restored the exact workspace dependencies without changing the lockfile.
+- The final checkpoint passed 36 tests across eight files and passed package TypeScript checking.
+- Tests verify exact opaque nonce echo, readiness only after hydration/subscription, committed-cursor reconnect, stale callback rejection, intentional-stop behavior, explicit overflow, and commit-after-delivery.
+
+### What didn't work
+
+- The first test command failed because dependencies were absent:
+
+  ```text
+  sh: 1: vitest: not found
+  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL @go-go-golems/chat-provider@0.4.2 test
+  spawn ENOENT
+  WARN Local package.json exists, but node_modules missing, did you mean to install?
+  ```
+
+- The first strict frame typing made existing projection-unit fixtures invalid because those fixtures intentionally construct partial projection frames. TypeScript reported errors such as:
+
+  ```text
+  Type '{ type: "ui-event"; name: string; }' is not assignable to type 'SessionStreamFrame'.
+  ```
+
+  I separated the strict wire `SessionStreamFrame` from the narrower, optional-field `CanonicalFrame` used by projection adapters. This preserves a strict transport boundary without forcing synthetic projection tests to claim they are complete wire frames.
+
+- The first transport test run had four failures because chained asynchronous message processing had not drained after three manually awaited microtasks. I replaced fragile microtask counting with `vi.waitFor`. That run also exposed a real error-reporting bug: `fail()` cleared the observer before invoking `onError`, so the callback was never called. Capturing the observer before teardown fixed it.
+- The next typecheck found browser-interface and TypeScript configuration issues:
+
+  ```text
+  Type 'WebSocket' is not assignable to type 'WebSocketLike'.
+  error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+  ```
+
+  I isolated the browser WebSocket cast inside the platform adapter and replaced a constructor parameter property with an explicitly declared field.
+
+### What I learned
+
+- Sessionstream currently documents resume input as advisory rather than event replay. Correct recovery comes from accepting a fresh snapshot and then its post-snapshot live fanout.
+- A sessionstream publish batch can contain multiple events with the same ordinal. Deduplication must not assume ordinal uniqueness.
+- The server sends snapshot and buffered live events before `subscribed`; readiness therefore means the client has processed the snapshot and reaches `subscribed`, not merely `onopen`.
+- Observer teardown order is part of the error contract: capture notification targets before clearing lifecycle state.
+
+### What was tricky to build
+
+- Serialized message processing was necessary because snapshot and consumer callbacks may be asynchronous. Without one promise queue, an event could commit before its snapshot or another event finishes.
+- The committed cursor advances after successful observer delivery. A rejected projection leaves the cursor unchanged and terminates the connection, preventing silent loss.
+- Stale WebSocket callbacks are rejected by both generation and socket identity; either check alone leaves edge cases during replacement.
+- Same-ordinal events require stable arrival order. Buffer sorting uses ordinal first and an explicit insertion counter second.
+
+### What warrants a second pair of eyes
+
+- Review whether eight reconnect attempts and the 250ms-to-10s policy match production expectations.
+- Review terminal protocol-error handling, especially authentication-related server error codes.
+- Confirm string-length is a sufficient buffer-byte approximation for UTF-16 browser strings; use encoded UTF-8 size if exact byte enforcement matters.
+- Review the decision to reject consumer errors rather than retry poison frames indefinitely.
+
+### What should be done in the future
+
+- Adapt ChatProvider Redux/timeline behavior onto this transport and remove the old socket implementation.
+- Add request, session, attachment, and public error contracts before migrating RAG-TTC.
+- When server-side replay is introduced, revise resume tests to cover the replay boundary without changing the committed-delivery invariant.
+
+### Code review instructions
+
+- Start at `packages/chat-provider/src/ws/protocol.ts`, then read `sessionStreamTransport.ts` from public types through `processRawFrame` and failure handling.
+- Review `sessionStreamTransport.test.ts` for lifecycle invariants and server-order assumptions.
+- Validate with:
+
+  ```bash
+  pnpm --filter @go-go-golems/chat-provider typecheck
+  pnpm --filter @go-go-golems/chat-provider test
+  ```
+
+### Technical details
+
+- Validation result: 8 test files, 36 tests passed.
+- Server reference: `sessionstream/pkg/sessionstream/transport/ws/server.go` states the cursor is advisory and subscribe always sends a current snapshot followed by live fanout.
+- Default reconnect: 250ms base, 10s cap, 20% jitter, eight attempts.
+- Default hydration limits: 1,000 frames and 4 MiB approximated from received string lengths.
