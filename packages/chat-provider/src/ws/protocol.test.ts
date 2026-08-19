@@ -38,4 +38,13 @@ describe('sessionstream protocol', () => {
       uiEvent: { sessionId: 's-1', eventOrdinal: '9007199254740994', name: 'ChatRunStarted', payload: {} },
     }))).toMatchObject({ type: 'ui-event', ordinal: '9007199254740994' });
   });
+
+  it('applies protobuf zero defaults to omitted uint64 snapshot and subscription ordinals', () => {
+    expect(defaultSessionStreamCodec.decodeServerFrame(JSON.stringify({
+      snapshot: { sessionId: 's-1', entities: [] },
+    }))).toMatchObject({ type: 'snapshot', ordinal: '0' });
+    expect(defaultSessionStreamCodec.decodeServerFrame(JSON.stringify({
+      subscribed: { sessionId: 's-1' },
+    }))).toEqual({ type: 'subscribed', sessionId: 's-1', ordinal: '0' });
+  });
 });

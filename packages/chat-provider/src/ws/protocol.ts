@@ -67,6 +67,10 @@ export function compareEventOrdinals(a: EventOrdinal, b: EventOrdinal): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function parseProtoUint64Ordinal(raw: unknown): EventOrdinal {
+  return raw === undefined ? ZERO_ORDINAL : parseEventOrdinal(raw);
+}
+
 export function buildWebSocketURL(args: { basePrefix?: string }): string {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${window.location.host}${args.basePrefix ?? ''}/api/chat/ws`;
@@ -125,7 +129,7 @@ export function normalizeServerFrame(value: unknown): SessionStreamFrame {
     return {
       type: 'snapshot',
       sessionId: requiredString(snapshot.sessionId, 'snapshot.sessionId'),
-      ordinal: parseEventOrdinal(snapshot.snapshotOrdinal),
+      ordinal: parseProtoUint64Ordinal(snapshot.snapshotOrdinal),
       entities: Array.isArray(snapshot.entities) ? snapshot.entities.map(asRecord) : [],
     };
   }
@@ -134,7 +138,7 @@ export function normalizeServerFrame(value: unknown): SessionStreamFrame {
     return {
       type: 'subscribed',
       sessionId: requiredString(subscribed.sessionId, 'subscribed.sessionId'),
-      ordinal: parseEventOrdinal(subscribed.sinceSnapshotOrdinal),
+      ordinal: parseProtoUint64Ordinal(subscribed.sinceSnapshotOrdinal),
     };
   }
   if (frame.unsubscribed) {
