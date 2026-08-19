@@ -1,6 +1,6 @@
 import type { ChatDebugEvent } from '../ws/wsManager';
 
-export type ChatDebugFamily = 'llm' | 'tool' | 'widget' | 'timeline' | 'ws' | 'raw' | 'other';
+export type ChatDebugFamily = 'llm' | 'tool' | 'widget' | 'timeline' | 'ws' | 'other';
 
 export interface ChatDebugEntry {
   /** Monotonic id, stable as a React key. Numeric part is `seq`. */
@@ -39,22 +39,6 @@ function ordinalId(value: unknown): string {
   return `#${String(value)}`;
 }
 
-function familyForUIEventName(name: string, aliases: Partial<Record<string, ChatDebugFamily>>): ChatDebugFamily {
-  if (aliases[name]) return aliases[name];
-  if (name.startsWith('ChatWidgetInstance')) return 'widget';
-  if (name.startsWith('ChatToolCall') || name.startsWith('FrontendTool') || name.includes('Tool')) return 'tool';
-  if (
-    name.startsWith('ChatRun') ||
-    name.startsWith('ChatText') ||
-    name.startsWith('ChatReasoning') ||
-    name.startsWith('ChatThinking') ||
-    name.startsWith('ChatProviderCall') ||
-    name.startsWith('ChatUserMessage')
-  ) return 'llm';
-  if (name.startsWith('Timeline') || name.includes('Timeline')) return 'timeline';
-  return 'other';
-}
-
 export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOptions = {}): ChatDebugClassifier {
   const aliases = options.familyAliases ?? {};
 
@@ -63,18 +47,8 @@ export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOpt
       switch (event.type) {
         case 'ws-lifecycle':
           return { family: 'ws', eventType: `ws.${String(event.event)}`, eventId: '' };
-        case 'raw-ws':
-          return { family: 'raw', eventType: 'raw', eventId: '' };
-        case 'parsed-frame': {
+        case 'frame-received': {
           const frameType = String(event.frameType ?? 'frame');
-          const name = asNonEmptyString(event.name);
-          if (frameType === 'ui-event' && name) {
-            return {
-              family: familyForUIEventName(name, aliases),
-              eventType: name,
-              eventId: ordinalId(event.ordinal),
-            };
-          }
           if (frameType === 'snapshot') return { family: 'timeline', eventType: 'snapshot', eventId: ordinalId(event.ordinal) };
           return { family: frameType === 'hello' || frameType === 'subscribed' ? 'ws' : 'other', eventType: frameType, eventId: ordinalId(event.ordinal) };
         }
@@ -85,7 +59,7 @@ export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOpt
           const id = event.messageId !== undefined && event.messageId !== null && event.messageId !== ''
             ? String(event.messageId)
             : ordinalId(event.ordinal);
-          return { family: 'timeline', eventType: `→ ${name || 'mutation'}`, eventId: id };
+          return { family: aliases[name] ?? 'timeline', eventType: `→ ${name || 'mutation'}`, eventId: id };
         }
         default:
           return { family: 'other', eventType: String((event as { type?: unknown }).type ?? 'event'), eventId: '' };
@@ -96,12 +70,9 @@ export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOpt
       switch (event.type) {
         case 'ws-lifecycle':
           return `ws ${String(event.event)}`;
-        case 'raw-ws':
-          return `raw ${event.size}B ${event.preview.slice(0, 100)}`;
-        case 'parsed-frame': {
-          const name = event.name ? ` ${String(event.name)}` : '';
+        case 'frame-received': {
           const ord = event.ordinal !== undefined && event.ordinal !== null ? ` #${String(event.ordinal)}` : '';
-          return `${String(event.frameType ?? 'frame')}${name}${ord}`;
+          return `${String(event.frameType ?? 'frame')}${ord} ${event.size}B`;
         }
         case 'snapshot':
           return `snapshot entities=${event.entityCount} dropped=${event.droppedCount}`;
@@ -109,6 +80,14 @@ export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOpt
           const adapter = event.adapterName ? ` via ${event.adapterName}` : '';
           return `ui ${String(event.name ?? '')}${adapter}`;
         }
+        case 'heartbeat-pong-sent':
+          return 'heartbeat pong sent';
+        case 'reconnect-scheduled':
+          return `reconnect attempt=${event.attempt} delay=${event.delayMs}ms`;
+        case 'resume-requested':
+          return `resume since #${event.sinceOrdinal}`;
+        case 'buffer-depth':
+          return `buffer frames=${event.frames} bytes=${event.bytes}`;
         default:
           return String((event as { type?: unknown }).type ?? 'event');
       }

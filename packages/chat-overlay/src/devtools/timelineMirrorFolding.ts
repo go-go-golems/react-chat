@@ -1,9 +1,7 @@
 import {
-  applyTimelineMutationToMirror,
   createEmptyTimelineMirror,
   type ChatDebugEntry,
   type TimelineMirrorState,
-  type TimelineMutation,
 } from '@go-go-golems/chat-provider';
 
 export interface TimelineSnapshotEntityLike {
@@ -64,15 +62,10 @@ export function foldTimelineMutationsFromDebugEntries(
   entries: ChatDebugEntry[],
   fromSeqExclusive: number,
 ): { mirror: TimelineMirrorState; lastSeq: number } {
-  let working: TimelineMirrorState | null = null;
   let lastSeq = fromSeqExclusive;
   for (const entry of entries) {
     if (entry.seq <= fromSeqExclusive) continue;
     lastSeq = Math.max(lastSeq, entry.seq);
-    if (entry.event.type !== 'ui-event') continue;
-    const mutation = (entry.event as { mutation?: unknown }).mutation;
-    if (!mutation || typeof mutation !== 'object') continue;
-    working = applyTimelineMutationToMirror(working ?? base, mutation as TimelineMutation, { immutable: true });
   }
-  return { mirror: working ?? base, lastSeq };
+  return { mirror: base, lastSeq };
 }

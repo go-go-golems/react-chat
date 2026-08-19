@@ -175,6 +175,7 @@ export class SessionStreamTransport {
       return this.readyDeferred.promise;
     }
 
+    this.readyDeferred?.reject(new DOMException('connection replaced', 'AbortError'));
     this.stopCurrent(false);
     this.intentionalStop = false;
     this.request = { ...request, sessionId };

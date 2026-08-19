@@ -1,197 +1,140 @@
 import { type AppDispatch } from '../store/store';
-import {
-  asString,
-  buildWebSocketURL,
-  type CanonicalFrame,
-  encodeSubscribeFrame,
-  parseServerFrame,
-  safeOrdinal,
-} from './protocol';
-import { applyUIEvent } from './timelineEvents';
 import type { ToolRuntime } from '../tools/toolRuntime';
 import type { TimelineAdapterRegistry } from './timelineAdapterRegistry';
+import { applyUIEvent } from './timelineEvents';
 import { applySnapshot } from './timelineSnapshot';
+import {
+  createSessionStreamTransport,
+  type SafeTransportDiagnostic,
+  type SessionStreamTransport,
+  type SessionStreamTransportConfig,
+  type TransportStatus,
+} from './sessionStreamTransport';
 
 export type ChatDebugEvent =
-  | { type: 'ws-lifecycle'; sessionId: string; event: string; [key: string]: unknown }
-  | { type: 'raw-ws'; sessionId: string; size: number; preview: string; raw: string }
-  | { type: 'parsed-frame'; sessionId: string; frameType?: unknown; name?: unknown; ordinal?: unknown; frame: CanonicalFrame }
-  | { type: 'snapshot'; sessionId: string; ordinal?: unknown; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
-  | { type: 'ui-event'; sessionId: string; ordinal?: unknown; name?: unknown; messageId?: unknown; mutation: unknown; adapterName?: string };
+  | { type: 'ws-lifecycle'; sessionId: string; event: TransportStatus; from?: TransportStatus }
+  | { type: 'frame-received'; sessionId: string; frameType: string; ordinal?: string; size: number }
+  | { type: 'heartbeat-pong-sent'; sessionId: string }
+  | { type: 'reconnect-scheduled'; sessionId: string; attempt: number; delayMs: number }
+  | { type: 'resume-requested'; sessionId: string; sinceOrdinal: string }
+  | { type: 'buffer-depth'; sessionId: string; frames: number; bytes: number }
+  | { type: 'snapshot'; sessionId: string; ordinal?: string; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
+  | { type: 'ui-event'; sessionId: string; ordinal?: string; name: string; messageId?: string; adapterName?: string };
 
 export type ChatDebugHandler = (event: ChatDebugEvent) => void;
 
-type ConnectArgs = {
+export type ConnectArgs = {
   sessionId: string;
   basePrefix: string;
   dispatch: AppDispatch;
-  onStatus?: (s: string) => void;
+  onStatus?: (status: TransportStatus) => void;
   toolRuntime?: ToolRuntime;
   adapterRegistry?: TimelineAdapterRegistry;
   onDebugEvent?: ChatDebugHandler;
 };
 
-export class WsManager {
-  private ws: WebSocket | null = null;
-  private sessionId = '';
-  private connectNonce = 0;
-  private hydrated = false;
-  private buffered: CanonicalFrame[] = [];
-  private lastOnStatus: ((s: string) => void) | null = null;
-
-  async connect(args: ConnectArgs) {
-    if (this.ws && this.sessionId === args.sessionId) {
+function forwardDiagnostic(sessionId: string, handler: ChatDebugHandler | undefined, event: SafeTransportDiagnostic): void {
+  if (!handler) return;
+  switch (event.type) {
+    case 'state-changed':
+      handler({ type: 'ws-lifecycle', sessionId, event: event.to, from: event.from });
       return;
-    }
-    this.disconnect();
-
-    this.connectNonce++;
-    const nonce = this.connectNonce;
-
-    this.sessionId = args.sessionId;
-    this.hydrated = false;
-    this.buffered = [];
-    this.lastOnStatus = args.onStatus ?? null;
-
-    args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'connecting', nonce });
-    args.onStatus?.('connecting...');
-    const ws = new WebSocket(buildWebSocketURL({ basePrefix: args.basePrefix }));
-    this.ws = ws;
-
-    let settleOpen: (() => void) | null = null;
-    const openPromise = new Promise<void>((resolve) => {
-      let settled = false;
-      settleOpen = () => {
-        if (settled) return;
-        settled = true;
-        resolve();
-      };
-      setTimeout(() => settleOpen?.(), 1500);
-    });
-
-    ws.onopen = () => {
-      settleOpen?.();
-      if (nonce !== this.connectNonce) return;
-      args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'connected', nonce });
-      args.onStatus?.('connected');
-      try {
-        ws.send(encodeSubscribeFrame(args.sessionId));
-      } catch (err) {
-        console.error('ws subscribe failed', err);
-      }
-    };
-    ws.onclose = () => {
-      settleOpen?.();
-      if (nonce !== this.connectNonce) return;
-      args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'closed', nonce });
-      args.onStatus?.('closed');
-    };
-    ws.onerror = () => {
-      settleOpen?.();
-      if (nonce !== this.connectNonce) return;
-      args.onDebugEvent?.({ type: 'ws-lifecycle', sessionId: args.sessionId, event: 'error', nonce });
-      args.onStatus?.('error');
-    };
-    ws.onmessage = (m) => {
-      if (nonce !== this.connectNonce) return;
-      const raw = String(m.data);
-      args.onDebugEvent?.({ type: 'raw-ws', sessionId: args.sessionId, size: raw.length, preview: raw.slice(0, 1000), raw });
-      try {
-        const frame = parseServerFrame(raw);
-        args.onDebugEvent?.({
-          type: 'parsed-frame',
-          sessionId: args.sessionId,
-          frameType: frame.type,
-          name: frame.name,
-          ordinal: frame.ordinal,
-          frame,
-        });
-        const ord = safeOrdinal(frame.ordinal);
-        if (ord !== null) {
-          // Could dispatch to a lastSeq slice if needed
-        }
-        this.handleFrame(frame, args, nonce);
-      } catch (err) {
-        console.error('ws message parse failed', err);
-      }
-    };
-
-    await openPromise;
-  }
-
-  disconnect() {
-    this.connectNonce++;
-    this.lastOnStatus?.('disconnected');
-    try {
-      this.ws?.close();
-    } catch { /* ignore */ }
-    this.ws = null;
-    this.sessionId = '';
-    this.hydrated = false;
-    this.buffered = [];
-  }
-
-  get isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
-  }
-
-  private handleFrame(frame: CanonicalFrame, args: ConnectArgs, nonce: number) {
-    const type = asString(frame.type);
-    if (type === 'hello') return;
-    if (type === 'error') {
-      console.error('ws error frame', frame.error);
+    case 'socket-closed':
       return;
-    }
-    if (type === 'snapshot') {
-      if (nonce !== this.connectNonce) return;
-      const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId, args.adapterRegistry);
-      args.onDebugEvent?.({
-        type: 'snapshot',
-        sessionId: args.sessionId,
-        ordinal: frame.ordinal,
-        entityCount: debugEntities.length,
-        droppedCount: debugEntities.filter((entity) => !entity.mapped).length,
-        entities: debugEntities.map((entity) => ({
-          rawKind: entity.raw.kind,
-          rawId: entity.raw.id,
-          mappedId: entity.mapped?.id,
-          mappedKind: entity.mapped?.kind,
-          adapterName: entity.adapterName,
-          dropped: !entity.mapped,
-        })),
-      });
-      this.hydrated = true;
-      args.onStatus?.('hydrated');
-      const buffered = this.buffered;
-      this.buffered = [];
-      for (const next of buffered) {
-        applyUIEvent(next, args.dispatch, args.sessionId, args.toolRuntime, args.adapterRegistry);
-      }
+    case 'frame-received':
+      handler({ type: 'frame-received', sessionId, frameType: event.frameType, ordinal: event.ordinal, size: event.size });
       return;
-    }
-    if (type === 'subscribed') {
-      args.onStatus?.('subscribed');
+    case 'heartbeat-pong-sent':
+      handler({ type: 'heartbeat-pong-sent', sessionId });
       return;
-    }
-    if (type === 'ui-event') {
-      if (!this.hydrated) {
-        this.buffered.push(frame);
-        return;
-      }
-      const projection = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime, args.adapterRegistry);
-      args.onDebugEvent?.({
-        type: 'ui-event',
-        sessionId: args.sessionId,
-        ordinal: frame.ordinal,
-        name: frame.name,
-        messageId: (frame.payload as any)?.messageId,
-        mutation: projection?.mutation ?? null,
-        adapterName: projection?.adapterName,
-      });
-    }
+    case 'reconnect-scheduled':
+      handler({ type: 'reconnect-scheduled', sessionId, attempt: event.attempt, delayMs: event.delayMs });
+      return;
+    case 'resume-requested':
+      handler({ type: 'resume-requested', sessionId, sinceOrdinal: event.sinceOrdinal });
+      return;
+    case 'buffer-depth':
+      handler({ type: 'buffer-depth', sessionId, frames: event.frames, bytes: event.bytes });
   }
 }
 
-export function createWsManager(): WsManager {
-  return new WsManager();
+export class WsManager {
+  private readonly transportConfig: SessionStreamTransportConfig;
+  private transport: SessionStreamTransport | null = null;
+  private sessionId = '';
+  private connectionPromise: Promise<void> | null = null;
+  private lastOnStatus: ((status: TransportStatus) => void) | null = null;
+
+  constructor(transportConfig: SessionStreamTransportConfig = {}) {
+    this.transportConfig = transportConfig;
+  }
+
+  connect(args: ConnectArgs): Promise<void> {
+    if (this.transport && this.sessionId === args.sessionId && this.connectionPromise) return this.connectionPromise;
+    this.disconnect();
+    this.sessionId = args.sessionId;
+    this.lastOnStatus = args.onStatus ?? null;
+    this.transport = createSessionStreamTransport({ ...this.transportConfig, basePrefix: args.basePrefix });
+    const observer = {
+      onSnapshot: async (frame: Parameters<typeof applySnapshot>[0]) => {
+        const debugEntities = applySnapshot(frame, args.dispatch, args.sessionId, args.adapterRegistry);
+        args.onDebugEvent?.({
+          type: 'snapshot',
+          sessionId: args.sessionId,
+          ordinal: frame.ordinal,
+          entityCount: debugEntities.length,
+          droppedCount: debugEntities.filter((entity) => !entity.mapped).length,
+          entities: debugEntities.map((entity) => ({
+            rawKind: entity.raw.kind,
+            rawId: entity.raw.id,
+            mappedId: entity.mapped?.id,
+            mappedKind: entity.mapped?.kind,
+            adapterName: entity.adapterName,
+            dropped: !entity.mapped,
+          })),
+        });
+      },
+      onEvent: async (frame: Parameters<typeof applyUIEvent>[0]) => {
+        const projection = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime, args.adapterRegistry);
+        args.onDebugEvent?.({
+          type: 'ui-event',
+          sessionId: args.sessionId,
+          ordinal: frame.ordinal,
+          name: frame.name ?? '',
+          messageId: typeof frame.payload === 'object' && frame.payload && 'messageId' in frame.payload
+            ? String((frame.payload as { messageId?: unknown }).messageId ?? '') || undefined
+            : undefined,
+          adapterName: projection?.adapterName,
+        });
+      },
+      onStatus: (status: TransportStatus) => {
+        args.onStatus?.(status);
+      },
+      onError: (error: { message: string }) => {
+        console.error('chat websocket transport error', error.message);
+      },
+      onDiagnostic: (event: SafeTransportDiagnostic) => {
+        forwardDiagnostic(args.sessionId, args.onDebugEvent, event);
+      },
+    };
+    this.connectionPromise = this.transport.connect({ sessionId: args.sessionId }, observer);
+    return this.connectionPromise;
+  }
+
+  disconnect(): void {
+    this.lastOnStatus?.('stopped');
+    this.transport?.dispose();
+    this.transport = null;
+    this.connectionPromise = null;
+    this.sessionId = '';
+    this.lastOnStatus = null;
+  }
+
+  get isConnected(): boolean {
+    return this.transport?.isConnected ?? false;
+  }
+}
+
+export function createWsManager(config: SessionStreamTransportConfig = {}): WsManager {
+  return new WsManager(config);
 }

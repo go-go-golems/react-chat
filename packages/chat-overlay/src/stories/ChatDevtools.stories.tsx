@@ -23,7 +23,7 @@ const entries: ChatDebugEntry[] = [
     eventType: 'ChatTextPatch',
     eventId: '#2',
     summary: 'ui-event ChatTextPatch #2',
-    event: { type: 'parsed-frame', sessionId: 'demo', frameType: 'ui-event', name: 'ChatTextPatch', ordinal: 2, frame: { type: 'ui-event', name: 'ChatTextPatch' } },
+    event: { type: 'frame-received', sessionId: 'demo', frameType: 'ui-event', ordinal: '2', size: 128 },
   },
   {
     id: 'evt-3',

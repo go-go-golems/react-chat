@@ -37,7 +37,7 @@ export function ChatProvider({ children, config }: ChatProviderProps) {
       toolRegistry,
       toolRuntime,
       adapterRegistry,
-      wsManager: createWsManager(),
+      wsManager: createWsManager(config?.transport),
     });
     submitToolResult = client.tools.submitResult;
 

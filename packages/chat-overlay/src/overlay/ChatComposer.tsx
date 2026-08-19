@@ -9,7 +9,7 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
 
   const send = useCallback(() => {
     if (!text.trim()) return;
-    client.send(text.trim());
+    void client.send({ prompt: text.trim() });
     setText('');
   }, [client, text]);
 

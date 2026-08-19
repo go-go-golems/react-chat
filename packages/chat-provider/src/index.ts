@@ -1,4 +1,4 @@
-export type { ChatClient, ChatProviderConfig, ChatClientTools, ToolResultSubmission } from './core/createChatClient';
+export type { ChatAttachmentRef, ChatClient, ChatClientAttachments, ChatHttpConfig, ChatOperation, ChatProviderConfig, ChatClientTools, SendMessageRequest, SessionPolicy, ToolResultSubmission } from './core/createChatClient';
 export { createChatClient } from './core/createChatClient';
 export { ChatProvider } from './react/ChatProvider';
 export { useChatClient, useChatRuntime } from './core/context';
