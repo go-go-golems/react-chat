@@ -17,3 +17,8 @@ Expanded the project into a complete intern implementation guide covering typed 
 
 Step 3: implemented typed uint64-safe protocol and independent heartbeat/reconnect/resume transport (commit a8152b3)
 
+
+## 2026-08-19
+
+Step 4: integrated the shared transport and added explicit client errors, session policy, HTTP/auth hooks, attachments, and safe diagnostics (commit d7df59b)
+

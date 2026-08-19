@@ -311,3 +311,130 @@ Reading the server source corrected an assumption in the design before it became
 - Server reference: `sessionstream/pkg/sessionstream/transport/ws/server.go` states the cursor is advisory and subscribe always sends a current snapshot followed by live fanout.
 - Default reconnect: 250ms base, 10s cap, 20% jitter, eight attempts.
 - Default hydration limits: 1,000 frames and 4 MiB approximated from received string lengths.
+
+## Step 4: Integrate the transport and complete the public client foundation
+
+This step removed the old socket lifecycle from ChatProvider and made its Redux/timeline behavior an observer of the independent transport. It also completed the public API changes needed before a downstream migration: declarative session restoration, injected HTTP/auth hooks, explicit operation failures, structured send requests, and attachment upload/removal.
+
+Diagnostics are now metadata-only by default. Raw frames and full timeline mutations were removed from the debug stream because they can contain prompts, tool arguments, results, and attachment data. The devtools retain lifecycle, frame type/size, ordinal, adapter name, entity identifiers, reconnect, resume, heartbeat, and buffer information.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue implementing the complete design in a second coherent checkpoint and preserve review evidence.
+
+**Inferred user intent:** Establish the public ChatProvider boundary that RAG-TTC can adopt now and CoinVault can reuse later without inheriting Redux internals.
+
+**Commit (code):** `d7df59b060ddb31276a6d547c86f2717d57bf79d` — "feat(chat-provider): unify client lifecycle and request APIs"
+
+### What I did
+
+- Replaced `WsManager` internals with a thin observer over `SessionStreamTransport`.
+- Preserved snapshot and live projection through the existing timeline adapter registry.
+- Changed debug events to safe metadata-only shapes and updated the classifier, store tests, overlay devtools, and stories.
+- Added `SessionPolicy` with `never`, `local-storage`, and URL-with-optional-fallback modes.
+- Added injected `fetch`, headers, and `beforeRequest` hooks with named chat operations.
+- Changed message submission from `send(prompt)` to `send({ prompt, attachments })`.
+- Added `ChatAttachmentRef` plus attachment upload and removal client operations.
+- Changed connect/send failures to update Redux and reject to the caller.
+- Updated the shared composer and package exports.
+- Added tests for session policies, request hooks, authorization headers, attachment serialization, upload/removal, and explicit HTTP failure.
+
+### Why
+
+- The independent transport is only useful if ChatProvider itself consumes it and deletes its competing lifecycle.
+- CoinVault needs authorization and endpoint customization without a request-middleware framework.
+- Attachments already exist in the backend/CoinVault contract and therefore belong in the shared message request.
+- Debug streams must not become an unintentional transcript and credential archive.
+- Callers must be able to react to connection or request failure instead of only observing Redux later.
+
+### What worked
+
+- ChatProvider passed 40 tests and typechecking after the API expansion.
+- Chat Overlay passed five tests and typechecking after its debug and send API updates.
+- Existing live/snapshot timeline adapters required no product-specific rewrite.
+- Header injection and pre-request hooks remained small and operation-oriented.
+
+### What didn't work
+
+- The first integration typecheck found stale assumptions in the debug classifier and tests:
+
+  ```text
+  Property 'name' does not exist on type '{ type: "frame-received"; ... }'.
+  Type '"connected"' is not assignable to type 'TransportStatus'.
+  ```
+
+  Frame-received diagnostics intentionally carry no event payload/name, and the lifecycle now calls the usable state `ready`. I updated the classifier and fixtures accordingly.
+- A combined `apply_patch` attempt failed because one hunk targeted the wrong file context:
+
+  ```text
+  apply_patch verification failed: Failed to find expected lines ...
+  ```
+
+  I split the correction across the proper files and reapplied it.
+- The next provider typecheck reported an unused helper after removing payload-rich frame classification:
+
+  ```text
+  error TS6133: 'familyForUIEventName' is declared but its value is never read.
+  ```
+
+  Removing the obsolete helper fixed it.
+- Chat Overlay then exposed all remaining raw-debug and mutation-folding dependencies. The errors included:
+
+  ```text
+  Type '"raw"' is not assignable to type 'ChatDebugFamily'.
+  'mutation' does not exist in type '{ type: "ui-event"; ... }'.
+  ```
+
+  I removed the raw filter/category and stopped reconstructing timeline content from safe diagnostics. Snapshot seeding remains, but content-bearing mutation replay is intentionally unavailable.
+- The first HTTP test typecheck inferred a zero-argument mock and rejected access to captured request arguments. Explicitly typing the mock as a fetch-compatible two-argument function fixed the fixture.
+
+### What I learned
+
+- Safe diagnostics and timeline reconstruction from raw mutations are conflicting requirements. The safe default must win; a future privileged developer recorder would need an explicit unsafe boundary.
+- Session policy is clearer when the URL fallback is represented structurally rather than through independent flags.
+- The smallest sufficient auth seam is named pre-request notification plus header and fetch injection.
+- Attachment upload responses in current consumers may use camelCase or protobuf-style snake_case, so normalization belongs at the HTTP response boundary.
+
+### What was tricky to build
+
+- `WsManager.connect()` must reuse one connection promise for repeated sends in the same session; otherwise every `send()` would replace the transport because each observer object is new.
+- Error delivery must update Redux and rethrow, avoiding either swallowed errors or missing UI state.
+- Multipart upload must not set JSON content type; the browser needs to supply its boundary.
+- Removing mutation payloads required updating both data types and devtool behavior, not merely suppressing one log statement.
+
+### What warrants a second pair of eyes
+
+- Review the public breaking change from `send(string)` to `send(SendMessageRequest)` and confirm every external package is migrated before release.
+- Review whether the default URL-plus-local-storage session policy should remain the package default.
+- Review attachment response normalization and endpoint parity with RAG-TTC/Pinocchio.
+- Review the deliberate removal of timeline mutation folding from safe debug entries.
+- Confirm authorization hooks are called for every relevant HTTP operation and that WebSocket cookie/URL authentication remains sufficient.
+
+### What should be done in the future
+
+- Update RAG-TTC configuration, send call sites, logging, dependency resolution, and tests.
+- Add or extend live-versus-hydrated attachment projection coverage once the downstream schema fixture is available.
+- Document the breaking public API in the package release notes.
+
+### Code review instructions
+
+- Begin with `core/createChatClient.ts` public types and request helper.
+- Follow `react/ChatProvider.tsx` into the new `wsManager.ts` observer adapter.
+- Review debug data removal in `debug/classifyDebugEvent.ts` and Chat Overlay devtools.
+- Validate with:
+
+  ```bash
+  pnpm --filter @go-go-golems/chat-provider typecheck
+  pnpm --filter @go-go-golems/chat-provider test
+  pnpm --filter @go-go-golems/chat-overlay typecheck
+  pnpm --filter @go-go-golems/chat-overlay test
+  ```
+
+### Technical details
+
+- ChatProvider result: 8 files, 40 tests passed.
+- Chat Overlay result: 1 file, 5 tests passed.
+- Safe diagnostic events include lifecycle, frame metadata, heartbeat, reconnect, resume, buffer depth, snapshot mapping metadata, and UI event identity/adapter metadata.
+- HTTP operations are named so auth/lease hooks can distinguish session creation, messages, stop, tools, and attachments.
