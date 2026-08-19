@@ -73,3 +73,14 @@ Step 11: made snapshot hydration authoritative across derived runtime state and 
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/sessionStreamTransport.ts — Generation and terminal-order invariants
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/timelineSnapshot.ts — Post-projection reconciliation
 
+
+## 2026-08-19
+
+Step 12: separated immediate control frames from generation-local consumer projection and made hydration status temporal (commit 60345fe)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/core/createChatClient.ts — Stop failure contract
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/sessionStreamTransport.ts — Control/data queue separation
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/timelineSnapshot.ts — Latest-message reconciliation
+

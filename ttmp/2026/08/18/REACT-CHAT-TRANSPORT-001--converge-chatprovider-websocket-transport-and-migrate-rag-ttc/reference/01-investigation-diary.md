@@ -14,13 +14,17 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: repo://packages/chat-overlay/src/overlay/ChatComposer.tsx
-      Note: Consumes event-handler send rejections in c9aa18a
+      Note: |-
+        Consumes event-handler send rejections in c9aa18a
+        Stop-button rejection ownership in commit 60345fe
     - Path: repo://packages/chat-overlay/src/overlay/ChatPanel.tsx
       Note: Renders all lifecycle states exhaustively in c9aa18a
     - Path: repo://packages/chat-provider/README.md
       Note: Breaking 0.5 downstream migration contract in commit 2b5f62d
     - Path: repo://packages/chat-provider/package.json
       Note: ChatProvider 0.5.0 immutable release version in commit 2b5f62d
+    - Path: repo://packages/chat-provider/src/core/createChatClient.ts
+      Note: Stop error storage and rethrow in commit 60345fe
     - Path: repo://packages/chat-provider/src/store/overlaySlice.ts
       Note: Uses the closed transport status vocabulary in c9aa18a
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
@@ -33,8 +37,11 @@ RelatedFiles:
       Note: |-
         Emits terminal status before observer teardown in c9aa18a
         Post-await generation guards and disconnect ordering in commit 3113093
+        Generation-local consumer queue and immediate control frames in commit 60345fe
     - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
-      Note: Authoritative snapshot reconciliation in commit 3113093
+      Note: |-
+        Authoritative snapshot reconciliation in commit 3113093
+        Latest-ordinal hydrated run status in commit 60345fe
     - Path: repo://packages/chat-provider/src/ws/wsManager.ts
       Note: Recreates terminal same-session transports in c9aa18a
     - Path: repo://scripts/packages/pack-smoke.mjs
@@ -45,6 +52,7 @@ LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 
 
@@ -1138,3 +1146,108 @@ The fix stays within the current design. `applySnapshot` now has an explicit pos
 - New review thread IDs: `PRRT_kwDOSr1N4s6alhd8`, `PRRT_kwDOSr1N4s6alhd-`, `PRRT_kwDOSr1N4s6alheD`, and `PRRT_kwDOSr1N4s6alheH`.
 - Provider tarball after reconciliation: 82 entries, 33,341 bytes.
 - Overlay tarball: 39 entries, 17,664 bytes.
+
+## Step 12: Separate transport control flow from consumer projection
+
+This review round exposed another authority boundary: WebSocket control traffic and application projection traffic had been serialized through one promise queue. A slow snapshot or event consumer could therefore delay pong replies and even block a replacement connection behind stale work. The run-status heuristic also treated historical messages as an unordered set instead of an ordinal timeline.
+
+The correction makes each socket generation own its consumer queue while heartbeat and handshake frames execute immediately. Snapshot reconciliation now selects the latest message by server event ordinal, and the stop operation follows the established rule that client methods store and rethrow errors while UI event handlers consume the returned promise.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address next round, same concept: https://github.com/go-go-golems/react-chat/pull/8"
+
+**Assistant interpretation:** Address all newly actionable review comments, identify their shared design implications, add regression coverage, validate the release candidate, and maintain focused code and diary commits.
+
+**Inferred user intent:** Continue hardening the shared transport until repeated review no longer finds systemic reconnect or lifecycle defects.
+
+**Commit (code):** `60345fec4621997e4faef57c1bf0b72b60b92a38` — "fix(chat-provider): separate control and consumer flow"
+
+### What I did
+
+- Fetched the third thread-aware review round and isolated three new actionable comments.
+- Removed the transport-wide `messageQueue`.
+- Created a consumer queue local to each socket generation.
+- Decoded frames at socket ingress and routed `hello`, `ping`, `pong`, and `unsubscribed` through an immediate control path.
+- Kept snapshot, UI-event, subscribed, and error processing ordered on the generation-local consumer queue.
+- Added snapshot entity ordinal fields to the typed protocol projection input.
+- Derived run status from the latest hydrated message by `lastEventOrdinal`, falling back to `createdOrdinal` and input order.
+- Treated a latest accepted user message as an active run and prevented old failed messages from masking later completed runs.
+- Added Redux error storage and rethrow behavior to `client.stop`.
+- Consumed the stop promise rejection at the overlay button boundary.
+- Added heartbeat-under-slow-hydration, replacement-handshake, multi-run status, accepted-message, and stop-failure tests.
+
+### Why
+
+- Heartbeat and handshake frames are transport control-plane traffic; their liveness cannot depend on application projection latency.
+- A promise queue shared by generations violates the generation-isolation invariant even if stale continuations no longer mutate state.
+- Snapshot entity ordinals provide the temporal information required to distinguish current run state from conversation history.
+- UI event handlers own rejected promises they intentionally do not await, while the client still rethrows for programmatic callers.
+
+### What worked
+
+- Pong is sent while `onSnapshot` remains unresolved.
+- A replacement socket subscribes immediately even while the old generation's consumer promise is pending.
+- An old failed message followed by a newer completed assistant message restores `finished`.
+- An old failure followed by a newer accepted user message restores `streaming`.
+- Stop HTTP failures populate `overlay.error`, reject the client promise, and are consumed by the button handler.
+- Targeted validation passed with 52 provider tests and 6 overlay tests.
+- Full validation passed with 13 files and 58 tests.
+- Provider and overlay publish tarballs passed smoke inspection.
+
+### What didn't work
+
+- The first stop-failure regression resolved instead of rejecting because the fixture populated browser storage but not the active Redux session:
+
+  ```text
+  AssertionError: promise resolved "undefined" instead of rejecting
+  ```
+
+- This confirmed the intended stop contract: unlike send/connect, stop does not create or restore a session. The test now dispatches the active session ID before calling stop; no production behavior was changed to accommodate the fixture.
+
+### What I learned
+
+- Queue isolation is distinct from mutation isolation. Generation checks prevent stale writes, but only a per-generation queue prevents stale latency from blocking current control traffic.
+- Heartbeat routing must happen before any application-controlled `await`.
+- Authoritative reconciliation requires order as well as completeness; aggregate `some` checks are incorrect for historical terminal states.
+- The client/UI promise ownership convention applies uniformly to send and stop.
+
+### What was tricky to build
+
+- Frame decoding and diagnostics can throw, so immediate control processing remains inside the same failure boundary that previously guarded queued processing.
+- `subscribed` must remain on the consumer queue because readiness depends on snapshot application; `hello` must not, because subscription starts the hydration sequence.
+- Snapshot ordinals are branded decimal strings. Temporal selection uses bigint-safe ordinal comparison and never converts them to JavaScript numbers.
+- Equal or missing ordinals fall back to snapshot input order, preserving deterministic behavior for older servers.
+
+### What warrants a second pair of eyes
+
+- Review the classification of control frames versus ordered consumer frames, especially `subscribed`.
+- Confirm snapshot entity JSON consistently includes `lastEventOrdinal` for production sessions.
+- Review whether `accepted` is the correct active-run signal when it is the latest hydrated message.
+- Confirm local frontend tools should be cancelled before the stop HTTP request, even when that request later fails.
+
+### What should be done in the future
+
+- Prefer an explicit authoritative run-state entity in the snapshot protocol over message-derived status when the backend adds one.
+- Keep future socket control frames out of the consumer queue by default.
+- Rerun CI and review on commit `60345fe` before merging or publishing.
+
+### Code review instructions
+
+- Start at the `socket.onmessage` ingress and compare `processControlFrame` with `processConsumerFrame`.
+- Review `reconcileHydratedState` together with the snapshot ordinal fields in `protocol.ts`.
+- Review `client.stop` and the STOP button as a client/UI error-ownership pair.
+- Validate with:
+
+  ```bash
+  pnpm typecheck
+  pnpm test
+  npm run build:publish
+  npm run pack:smoke
+  ```
+
+### Technical details
+
+- New thread IDs: `PRRT_kwDOSr1N4s6al33C`, `PRRT_kwDOSr1N4s6al33I`, and `PRRT_kwDOSr1N4s6al33M`.
+- Provider tarball: 82 entries, 33,670 bytes.
+- Overlay tarball: 39 entries, 17,669 bytes.
