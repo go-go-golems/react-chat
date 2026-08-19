@@ -22,3 +22,12 @@ Step 3: implemented typed uint64-safe protocol and independent heartbeat/reconne
 
 Step 4: integrated the shared transport and added explicit client errors, session policy, HTTP/auth hooks, attachments, and safe diagnostics (commit d7df59b)
 
+
+## 2026-08-19
+
+Step 7: diagnosed missing publish directories, added actionable pack preflight, and verified both package tarballs (commit d17b450)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/scripts/packages/pack-smoke.mjs — Packaging validation fix and successful smoke gate
+

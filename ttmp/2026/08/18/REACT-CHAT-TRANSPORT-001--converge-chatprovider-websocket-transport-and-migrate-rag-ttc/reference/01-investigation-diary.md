@@ -12,13 +12,16 @@ Topics:
 DocType: reference
 Intent: long-term
 Owners: []
-RelatedFiles: []
+RelatedFiles:
+    - Path: repo://scripts/packages/pack-smoke.mjs
+      Note: Preflights publish directories and reports the correct build prerequisite before npm pack (commit d17b450)
 ExternalSources: []
 Summary: Chronological evidence and commands behind the transport convergence ticket.
 LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 # Investigation diary
 
@@ -615,3 +618,132 @@ This step ran the broad validation gates after both codebases were committed and
 
 - Completed ticket tasks in this step: `lscp`, `ed9b`, and `fw69`.
 - Still open: `yvbu` (durable published dependency/lockfile), `3adu` (real browser heartbeat/tool/reconnect acceptance), and `s1hr` (publish/record consumer version and update CoinVault issue).
+
+## Step 7: Make the package smoke failure actionable and verify the tarballs
+
+This step resolved the packaging-validation blocker that had been recorded as an npm executable lookup failure. The apparent `spawn npm ENOENT` was caused by a missing child-process working directory: the earlier validation invoked `pack:smoke` after the ordinary workspace build, but npm packages are assembled only by `build:publish`.
+
+The pack script now validates each package's publish directory before spawning npm and reports the required build command directly. With the publish build present and npm allowed to write its user cache, both package tarballs passed inspection.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, do that. commit at appropriate intervals and keep a detailed diary as you work (using the diary format from the skill), as usual"
+
+**Assistant interpretation:** Diagnose and fix the React Chat package-smoke blocker, commit the code separately, validate it, and preserve a detailed chronological record.
+
+**Inferred user intent:** Make the converged ChatProvider release candidate safe to package before versioning and publication.
+
+**Commit (code):** `d17b45093f5ff4bcac4b7071816ce55607d1ef32` — "fix(packaging): diagnose missing publish builds"
+
+### What I did
+
+- Inspected the root package scripts, README publishing sequence, generated directories, npm launcher, shell PATH, and a minimal Node `execFile("npm")` reproduction.
+- Added a `stat()` preflight for every package `dist/` directory in `scripts/packages/pack-smoke.mjs`.
+- Made the preflight error name the missing directory and instruct the operator to run `npm run build:publish` before `npm run pack:smoke`.
+- Exercised the negative path with a nonexistent package directory.
+- Ran `pnpm build:publish && pnpm pack:smoke` with writable npm-cache access.
+- Re-ran recursive typechecking and all React Chat unit tests.
+
+### Why
+
+- `execFile()` reports a nonexistent `cwd` using the same `ENOENT` shape as a missing executable. Without a preflight, the error directs investigation toward PATH and npm resolution instead of the absent publish build.
+- `pack:smoke` is intentionally separate from `build:publish`; preserving that separation allows inspection of an already-built artifact while keeping the documented publishing sequence explicit.
+- A release gate must fail with an error that identifies the operator action needed to satisfy its precondition.
+
+### What worked
+
+- The minimal reproduction showed that `packages/chat-provider/dist` and `packages/chat-overlay/dist` were absent and that `execFile("npm", ..., { cwd: missingDist })` returned `ENOENT` even though npm resolved in the parent shell.
+- The negative-path probe now returns:
+
+  ```text
+  Error: packages/does-not-exist: missing publish directory /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/does-not-exist/dist; run "npm run build:publish" before "npm run pack:smoke"
+  ```
+
+- `build:publish` generated both distribution directories.
+- The successful smoke run produced and inspected:
+
+  ```text
+  packages/chat-provider: packed go-go-golems-chat-provider-0.4.2.tgz (82 entries, 32385 bytes)
+  packages/chat-overlay: packed go-go-golems-chat-overlay-0.4.1.tgz (39 entries, 17531 bytes)
+  ```
+
+- The smoke script removed both temporary tarballs after inspection.
+- Recursive typechecking passed, and 45 tests in 9 files passed.
+
+### What didn't work
+
+- Running `pnpm build:publish && pnpm pack:smoke` inside the restricted filesystem initially advanced past the missing-directory failure but npm exited with code 226 and no stderr captured by the parent script:
+
+  ```text
+  Error: Command failed: npm pack --json
+  code: 226
+  stdout: ''
+  stderr: ''
+  ```
+
+- Running npm directly with verbose logging exposed the actual sandbox failure:
+
+  ```text
+  npm error code EROFS
+  npm error syscall open
+  npm error path /home/manuel/.npm/_cacache/tmp/0989fcc8
+  npm error rofs EROFS: read-only file system, open '/home/manuel/.npm/_cacache/tmp/0989fcc8'
+  ```
+
+  Re-running the gate with permission for npm's user cache passed.
+- The first code commit attempt could not write the linked worktree index:
+
+  ```text
+  fatal: Unable to create '/home/manuel/code/wesen/go-go-golems/react-chat/.git/worktrees/react-chat1/index.lock': Read-only file system
+  ```
+
+  The same focused staging and commit command succeeded with worktree-index write permission.
+
+### What I learned
+
+- Node's child-process `ENOENT` does not distinguish a missing executable from a missing `cwd`. Both paths must be checked before attributing the failure to command lookup.
+- The ordinary `pnpm build` typechecks the packages and builds the demo web app; it does not create the publishable `dist/` trees. `build:publish` is the packaging build contract.
+- npm pack writes through the user npm cache even when the input and output package directories are locally writable.
+
+### What was tricky to build
+
+- The original error named `spawn npm`, and `command -v npm` returned a valid NVM path. The misleading symptom persisted because executable resolution was never reached: process creation failed while entering the nonexistent working directory.
+- The fix needed to improve diagnosis without combining two intentionally separate release gates or adding a machine-specific npm path.
+- Sandbox cache failure produced an empty stderr through the JSON pack invocation, so a direct verbose npm run was required to expose `EROFS`.
+
+### What warrants a second pair of eyes
+
+- Review whether `distStat.isDirectory()` plus the current build scripts is the complete publish-directory precondition, or whether a future manifest-specific check should also verify `dist/package.json`.
+- Confirm CI invokes `build:publish` before `pack:smoke`; the preflight now makes drift obvious but does not build implicitly.
+- Review package entry counts during version preparation so unexpected exported artifacts are caught before publication.
+
+### What should be done in the future
+
+- Run the guarded publish dry-run after selecting the next ChatProvider version.
+- Keep `pack:smoke` independent from `build:publish`; update the documented contract if the release pipeline intentionally changes.
+- If npm cache restrictions recur in another sandbox, configure a task-local npm cache rather than weakening tarball inspection.
+
+### Code review instructions
+
+- Start with `scripts/packages/pack-smoke.mjs` and review the `stat(distDir)` preflight immediately before `execFileAsync`.
+- Verify the missing-build message with:
+
+  ```bash
+  node scripts/packages/pack-smoke.mjs packages/does-not-exist
+  ```
+
+- Verify real packages with:
+
+  ```bash
+  pnpm build:publish
+  pnpm pack:smoke
+  pnpm typecheck
+  pnpm test
+  ```
+
+### Technical details
+
+- npm launcher: `/home/manuel/.nvm/versions/node/v22.22.1/bin/npm`.
+- Node version: `v22.22.1`.
+- npm version: `10.9.4`.
+- The package script uses `npm pack --json` from each generated `dist/` directory and rejects leaked `.test.*` and `.stories.*` artifacts.
