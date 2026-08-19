@@ -1,4 +1,4 @@
-export type { ChatClient, ChatProviderConfig, ChatClientTools, ToolResultSubmission } from './core/createChatClient';
+export type { ChatAttachmentRef, ChatClient, ChatClientAttachments, ChatHttpConfig, ChatOperation, ChatProviderConfig, ChatClientTools, SendMessageRequest, SessionPolicy, ToolResultSubmission } from './core/createChatClient';
 export { createChatClient } from './core/createChatClient';
 export { ChatProvider } from './react/ChatProvider';
 export { useChatClient, useChatRuntime } from './core/context';
@@ -31,5 +31,6 @@ export { useHumanTool } from './tools/useHumanTool';
 export { useToolUI } from './tools/useToolUI';
 export { ToolCallOutlet } from './tools/ToolCallOutlet';
 export type { ChatDebugEvent, ChatDebugHandler } from './ws/wsManager';
+export type { TransportStatus } from './ws/sessionStreamTransport';
 export { createDefaultChatDebugClassifier, defaultChatDebugClassifier, createChatDebugEventStore, useChatDebugEntries } from './debug/index';
 export type { ChatDebugClassifier, ChatDebugClassifierOptions, ChatDebugEntry, ChatDebugFamily, ChatDebugEventStore, CreateChatDebugEventStoreOptions } from './debug/index';

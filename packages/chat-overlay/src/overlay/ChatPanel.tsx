@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useChatClient } from '@go-go-golems/chat-provider';
+import { useChatClient, type TransportStatus } from '@go-go-golems/chat-provider';
 import { useChatSelector, selectOverlay, selectTimelineEntities } from '@go-go-golems/chat-provider';
 import { ChatMessages } from './ChatMessages';
 import { ChatComposer } from './ChatComposer';
@@ -75,28 +75,26 @@ export function ChatPanel() {
   );
 }
 
-function StatusIndicator({ status }: { status: string }) {
-  const label: Record<string, string> = {
-    connected: '●',
-    hydrated: '●',
-    subscribed: '●',
-    disconnected: '○',
-    connecting: '◐',
-    closed: '○',
-    error: '✕',
+export function getConnectionStatusPresentation(status: TransportStatus): { label: string; color: string } {
+  const presentation: Record<TransportStatus, { label: string; color: string }> = {
+    idle: { label: '○', color: 'text-mac-gray-3' },
+    connecting: { label: '◐', color: 'text-mac-gray-2' },
+    'socket-open': { label: '◐', color: 'text-mac-gray-2' },
+    subscribing: { label: '◐', color: 'text-mac-gray-2' },
+    hydrating: { label: '◐', color: 'text-mac-gray-2' },
+    ready: { label: '●', color: 'text-mac-black' },
+    backoff: { label: '↻', color: 'text-mac-gray-2' },
+    stopped: { label: '○', color: 'text-mac-gray-3' },
+    failed: { label: '✕', color: 'text-mac-black' },
   };
-  const color: Record<string, string> = {
-    connected: 'text-mac-black',
-    hydrated: 'text-mac-black',
-    subscribed: 'text-mac-black',
-    disconnected: 'text-mac-gray-3',
-    connecting: 'text-mac-gray-2',
-    closed: 'text-mac-gray-3',
-    error: 'text-mac-black',
-  };
+  return presentation[status];
+}
+
+function StatusIndicator({ status }: { status: TransportStatus }) {
+  const presentation = getConnectionStatusPresentation(status);
   return (
-    <span className={`text-xs ${color[status] ?? 'text-mac-gray-3'}`} title={status}>
-      {label[status] ?? '?'}
+    <span className={`text-xs ${presentation.color}`} title={status}>
+      {presentation.label}
     </span>
   );
 }

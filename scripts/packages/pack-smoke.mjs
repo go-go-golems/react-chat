@@ -2,7 +2,7 @@
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { rm } from 'node:fs/promises';
+import { rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -27,6 +27,16 @@ function isTestArtifact(filePath) {
 for (const packageDirArg of packageDirs) {
   const packageDir = path.resolve(workspaceRoot, packageDirArg);
   const distDir = path.join(packageDir, 'dist');
+
+  try {
+    const distStat = await stat(distDir);
+    if (!distStat.isDirectory()) throw new Error('path is not a directory');
+  } catch (error) {
+    throw new Error(
+      `${packageDirArg}: missing publish directory ${distDir}; run "npm run build:publish" before "npm run pack:smoke"`,
+      { cause: error },
+    );
+  }
 
   const { stdout } = await execFileAsync('npm', ['pack', '--json'], {
     cwd: distDir,

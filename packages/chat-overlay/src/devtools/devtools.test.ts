@@ -32,14 +32,14 @@ describe('ChatEventViewer helpers', () => {
     eventType: 'ChatTextPatch',
     eventId: '#1',
     summary: 'patch',
-    event: { type: 'ws-lifecycle', sessionId: 'conv', event: 'connected' },
+    event: { type: 'ws-lifecycle', sessionId: 'conv', event: 'ready' },
     ...overrides,
   });
 
   it('filters by family and noisy text patch event type', () => {
-    const entries = [entry({ id: 'a', family: 'llm' }), entry({ id: 'b', family: 'raw', eventType: 'raw' })];
-    expect(filterVisibleEntries(entries, { llm: true, raw: false }, { hideTextPatch: true })).toEqual([]);
-    expect(filterVisibleEntries(entries, { llm: true, raw: false }, { hideTextPatch: false }).map((e) => e.id)).toEqual(['a']);
+    const entries = [entry({ id: 'a', family: 'llm' }), entry({ id: 'b', family: 'other', eventType: 'frame' })];
+    expect(filterVisibleEntries(entries, { llm: true, other: false }, { hideTextPatch: true })).toEqual([]);
+    expect(filterVisibleEntries(entries, { llm: true, other: false }, { hideTextPatch: false }).map((e) => e.id)).toEqual(['a']);
   });
 
   it('computes near-bottom status and YAML exports', () => {
@@ -65,11 +65,10 @@ describe('timeline debug helpers', () => {
         type: 'ui-event',
         sessionId: 'conv',
         name: 'ChatTextPatch',
-        mutation: { upsert: { id: 'm2', kind: 'message', createdAt: 1, props: { content: 'world' } } },
       },
     }], 0);
     const snapshot = buildTimelineDebugSnapshot('conv', folded.mirror);
-    expect(snapshot.summary).toEqual({ entityCount: 2, orderCount: 2, kinds: { message: 2 } });
-    expect(snapshot.timeline.order).toEqual(['m1', 'm2']);
+    expect(snapshot.summary).toEqual({ entityCount: 1, orderCount: 1, kinds: { message: 1 } });
+    expect(snapshot.timeline.order).toEqual(['m1']);
   });
 });

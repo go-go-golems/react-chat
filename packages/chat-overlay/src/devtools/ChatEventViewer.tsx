@@ -13,7 +13,7 @@ import { SyntaxHighlight } from './SyntaxHighlight';
 
 const DEFAULT_MAX_ENTRIES = 500;
 const AUTO_SCROLL_THRESHOLD_PX = 32;
-export const DEFAULT_CHAT_DEBUG_FAMILIES: ChatDebugFamily[] = ['llm', 'tool', 'widget', 'timeline', 'ws', 'raw', 'other'];
+export const DEFAULT_CHAT_DEBUG_FAMILIES: ChatDebugFamily[] = ['llm', 'tool', 'widget', 'timeline', 'ws', 'other'];
 
 export const DEFAULT_CHAT_DEBUG_FAMILY_COLORS: Record<ChatDebugFamily, string> = {
   llm: '#3b82f6',
@@ -21,7 +21,6 @@ export const DEFAULT_CHAT_DEBUG_FAMILY_COLORS: Record<ChatDebugFamily, string> =
   widget: '#8b5cf6',
   timeline: '#10b981',
   ws: '#ef4444',
-  raw: '#64748b',
   other: '#6b7280',
 };
 
@@ -31,7 +30,6 @@ export const DEFAULT_CHAT_DEBUG_FAMILY_LABELS: Record<ChatDebugFamily, string> =
   widget: 'WID',
   timeline: 'TL',
   ws: 'WS',
-  raw: 'Raw',
   other: '…',
 };
 
@@ -113,7 +111,7 @@ export function ChatEventViewer({
   entries,
   onClear,
   maxVisibleEntries = DEFAULT_MAX_ENTRIES,
-  defaultHiddenFamilies = ['raw'],
+  defaultHiddenFamilies = [],
   defaultHideTextPatch = false,
   familyLabels,
   familyColors,

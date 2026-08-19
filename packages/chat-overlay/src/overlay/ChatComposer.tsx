@@ -9,7 +9,7 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
 
   const send = useCallback(() => {
     if (!text.trim()) return;
-    client.send(text.trim());
+    void client.send({ prompt: text.trim() }).catch(() => undefined);
     setText('');
   }, [client, text]);
 
@@ -43,7 +43,7 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
       </button>
       {runStatus === 'streaming' && (
         <button
-          onClick={() => client.stop()}
+          onClick={() => { void client.stop().catch(() => undefined); }}
           className="chat-overlay-composer-button"
         >
           STOP

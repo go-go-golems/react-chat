@@ -1,9 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { TransportStatus } from '../ws/sessionStreamTransport';
 
 type OverlayState = {
   sessionId: string;
   runStatus: string;
-  wsStatus: string;
+  wsStatus: TransportStatus;
   isOpen: boolean;
   error: string | null;
 };
@@ -11,7 +12,7 @@ type OverlayState = {
 const initialState: OverlayState = {
   sessionId: '',
   runStatus: 'idle',
-  wsStatus: 'disconnected',
+  wsStatus: 'idle',
   isOpen: false,
   error: null,
 };
@@ -26,7 +27,7 @@ export const overlaySlice = createSlice({
     setRunStatus(state, action: PayloadAction<string>) {
       state.runStatus = action.payload;
     },
-    setWsStatus(state, action: PayloadAction<string>) {
+    setWsStatus(state, action: PayloadAction<TransportStatus>) {
       state.wsStatus = action.payload;
     },
     setOpen(state, action: PayloadAction<boolean>) {

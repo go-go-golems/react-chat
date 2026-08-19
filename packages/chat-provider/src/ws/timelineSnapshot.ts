@@ -1,7 +1,9 @@
 import type { TimelineEntity } from '../store/timelineSlice';
 import { timelineSlice } from '../store/timelineSlice';
 import type { AppDispatch } from '../store/store';
-import { asString, type CanonicalFrame, type SnapshotEntityFrame, unwrapAnyPayload } from './protocol';
+import { overlaySlice } from '../store/overlaySlice';
+import type { ToolRuntime } from '../tools/toolRuntime';
+import { asString, compareEventOrdinals, safeOrdinal, type CanonicalFrame, type SnapshotEntityFrame, unwrapAnyPayload, ZERO_ORDINAL } from './protocol';
 import { applyTimelineMutation } from './timelineEvents';
 import type { TimelineAdapterRegistry } from './timelineAdapterRegistry';
 
@@ -33,6 +35,7 @@ export function applySnapshot(
   dispatch: AppDispatch,
   sessionId = '',
   adapterRegistry?: TimelineAdapterRegistry,
+  toolRuntime?: ToolRuntime,
 ): SnapshotDebugEntity[] {
   dispatch(timelineSlice.actions.clear());
   const entities = Array.isArray(frame.entities) ? (frame.entities as SnapshotEntityFrame[]) : [];
@@ -45,5 +48,46 @@ export function applySnapshot(
     if (!projection) continue;
     applyTimelineMutation(dispatch, projection.mutation);
   }
+  reconcileHydratedState(debugEntities, dispatch, toolRuntime);
   return debugEntities;
+}
+
+export function reconcileHydratedState(
+  entities: SnapshotDebugEntity[],
+  dispatch: AppDispatch,
+  toolRuntime?: ToolRuntime,
+): void {
+  const mapped = entities.flatMap((entity) => entity.mapped ? [entity.mapped] : []);
+  const messages = entities
+    .map((entity, index) => ({
+      entity: entity.mapped,
+      index,
+      ordinal: safeOrdinal(entity.raw.lastEventOrdinal) ?? safeOrdinal(entity.raw.createdOrdinal) ?? ZERO_ORDINAL,
+    }))
+    .filter((entry): entry is { entity: TimelineEntity; index: number; ordinal: typeof ZERO_ORDINAL } => entry.entity?.kind === 'message');
+  const requestedTools = mapped
+    .filter((entity) => entity.kind === 'tool_call' && String(entity.props.status || '').toLowerCase() === 'requested')
+    .map((entity) => entity.props);
+
+  const latestMessage = messages.reduce<(typeof messages)[number] | null>((latest, candidate) => {
+    if (!latest) return candidate;
+    const ordinalOrder = compareEventOrdinals(candidate.ordinal, latest.ordinal);
+    return ordinalOrder > 0 || (ordinalOrder === 0 && candidate.index > latest.index) ? candidate : latest;
+  }, null)?.entity;
+  const latestStatus = String(latestMessage?.props.status || '').toLowerCase();
+  const isStreaming = requestedTools.length > 0
+    || latestMessage?.props.streaming === true
+    || ['streaming', 'accepted', 'requested'].includes(latestStatus);
+  const runStatus = isStreaming
+    ? 'streaming'
+    : latestMessage?.props.role === 'error' || latestStatus === 'failed'
+      ? 'failed'
+      : latestStatus === 'stopped'
+        ? 'stopped'
+        : latestMessage
+          ? 'finished'
+          : 'idle';
+
+  dispatch(overlaySlice.actions.setRunStatus(runStatus));
+  toolRuntime?.reconcileFrontendToolRequests(requestedTools);
 }
