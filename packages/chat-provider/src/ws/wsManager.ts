@@ -19,7 +19,7 @@ export type ChatDebugEvent =
   | { type: 'resume-requested'; sessionId: string; sinceOrdinal: string }
   | { type: 'buffer-depth'; sessionId: string; frames: number; bytes: number }
   | { type: 'snapshot'; sessionId: string; ordinal?: string; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
-  | { type: 'ui-event'; sessionId: string; ordinal?: string; name: string; messageId?: string; adapterName?: string };
+  | { type: 'ui-event'; sessionId: string; ordinal?: string; name: string; messageId?: string; toolCallId?: string; toolName?: string; status?: string; adapterName?: string };
 
 export type ChatDebugHandler = (event: ChatDebugEvent) => void;
 
@@ -96,14 +96,20 @@ export class WsManager {
       },
       onEvent: async (frame: Parameters<typeof applyUIEvent>[0]) => {
         const projection = applyUIEvent(frame, args.dispatch, args.sessionId, args.toolRuntime, args.adapterRegistry);
+        const payload = typeof frame.payload === 'object' && frame.payload ? frame.payload as Record<string, unknown> : {};
+        const metadataString = (camel: string, snake?: string): string | undefined => {
+          const value = payload[camel] ?? (snake ? payload[snake] : undefined);
+          return typeof value === 'string' && value ? value : undefined;
+        };
         args.onDebugEvent?.({
           type: 'ui-event',
           sessionId: args.sessionId,
           ordinal: frame.ordinal,
           name: frame.name ?? '',
-          messageId: typeof frame.payload === 'object' && frame.payload && 'messageId' in frame.payload
-            ? String((frame.payload as { messageId?: unknown }).messageId ?? '') || undefined
-            : undefined,
+          messageId: metadataString('messageId', 'message_id'),
+          toolCallId: metadataString('toolCallId', 'tool_call_id'),
+          toolName: metadataString('toolName', 'tool_name'),
+          status: metadataString('status'),
           adapterName: projection?.adapterName,
         });
       },

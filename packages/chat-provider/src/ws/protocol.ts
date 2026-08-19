@@ -35,9 +35,12 @@ export type SessionStreamFrame = FrameBase & (
 export type CanonicalFrame = FrameBase & { type?: SessionStreamFrame['type'] };
 
 export class SessionStreamProtocolError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
+  readonly cause?: unknown;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
     this.name = 'SessionStreamProtocolError';
+    this.cause = cause;
   }
 }
 
@@ -175,7 +178,7 @@ export const defaultSessionStreamCodec: SessionStreamCodec = {
       return normalizeServerFrame(JSON.parse(raw));
     } catch (error) {
       if (error instanceof SessionStreamProtocolError) throw error;
-      throw new SessionStreamProtocolError('invalid sessionstream JSON', { cause: error });
+      throw new SessionStreamProtocolError('invalid sessionstream JSON', error);
     }
   },
   encodeSubscribe({ sessionId, sinceSnapshotOrdinal }) {
