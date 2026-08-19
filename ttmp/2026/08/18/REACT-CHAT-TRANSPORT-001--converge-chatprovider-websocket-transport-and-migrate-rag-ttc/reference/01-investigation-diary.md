@@ -564,7 +564,7 @@ This step ran the broad validation gates after both codebases were committed and
 - Ran React Chat recursive typechecking, all unit tests, and the full workspace build.
 - Ran the entire RAG-TTC Go suite with `GOWORK=off` and a writable temporary Go cache.
 - Re-ran Garden frontend typechecking, all tests, and the production build.
-- Ran `docmgr doctor` and checked the completed validation, RAG-TTC migration, real-server restart, and reusable conformance-fixture tasks.
+- Ran `docmgr doctor` and checked the completed validation, real-server restart, and reusable conformance-fixture tasks. I reopened the package-consumption task after confirming that its durable manifest/lockfile update depends on publishing the new package.
 - Left real browser heartbeat/reconnect acceptance and package publication tasks open.
 
 ### What worked
@@ -579,7 +579,7 @@ This step ran the broad validation gates after both codebases were committed and
 - The first Go suite run was sandbox-limited: the default Go cache was read-only and HTTP tests could not create loopback listeners. Re-running with a temporary cache and the required local permission passed.
 - `pnpm pack:smoke` failed twice with `Error: spawn npm ENOENT`, including outside the restricted sandbox, even though `command -v npm` reports `/home/manuel/.nvm/versions/node/v22.22.1/bin/npm`. I stopped after the second attempt under the repository debugging rule.
 - `pnpm lint` returned `Command "lint" not found`; this repository does not define a lint script.
-- My first task-update invocation passed IDs positionally and produced `Too many arguments`. The documented `--id lscp,yvbu,ed9b,fw69` form succeeded.
+- My first task-update invocation passed IDs positionally and produced `Too many arguments`. The documented `--id lscp,yvbu,ed9b,fw69` form succeeded; `yvbu` was subsequently unchecked to keep the published-dependency gap explicit.
 - A non-escalated final `curl` could not see port 8080 and initially looked like a server exit. Checking in the same permitted process/network context showed the tmux pane alive (`go`, `pane_dead=0`) and HTTP still serving `index-CZLa8BQV.js`; this was sandbox isolation, not an application failure.
 
 ### What I learned
@@ -613,5 +613,5 @@ This step ran the broad validation gates after both codebases were committed and
 
 ### Technical details
 
-- Completed ticket tasks in this step: `lscp`, `yvbu`, `ed9b`, and `fw69`.
-- Still open: `3adu` (real browser heartbeat/tool/reconnect acceptance) and `s1hr` (publish/record consumer version and update CoinVault issue).
+- Completed ticket tasks in this step: `lscp`, `ed9b`, and `fw69`.
+- Still open: `yvbu` (durable published dependency/lockfile), `3adu` (real browser heartbeat/tool/reconnect acceptance), and `s1hr` (publish/record consumer version and update CoinVault issue).
