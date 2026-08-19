@@ -242,7 +242,8 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       const data = await response.json() as Record<string, unknown>;
       const attachmentId = String(data.attachmentId ?? data.attachment_id ?? '').trim();
       if (!attachmentId) throw new Error('upload-attachment response missing attachmentId');
-      const mediaType = String(data.mediaType ?? data.media_type ?? file.type ?? 'application/octet-stream');
+      const responseMediaType = String(data.mediaType ?? data.media_type ?? '').trim();
+      const mediaType = responseMediaType || file.type.trim() || 'application/octet-stream';
       return {
         attachmentId,
         kind: mediaType.startsWith('image/') ? 'image' : 'file',

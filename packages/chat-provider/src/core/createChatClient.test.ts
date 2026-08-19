@@ -167,6 +167,23 @@ describe('chat HTTP operations', () => {
     );
   });
 
+  it('uses the binary MIME fallback for an untyped upload', async () => {
+    const localStorage = memoryStorage({ 'chat-provider.sessionId': 'session-1' });
+    vi.stubGlobal('window', { location: { href: 'https://example.test/' }, localStorage });
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ attachment_id: 'att-unknown' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const { client } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    const file = new File(['binary'], 'payload.unknown-extension');
+
+    await expect(client.attachments.upload(file)).resolves.toMatchObject({
+      attachmentId: 'att-unknown',
+      kind: 'file',
+      mediaType: 'application/octet-stream',
+    });
+  });
+
   it('updates Redux and rejects when an operation fails', async () => {
     const localStorage = memoryStorage({ 'chat-provider.sessionId': 'session-1' });
     vi.stubGlobal('window', { location: { href: 'https://example.test/' }, localStorage });
