@@ -49,3 +49,18 @@ Frontend and human tool names must be provider-safe because manifests may be for
 ## Backend contract
 
 The default client creates sessions, sends messages, submits tool manifests/results, and subscribes to websocket timeline events using the configured `basePrefix` and `apiBase`.
+
+## Migrating to 0.5
+
+Version 0.5 makes the SessionStream transport the shared owner of WebSocket lifecycle behavior. It adds typed protobuf-JSON frame decoding, heartbeat pong replies, bounded reconnect, snapshot hydration, and committed-ordinal resume.
+
+This is a breaking pre-1.0 release:
+
+- `send` accepts a `SendMessageRequest` rather than a bare string.
+- session creation, upload, removal, and message submission use typed request objects;
+- persistence behavior is selected through `sessionPolicy`;
+- authentication and WebSocket URL customization use the request and URL hooks in `ChatProviderConfig`;
+- attachment references are first-class message inputs;
+- raw-frame diagnostics are disabled unless explicitly enabled.
+
+Consumers should remove local heartbeat and reconnect loops after adopting 0.5. The shared transport must remain the single owner of ping/pong, backoff, resubscription, and resume cursors.
