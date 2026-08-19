@@ -179,4 +179,15 @@ describe('chat HTTP operations', () => {
     await expect(client.send({ prompt: 'hello' })).rejects.toThrow('send-message failed: 403 not allowed');
     expect(store.getState().overlay.error).toBe('send-message failed: 403 not allowed');
   });
+
+  it('updates Redux and rejects when stopping a run fails', async () => {
+    const localStorage = memoryStorage({ 'chat-provider.sessionId': 'session-1' });
+    vi.stubGlobal('window', { location: { href: 'https://example.test/' }, localStorage });
+    const fetchImpl = vi.fn(async () => new Response('cannot stop', { status: 503 }));
+    const { client, store } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await expect(client.stop()).rejects.toThrow('stop-run failed: 503 cannot stop');
+    expect(store.getState().overlay.error).toBe('stop-run failed: 503 cannot stop');
+  });
 });

@@ -3,7 +3,7 @@ import { timelineSlice } from '../store/timelineSlice';
 import type { AppDispatch } from '../store/store';
 import { overlaySlice } from '../store/overlaySlice';
 import type { ToolRuntime } from '../tools/toolRuntime';
-import { asString, type CanonicalFrame, type SnapshotEntityFrame, unwrapAnyPayload } from './protocol';
+import { asString, compareEventOrdinals, safeOrdinal, type CanonicalFrame, type SnapshotEntityFrame, unwrapAnyPayload, ZERO_ORDINAL } from './protocol';
 import { applyTimelineMutation } from './timelineEvents';
 import type { TimelineAdapterRegistry } from './timelineAdapterRegistry';
 
@@ -58,19 +58,35 @@ export function reconcileHydratedState(
   toolRuntime?: ToolRuntime,
 ): void {
   const mapped = entities.flatMap((entity) => entity.mapped ? [entity.mapped] : []);
-  const messages = mapped.filter((entity) => entity.kind === 'message');
+  const messages = entities
+    .map((entity, index) => ({
+      entity: entity.mapped,
+      index,
+      ordinal: safeOrdinal(entity.raw.lastEventOrdinal) ?? safeOrdinal(entity.raw.createdOrdinal) ?? ZERO_ORDINAL,
+    }))
+    .filter((entry): entry is { entity: TimelineEntity; index: number; ordinal: typeof ZERO_ORDINAL } => entry.entity?.kind === 'message');
   const requestedTools = mapped
     .filter((entity) => entity.kind === 'tool_call' && String(entity.props.status || '').toLowerCase() === 'requested')
     .map((entity) => entity.props);
 
-  const isStreaming = requestedTools.length > 0 || messages.some((entity) => (
-    entity.props.streaming === true || String(entity.props.status || '').toLowerCase() === 'streaming'
-  ));
-  const hasFailure = messages.some((entity) => (
-    entity.props.role === 'error' || String(entity.props.status || '').toLowerCase() === 'failed'
-  ));
-  const hasStopped = messages.some((entity) => String(entity.props.status || '').toLowerCase() === 'stopped');
-  const runStatus = isStreaming ? 'streaming' : hasFailure ? 'failed' : hasStopped ? 'stopped' : messages.length > 0 ? 'finished' : 'idle';
+  const latestMessage = messages.reduce<(typeof messages)[number] | null>((latest, candidate) => {
+    if (!latest) return candidate;
+    const ordinalOrder = compareEventOrdinals(candidate.ordinal, latest.ordinal);
+    return ordinalOrder > 0 || (ordinalOrder === 0 && candidate.index > latest.index) ? candidate : latest;
+  }, null)?.entity;
+  const latestStatus = String(latestMessage?.props.status || '').toLowerCase();
+  const isStreaming = requestedTools.length > 0
+    || latestMessage?.props.streaming === true
+    || ['streaming', 'accepted', 'requested'].includes(latestStatus);
+  const runStatus = isStreaming
+    ? 'streaming'
+    : latestMessage?.props.role === 'error' || latestStatus === 'failed'
+      ? 'failed'
+      : latestStatus === 'stopped'
+        ? 'stopped'
+        : latestMessage
+          ? 'finished'
+          : 'idle';
 
   dispatch(overlaySlice.actions.setRunStatus(runStatus));
   toolRuntime?.reconcileFrontendToolRequests(requestedTools);

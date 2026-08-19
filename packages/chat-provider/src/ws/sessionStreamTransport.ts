@@ -135,7 +135,6 @@ export class SessionStreamTransport {
   private request: ConnectRequest | null = null;
   private observer: TransportObserver | null = null;
   private readyDeferred: ReturnType<typeof deferred> | null = null;
-  private messageQueue = Promise.resolve();
   private snapshotOrdinal: EventOrdinal | null = null;
   private bufferedEvents: Array<{ frame: UIEventFrame; bytes: number; order: number }> = [];
   private bufferedBytes = 0;
@@ -228,6 +227,7 @@ export class SessionStreamTransport {
       return;
     }
     this.socket = socket;
+    let consumerQueue = Promise.resolve();
 
     socket.onopen = () => {
       if (!this.isCurrent(generation, socket)) return;
@@ -251,22 +251,28 @@ export class SessionStreamTransport {
     socket.onmessage = (event) => {
       if (!this.isCurrent(generation, socket)) return;
       const raw = String(event.data);
-      this.messageQueue = this.messageQueue
-        .then(() => this.processRawFrame(raw, generation, socket))
+      let frame: SessionStreamFrame;
+      try {
+        frame = this.codec.decodeServerFrame(raw);
+        this.observer?.onDiagnostic?.({
+          type: 'frame-received',
+          frameType: frame.type,
+          ordinal: frame.ordinal,
+          size: raw.length,
+        });
+        if (this.processControlFrame(frame, generation, socket)) return;
+      } catch (cause) {
+        this.handleProcessingFailure(cause, generation);
+        return;
+      }
+      consumerQueue = consumerQueue
+        .then(() => this.processConsumerFrame(frame, raw.length, generation, socket))
         .catch((cause) => this.handleProcessingFailure(cause, generation));
     };
   }
 
-  private async processRawFrame(raw: string, generation: number, socket: WebSocketLike): Promise<void> {
-    if (!this.isCurrent(generation, socket)) return;
-    const frame = this.codec.decodeServerFrame(raw);
-    this.observer?.onDiagnostic?.({
-      type: 'frame-received',
-      frameType: frame.type,
-      ordinal: frame.ordinal,
-      size: raw.length,
-    });
-
+  private processControlFrame(frame: SessionStreamFrame, generation: number, socket: WebSocketLike): boolean {
+    if (!this.isCurrent(generation, socket)) return false;
     switch (frame.type) {
       case 'hello':
         this.transition('subscribing');
@@ -275,14 +281,27 @@ export class SessionStreamTransport {
           sinceSnapshotOrdinal: this.committedOrdinal,
         }));
         this.observer?.onDiagnostic?.({ type: 'resume-requested', sinceOrdinal: this.committedOrdinal });
-        return;
+        return true;
       case 'ping':
         this.send(this.codec.encodePong(frame.nonce));
         this.observer?.onDiagnostic?.({ type: 'heartbeat-pong-sent' });
-        return;
+        return true;
       case 'pong':
       case 'unsubscribed':
-        return;
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private async processConsumerFrame(
+    frame: SessionStreamFrame,
+    rawLength: number,
+    generation: number,
+    socket: WebSocketLike,
+  ): Promise<void> {
+    if (!this.isCurrent(generation, socket)) return;
+    switch (frame.type) {
       case 'error':
         throw new SessionStreamProtocolError(`${frame.code ? `${frame.code}: ` : ''}${frame.error}`);
       case 'snapshot':
@@ -295,7 +314,7 @@ export class SessionStreamTransport {
         return;
       case 'ui-event':
         if (this.snapshotOrdinal === null) {
-          this.bufferEvent(frame, raw.length);
+          this.bufferEvent(frame, rawLength);
           return;
         }
         if (compareEventOrdinals(frame.ordinal, this.snapshotOrdinal) <= 0) return;
@@ -308,6 +327,11 @@ export class SessionStreamTransport {
         this.reconnectAttempts = 0;
         this.transition('ready');
         this.readyDeferred?.resolve();
+        return;
+      case 'hello':
+      case 'ping':
+      case 'pong':
+      case 'unsubscribed':
         return;
     }
   }

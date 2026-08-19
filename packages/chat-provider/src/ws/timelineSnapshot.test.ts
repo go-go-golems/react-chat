@@ -68,4 +68,56 @@ describe('applySnapshot', () => {
 
     expect(store.getState().overlay.runStatus).toBe('finished');
   });
+
+  it('derives terminal status from the latest hydrated message', () => {
+    const store = createChatStore();
+    applySnapshot({
+      type: 'snapshot',
+      sessionId: 's-1',
+      ordinal: parseEventOrdinal('30'),
+      entities: [
+        {
+          id: 'old-error',
+          kind: 'ChatMessage',
+          createdOrdinal: '5',
+          lastEventOrdinal: '6',
+          payload: { messageId: 'old-error', role: 'error', status: 'failed', streaming: false },
+        },
+        {
+          id: 'latest-answer',
+          kind: 'ChatMessage',
+          createdOrdinal: '20',
+          lastEventOrdinal: '25',
+          payload: { messageId: 'latest-answer', role: 'assistant', status: 'finished', streaming: false },
+        },
+      ],
+    }, store.dispatch, 's-1', registryWithCoreAdapters(), toolRuntime());
+
+    expect(store.getState().overlay.runStatus).toBe('finished');
+  });
+
+  it('treats the latest accepted user message as an active run', () => {
+    const store = createChatStore();
+    applySnapshot({
+      type: 'snapshot',
+      sessionId: 's-1',
+      ordinal: parseEventOrdinal('40'),
+      entities: [
+        {
+          id: 'old-error',
+          kind: 'ChatMessage',
+          lastEventOrdinal: '10',
+          payload: { messageId: 'old-error', role: 'error', status: 'failed', streaming: false },
+        },
+        {
+          id: 'new-user',
+          kind: 'ChatMessage',
+          lastEventOrdinal: '35',
+          payload: { messageId: 'new-user', role: 'user', status: 'accepted', streaming: false },
+        },
+      ],
+    }, store.dispatch, 's-1', registryWithCoreAdapters(), toolRuntime());
+
+    expect(store.getState().overlay.runStatus).toBe('streaming');
+  });
 });

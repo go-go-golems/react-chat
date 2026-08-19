@@ -5,6 +5,8 @@ export const ZERO_ORDINAL = '0' as EventOrdinal;
 export type SnapshotEntityFrame = {
   kind?: unknown;
   id?: unknown;
+  createdOrdinal?: unknown;
+  lastEventOrdinal?: unknown;
   tombstone?: unknown;
   payload?: unknown;
 };

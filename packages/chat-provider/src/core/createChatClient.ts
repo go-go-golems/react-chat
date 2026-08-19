@@ -296,10 +296,16 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     },
 
     async stop() {
-      const sessionId = args.store.getState().overlay.sessionId;
-      if (!sessionId) return;
-      args.toolRuntime.cancelActiveFrontendTools();
-      await request('stop-run', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`, { method: 'POST' });
+      try {
+        dispatch(overlaySlice.actions.setError(null));
+        const sessionId = args.store.getState().overlay.sessionId;
+        if (!sessionId) return;
+        args.toolRuntime.cancelActiveFrontendTools();
+        await request('stop-run', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`, { method: 'POST' });
+      } catch (err) {
+        dispatch(overlaySlice.actions.setError(err instanceof Error ? err.message : String(err)));
+        throw err;
+      }
     },
 
     open() { dispatch(overlaySlice.actions.setOpen(true)); },

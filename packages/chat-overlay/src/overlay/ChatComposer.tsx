@@ -43,7 +43,7 @@ export function ChatComposer({ disabled = false }: { disabled?: boolean }) {
       </button>
       {runStatus === 'streaming' && (
         <button
-          onClick={() => client.stop()}
+          onClick={() => { void client.stop().catch(() => undefined); }}
           className="chat-overlay-composer-button"
         >
           STOP

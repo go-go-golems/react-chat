@@ -104,6 +104,29 @@ describe('SessionStreamTransport', () => {
     expect(diagnostics).toHaveBeenCalledWith({ type: 'heartbeat-pong-sent' });
   });
 
+  it('answers heartbeat frames while a snapshot consumer is still pending', async () => {
+    const h = harness();
+    let finishSnapshot!: () => void;
+    const pendingSnapshot = new Promise<void>((resolve) => { finishSnapshot = resolve; });
+    const transport = new SessionStreamTransport({ platform: h.platform, buildURL: () => 'ws://test' });
+    const connected = transport.connect({ sessionId: 's-1' }, {
+      onSnapshot: () => pendingSnapshot,
+      onEvent: vi.fn(),
+    });
+    const socket = h.sockets[0];
+    socket.open();
+    socket.message({ hello: {} });
+    socket.message({ snapshot: { sessionId: 's-1', snapshotOrdinal: '10', entities: [] } });
+    await vi.waitFor(() => expect(transport.status).toBe('hydrating'));
+
+    socket.message({ ping: { nonce: 'during-hydration' } });
+    expect(socket.sent).toContain('{"pong":{"nonce":"during-hydration"}}');
+
+    finishSnapshot();
+    socket.message({ subscribed: { sessionId: 's-1', sinceSnapshotOrdinal: '0' } });
+    await connected;
+  });
+
   it('buffers pre-snapshot events, drops the snapshot boundary, and preserves same-ordinal batches', async () => {
     const h = harness();
     const delivered: string[] = [];
@@ -191,6 +214,7 @@ describe('SessionStreamTransport', () => {
     const second = h.sockets[1];
     second.open();
     second.message({ hello: {} });
+    expect(second.sent).toContain('{"subscribe":{"sessionId":"s-2","sinceSnapshotOrdinal":"0"}}');
     second.message({ uiEvent: { sessionId: 's-2', eventOrdinal: '1', name: 'early', payload: {} } });
     finishOldSnapshot();
     await Promise.resolve();
