@@ -23,12 +23,18 @@ RelatedFiles:
       Note: ChatProvider 0.5.0 immutable release version in commit 2b5f62d
     - Path: repo://packages/chat-provider/src/store/overlaySlice.ts
       Note: Uses the closed transport status vocabulary in c9aa18a
+    - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
+      Note: Hydrated request restoration and deduplication in commit 3113093
     - Path: repo://packages/chat-provider/src/ws/protocol.test.ts
       Note: Regression coverage for omitted snapshot and subscribed ordinals
     - Path: repo://packages/chat-provider/src/ws/protocol.ts
       Note: Protobuf JSON omitted-zero ordinal compatibility fix discovered by real acceptance
     - Path: repo://packages/chat-provider/src/ws/sessionStreamTransport.ts
-      Note: Emits terminal status before observer teardown in c9aa18a
+      Note: |-
+        Emits terminal status before observer teardown in c9aa18a
+        Post-await generation guards and disconnect ordering in commit 3113093
+    - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
+      Note: Authoritative snapshot reconciliation in commit 3113093
     - Path: repo://packages/chat-provider/src/ws/wsManager.ts
       Note: Recreates terminal same-session transports in c9aa18a
     - Path: repo://scripts/packages/pack-smoke.mjs
@@ -39,6 +45,7 @@ LastUpdated: 2026-08-18T19:33:52.258634718-04:00
 WhatFor: Preserve the evidence, decisions, commands, and handoff details behind the transport convergence plan.
 WhenToUse: During implementation and review, especially when validating heartbeat behavior or revisiting subsystem boundaries.
 ---
+
 
 
 
@@ -1018,3 +1025,116 @@ Regression tests now cover failed-transport recreation, terminal status delivery
 - Addressed thread IDs: `PRRT_kwDOSr1N4s6alKs4`, `PRRT_kwDOSr1N4s6alKs8`, `PRRT_kwDOSr1N4s6alKtD`, and `PRRT_kwDOSr1N4s6alKtF`.
 - Provider tarball after fixes: 82 entries, 32,924 bytes.
 - Overlay tarball after fixes: 39 entries, 17,664 bytes.
+
+## Step 11: Make snapshots authoritative across runtime and transport state
+
+This review round revealed one architectural gap rather than four isolated defects. Snapshot hydration reconstructed timeline entities, but it did not reconcile the runtime state derived from those entities. At the same time, asynchronous snapshot and event consumers could resume after their connection generation had been replaced. Both problems concern authority: a snapshot is authoritative only if all derived state is reconciled, and a callback is authoritative only while its generation remains current.
+
+The fix stays within the current design. `applySnapshot` now has an explicit post-projection reconciliation phase for run status and requested frontend tools. The transport now verifies generation/socket identity after every awaited consumer boundary, and intentional disconnect follows the same notify-before-teardown ordering as terminal failure.
+
+### Prompt Context
+
+**User prompt (verbatim):**
+
+> Handle next round of comments: https://github.com/go-go-golems/react-chat/pull/8
+>
+> Take the occasion to step back and see if there is a bigger pattern at play or if this is something that can easily be addressed within the current design.
+
+**Assistant interpretation:** Address every new actionable PR thread, determine whether the comments share a deeper architectural cause, strengthen the existing boundaries rather than patching symptoms, and record the analysis and validation.
+
+**Inferred user intent:** Ensure the transport convergence is conceptually sound and not accumulating local fixes that leave the same class of reconnect defects elsewhere.
+
+**Commit (code):** `3113093191cfc674ea3ca0696a685c9c2fb374af` — "fix(chat-provider): reconcile authoritative snapshots"
+
+### What I did
+
+- Classified four new unresolved review threads into two invariant clusters: authoritative hydration and lifecycle/generation ordering.
+- Added `ToolRuntime.reconcileFrontendToolRequests`.
+- Deduplicated hydrated requests against active automated executions and pending human requests.
+- Reconciled requested hydrated tool calls after snapshot projection so calls emitted during an outage are executed or restored.
+- Derived `overlay.runStatus` after every snapshot from streaming messages, outstanding requested tools, terminal message state, and snapshot emptiness.
+- Rechecked generation and socket identity after awaited snapshot consumers and awaited event consumers before committing ordinals or hydration state.
+- Emitted `stopped` before intentional disconnect clears the observer.
+- Added focused tests for automated/human tool deduplication, snapshot run-status restoration, stale streaming reset, old-snapshot replacement, old-event replacement, and disconnect notification.
+- Ran targeted and full release validation.
+
+### Why
+
+- The transport deliberately discards live events covered by a new snapshot boundary. Therefore every UI/runtime effect of those events must be recoverable from snapshot state.
+- Timeline entities, run status, and frontend-tool pending state are three projections of the same authoritative session snapshot and must advance together.
+- JavaScript continuation after `await` is not tied to the connection generation that started it; identity must be revalidated before shared state changes.
+- Terminal lifecycle notification must precede observer teardown for every stop path, not only failures.
+
+### What worked
+
+- Hydrated requested tools now enter the same execution path as live requests.
+- Active frontend executions and pending human calls are idempotent by `toolCallId`.
+- A snapshot containing a requested tool derives `streaming`; a completed-message snapshot resets stale `streaming` to `finished`.
+- Replacing a session while the old snapshot callback is suspended no longer transfers the old ordinal or hydration boundary.
+- Replacing a session while an old event callback is suspended no longer advances the new session's committed cursor.
+- Provider tests passed: 11 files, 48 tests.
+- Full workspace tests passed: 13 files, 54 tests.
+- Publish builds and both package tarball smoke tests passed.
+
+### What didn't work
+
+- The first typecheck after extending `ToolRuntime` found the expected incomplete test double:
+
+  ```text
+  src/core/createChatClient.test.ts(29,5): error TS2741: Property 'reconcileFrontendToolRequests' is missing
+  ```
+
+- After updating that test double, the first new snapshot test used unbranded string ordinals and failed with:
+
+  ```text
+  Type 'string' is not assignable to type 'EventOrdinal'.
+  ```
+
+- Replacing the literals with `parseEventOrdinal` preserved the bigint-safe wire invariant. The subsequent targeted and complete validation runs passed.
+
+### What I learned
+
+- Hydration completeness is broader than adapter coverage. An entity adapter may support snapshots while runtime side effects derived from that entity remain unreconciled.
+- The correct model is projection followed by reconciliation: first rebuild durable entities, then derive transient UI/runtime state from the complete projected set.
+- Generation checks are required after, not merely before, every awaited call into application code.
+- The previous failure-order review was one instance of a general terminal-transition rule that also applies to intentional disconnect.
+
+### What was tricky to build
+
+- A requested tool call implies the run is still active even when every hydrated message is non-streaming; run-status derivation must consider both messages and tool entities.
+- Replaying every hydrated tool entity would resubmit completed results. Reconciliation therefore selects only entities whose normalized status is `requested`.
+- The message queue is shared across connection generations. This is safe only because stale continuations verify generation/socket identity before changing committed ordinal or snapshot state.
+- Deduplication must happen before executing either human or automated tools; human calls live in a pending set while automated calls live in the controller map.
+
+### What warrants a second pair of eyes
+
+- Review the run-status precedence: requested tool or streaming message, then failed, stopped, finished, and idle.
+- Confirm that server snapshots always use `requested` for unresolved `ChatFrontendToolCall` entities.
+- Consider whether a later hardening pass should reconcile removal of pending human tools that are absent from an authoritative snapshot.
+- Review whether active automated execution absent from a new snapshot should be allowed to finish or should be cancelled with result suppression.
+
+### What should be done in the future
+
+- If authoritative snapshots gain explicit run entities, replace heuristic run-status derivation with that protocol field.
+- Add snapshot-level reconciliation hooks for future non-timeline runtime projections rather than placing side effects inside individual entity adapters.
+- Let CI and review rerun against commit `3113093`; do not publish until they pass.
+
+### Code review instructions
+
+- Start with `applySnapshot` and `reconcileHydratedState` in `timelineSnapshot.ts`.
+- Follow hydrated tool requests into `ToolRuntime.reconcileFrontendToolRequests` and `executeFrontendTool`.
+- Review `processRawFrame`, `flushBufferedEvents`, and `deliverEvent` for the post-await generation guards.
+- Validate with:
+
+  ```bash
+  pnpm typecheck
+  pnpm test
+  npm run build:publish
+  npm run pack:smoke
+  ```
+
+### Technical details
+
+- New review thread IDs: `PRRT_kwDOSr1N4s6alhd8`, `PRRT_kwDOSr1N4s6alhd-`, `PRRT_kwDOSr1N4s6alheD`, and `PRRT_kwDOSr1N4s6alheH`.
+- Provider tarball after reconciliation: 82 entries, 33,341 bytes.
+- Overlay tarball: 39 entries, 17,664 bytes.

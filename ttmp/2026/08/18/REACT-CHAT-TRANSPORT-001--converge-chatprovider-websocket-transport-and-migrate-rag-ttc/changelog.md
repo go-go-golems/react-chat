@@ -62,3 +62,14 @@ Step 10: addressed all four actionable PR 8 transport and overlay review threads
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/sessionStreamTransport.ts — Terminal observer notification ordering
 - /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/wsManager.ts — Terminal transport recreation
 
+
+## 2026-08-19
+
+Step 11: made snapshot hydration authoritative across derived runtime state and guarded async consumers by generation (commit 3113093)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Requested-tool replay deduplication
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/sessionStreamTransport.ts — Generation and terminal-order invariants
+- /home/manuel/workspaces/2026-08-12/deploy-dev-indexer/react-chat/packages/chat-provider/src/ws/timelineSnapshot.ts — Post-projection reconciliation
+
