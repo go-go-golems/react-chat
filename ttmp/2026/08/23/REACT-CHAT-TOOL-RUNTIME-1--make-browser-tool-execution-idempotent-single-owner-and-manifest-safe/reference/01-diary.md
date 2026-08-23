@@ -171,3 +171,68 @@ Dependency installation had to avoid lockfile mutation. The frozen install succe
 ### Technical details
 
 Validation evidence is summarized in `various/01-mermaid-render.txt`; the initial dependency failure and recovery are recorded above.
+
+## Step 3: Deliver the guide to a canonical reMarkable path
+
+The first upload returned success but exact-path verification failed because concurrent rmapi directory creation made duplicate `23` collections. The guide was dry-run and uploaded again sequentially under `23-deliveries`, where the exact listing now resolves.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Deliver and verify the chat-provider guide on reMarkable.
+
+**Inferred user intent:** Make the browser-runtime design reliably accessible to the implementer.
+
+### What I did
+
+- Ran dry runs for initial and canonical paths.
+- Performed final sequential upload.
+- Verified the exact remote directory listing.
+- Added `various/02-remarkable-delivery.md`.
+
+### Why
+
+- A remote success line did not prove that a human-resolvable path selected the same duplicate parent.
+
+### What worked
+
+```text
+OK: uploaded REACT-CHAT-TOOL-RUNTIME-1 Browser Tool Runtime Guide.pdf -> /ai/2026/08/23-deliveries/REACT-CHAT-TOOL-RUNTIME-1
+[f] REACT-CHAT-TOOL-RUNTIME-1 Browser Tool Runtime Guide
+```
+
+### What didn't work
+
+Initial verification returned:
+
+```text
+Error: no matches for 'REACT-CHAT-TOOL-RUNTIME-1'
+```
+
+The shared parent contained three duplicate `23` collections after concurrent creation warnings.
+
+### What I learned
+
+- Serialize uploads that create shared parents.
+- Keep delivery evidence next to the design ticket.
+
+### What was tricky to build
+
+The files existed remotely but name-based path traversal was ambiguous. A unique parent solved verification without destructive remote cleanup.
+
+### What warrants a second pair of eyes
+
+- Optional duplicate cleanup should be a separate operator-confirmed task using remote object IDs.
+
+### What should be done in the future
+
+- Use the canonical `23-deliveries` path for this PDF.
+
+### Code review instructions
+
+- Inspect all three rendered diagrams and the state-machine/API sections on device.
+
+### Technical details
+
+Canonical path: `/ai/2026/08/23-deliveries/REACT-CHAT-TOOL-RUNTIME-1`.

@@ -14,3 +14,13 @@ Wrote and validated the chat-provider browser tool runtime guide; frontmatter/do
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/01-chat-provider-browser-tool-runtime-hardening-idempotency-executor-ownership-manifests-implementation-guide.md — Primary intern implementation guide
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/reference/01-diary.md — Investigation and validation record
 
+
+## 2026-08-23
+
+Dry-ran, uploaded, and verified the chat-provider guide at /ai/2026/08/23-deliveries/REACT-CHAT-TOOL-RUNTIME-1; recorded rmapi duplicate-parent recovery
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/reference/01-diary.md — Delivery failure/recovery record
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/various/02-remarkable-delivery.md — Canonical upload and listing evidence
+
