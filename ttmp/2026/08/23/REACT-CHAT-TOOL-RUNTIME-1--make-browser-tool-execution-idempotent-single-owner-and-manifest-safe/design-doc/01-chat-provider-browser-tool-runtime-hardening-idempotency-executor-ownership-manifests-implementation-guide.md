@@ -59,6 +59,18 @@ The design in this document introduces:
 
 The goal is not “exactly-once network delivery,” which WebSocket/HTTP cannot promise. The goal is **at-most-once browser effect plus idempotent terminal delivery** under duplicate network events, hydration, retry, reload, and multiple subscribers.
 
+## Implementation status (2026-08-24)
+
+The current-protocol phases are implemented:
+
+- **Runtime Phase 0 complete** in `e341aae`: session+call v1 invocation keys, running/waiting/completing/terminal state, bounded replay retention, cached result-delivery retry, human completion compare-and-set, cancellation terminalization, phase subscriptions, and redacted debug events.
+- **Manifest Phase 1 complete** in `7aa6b94`: explicit registration ownership/replacement, immutable semantic snapshots, dynamic-availability revisions, and serialized/deduplicated/recoverable HTTP synchronization.
+- **Consumer contract correction complete** in `8d555a8`: manifest acknowledgements remain internal until the server protocol supplies a durable acknowledgement contract; public `syncManifest()` remains `Promise<void>`.
+
+Current defaults retain 1,000 terminal invocations for 30 minutes and retry result delivery with exponential delays from 250ms to 5 seconds. Automatic effects are never retried. Built-package validation passed react-chat typecheck, 74 tests, distribution/pack smoke, plus PBUI chat-provider consumer typecheck, 208 tests, and production build.
+
+Protocol-v2 executor assignment, client/generation identity, durable terminal recovery, deadlines, and multi-tab lease behavior remain open. They require coordinated changes under `PINOCCHIO-TOOLCALL-1` and `PBUI-TOOLCALL-1`; no client-only ownership election or hidden dual-protocol adapter was added. Package versions were not bumped or published in these implementation commits.
+
 ## 1. Scope and package orientation
 
 ### In scope

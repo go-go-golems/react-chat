@@ -469,3 +469,97 @@ The client must capture snapshots at call time but deduplicate at execution time
 ### Technical details
 
 Manifest digest input contains only sorted provider-visible entries. Registration owner and availability reason remain local diagnostics and are not sent to the server.
+
+## Step 6: Correct the public sync contract and validate the built PBUI consumer
+
+Built-package consumer validation found that exposing a locally synthesized manifest acknowledgement changed `ChatClientTools.syncManifest` incompatibly. Because protocol v1 does not provide a durable digest acknowledgement, I kept acknowledgement state internal and restored the public `Promise<void>` contract rather than publishing a misleading API.
+
+I then validated the exact generated package in PBUI using an installed-directory layout, not a cross-workspace symlink. React-chat typecheck/tests/build/pack and PBUI typecheck/208 tests/build all pass, and both repositories were restored cleanly after the temporary consumer installation.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Complete package-level and real-consumer validation, correcting any contract regression before handoff.
+
+**Inferred user intent:** Receive react-chat changes that are not only locally green but usable by the current PBUI consumer pending a deliberate dependency bump.
+
+**Commit (code):** `8d555a8edb1c2732d0a5fcf613f625b55023701a` — "fix(chat-provider): keep manifest acknowledgements internal"
+
+### What I did
+
+- Restored public `syncManifest(): Promise<void>` while retaining internal digest/revision acknowledgement state.
+- Removed the premature public acknowledgement type exports.
+- Rebuilt chat-provider/chat-overlay publish directories and ran package smoke packing.
+- Temporarily installed chat-provider `dist` into PBUI's package-level dependency path, ran consumer typecheck/tests/build, and restored the original symlink with a shell trap.
+- Added implementation status and remaining protocol boundary to the design guide.
+
+### Why
+
+- A local digest plus HTTP 200 is useful for queue deduplication but is not yet a server-authenticated durable acknowledgement.
+- Package validation through the actual PBUI TypeScript and React build catches public-surface and peer-resolution errors that isolated tests cannot.
+
+### What worked
+
+```text
+react-chat workspace typecheck: PASS
+react-chat tests: 74 PASS
+build:publish: PASS
+pack:smoke: PASS
+PBUI pbui-chat typecheck against built dist: PASS
+PBUI pbui-chat tests against built dist: 208 PASS
+PBUI pbui-chat production build against built dist: PASS
+```
+
+### What didn't work
+
+The first built-package typecheck exposed the public return mismatch:
+
+```text
+src/conversations/runtime.ts(109,5): error TS2322: Type '() => Promise<void>' is not assignable to type '() => Promise<ToolManifestAck | null>'.
+```
+
+After correcting that contract, the first test harness used a symlink to react-chat `dist`. Vite resolved peers beside the real target and loaded React 19.2.6 while PBUI's renderer used React 19.2.8, producing:
+
+```text
+Invalid hook call. Hooks can only be called inside of the body of a function component.
+TypeError: Cannot read properties of null (reading 'useMemo')
+Test Files 4 failed | 17 passed
+Tests 29 failed | 179 passed
+```
+
+This was a harness-layout error. The single corrected attempt copied `dist` into PBUI's package-level node_modules slot so peer dependencies resolved like an installed tarball; all 208 tests then passed. A trap restored the original symlink in both attempts.
+
+### What I learned
+
+- Symlinking a peer-dependent React package across workspaces is not equivalent to installing its tarball because realpath-based resolution can duplicate React.
+- Protocol-v1 HTTP success should remain an internal queue acknowledgement, not a new public result type.
+- Current PBUI wrappers otherwise compile unchanged against the hardened package.
+
+### What was tricky to build
+
+Consumer validation had to alter neither repository's lockfile nor shared pnpm store. Moving only the package-level symlink, copying generated `dist`, and restoring via `trap` reproduced installed layout while preserving the original dependency graph and repository status.
+
+The release boundary also matters: source is ready for a new package version, but version bump/publication should be coordinated with PBUI dependency update and protocol-v2 planning rather than silently replacing published `0.5.0`.
+
+### What warrants a second pair of eyes
+
+- Review whether reconnect should invalidate the in-memory manifest acknowledgement and force a same-digest POST before protocol connection generations exist.
+- Decide the package version/release notes and PBUI dependency-bump commit.
+- Review indefinite completing-state retries under prolonged offline conditions.
+
+### What should be done in the future
+
+- Coordinate protocol-v2 executor/client/manifest identity under task `u6gi`.
+- Add durable recovery, deadlines, lease handling, and release migration under task `pcpq`.
+- Bump/publish chat-provider and update PBUI only when the release owner approves that sequence.
+
+### Code review instructions
+
+- Review commits `e341aae`, `7aa6b94`, and `8d555a8` in order.
+- Run `pnpm typecheck`, `pnpm test`, `npm run build:publish`, and `npm run pack:smoke`.
+- For PBUI consumer validation, install/copy the packed package so React peers resolve from PBUI; do not cross-workspace symlink it.
+
+### Technical details
+
+No tracked PBUI files were modified. Its original `@go-go-golems/chat-provider@0.5.0` pnpm symlink was verified restored after validation.

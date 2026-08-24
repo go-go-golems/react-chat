@@ -44,3 +44,13 @@ Phase 1: added owner-aware registration, immutable semantic manifest snapshots, 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Manifest synchronization queue and acknowledgement
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRegistry.ts — Registry ownership and snapshot contract
 
+
+## 2026-08-24
+
+Completed package and PBUI consumer validation; kept manifest acknowledgements internal to preserve the honest Promise<void> public contract (commit 8d555a8)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Internal manifest acknowledgement and public sync contract
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/reference/01-diary.md — Built-package PBUI validation and harness recovery
+

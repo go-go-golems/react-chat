@@ -9,6 +9,6 @@
 - [x] Implement atomic human completion and update ToolCallOutlet/runtime consumers <!-- t:thpe -->
 - [x] Implement owner-aware registry, immutable manifest snapshots, digesting, and serialized client sync <!-- t:v4ry -->
 - [x] Add replay, submit-failure, human CAS, cancellation, retention, registry, and manifest ordering tests <!-- t:lbcz -->
-- [ ] Run chat-provider typecheck/tests/dist, repository tests, PBUI consumer checks, and update diary <!-- t:cg35 -->
+- [x] Run chat-provider typecheck/tests/dist, repository tests, PBUI consumer checks, and update diary <!-- t:cg35 -->
 - [ ] Coordinate protocol v2 invocation/executor identity with Pinocchio and PBUI <!-- t:u6gi -->
 - [ ] Implement durable recovery, deadlines, multi-tab executor lease, and publish migration after protocol v2 <!-- t:pcpq -->
