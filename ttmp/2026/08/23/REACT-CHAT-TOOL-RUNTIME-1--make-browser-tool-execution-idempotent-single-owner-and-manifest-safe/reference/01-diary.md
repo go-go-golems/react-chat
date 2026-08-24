@@ -12,6 +12,14 @@ Intent: long-term
 Owners:
     - manuel
 RelatedFiles:
+    - Path: repo://go.mod
+      Note: Published Pinocchio v0.11.14 dependency contract (commit 0b1fffd)
+    - Path: repo://go.sum
+      Note: Resolved v0.11.14 transitive dependency graph (commit 0b1fffd)
+    - Path: repo://internal/webchat/hydration_store_options.go
+      Note: Explicit memory/SQLite hydration StoreSpec migration (commit 0b1fffd)
+    - Path: repo://internal/webchat/turn_store_options.go
+      Note: Explicit memory/SQLite turn StoreSpec migration (commit 0b1fffd)
     - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
       Note: Serialized sync/dedup/failure recovery tests (commit 7aa6b94)
     - Path: repo://packages/chat-provider/src/core/createChatClient.ts
@@ -34,6 +42,7 @@ LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 
@@ -563,3 +572,94 @@ The release boundary also matters: source is ready for a new package version, bu
 ### Technical details
 
 No tracked PBUI files were modified. Its original `@go-go-golems/chat-provider@0.5.0` pnpm symlink was verified restored after validation.
+
+## Step 7: Migrate store construction to Pinocchio v0.11.14
+
+Updating Pinocchio from v0.11.5 to v0.11.14 exposed an intentional persistence API migration. Store constructors now require a context and explicit `StoreSpec` backend selection; the legacy flat option fields and empty-store mode no longer exist.
+
+I migrated chat-overlay without changing its behavior: empty timeline and turn configuration still selects memory, while configured paths/DSNs explicitly select SQLite. I validated both the local workspace and the released modules with `GOWORK=off`, which is essential because this checkout otherwise replaces three recorded module versions with neighboring repositories.
+
+### Prompt Context
+
+**User prompt (verbatim):** "I updated go.mod in react-chat and I'm not sure about these errors :  go generate ./...
+go build ./...
+# github.com/go-go-golems/chat-overlay/internal/webchat
+internal/webchat/hydration_store_options.go:12:54: cannot use \"\" (constant of type string) as context.Context value in argument to serverkit.OpenHydrationStore: string does not implement context.Context (missing method Deadline)
+internal/webchat/hydration_store_options.go:12:58: cannot use path (variable of type string) as serverkit.StoreSpec value in argument to serverkit.OpenHydrationStore
+internal/webchat/turn_store_options.go:10:49: not enough arguments in call to serverkit.OpenTurnStore
+    have (serverkit.StoreOptions)
+    want (context.Context, serverkit.StoreOptions)
+internal/webchat/turn_store_options.go:11:3: unknown field TurnsDSN in struct literal of type serverkit.StoreOptions
+internal/webchat/turn_store_options.go:12:3: unknown field TurnsDB in struct literal of type serverkit.StoreOptions
+internal/webchat/turn_store_options.go:13:3: unknown field EmptyTurnStore in struct literal of type serverkit.StoreOptions
+internal/webchat/turn_store_options.go:13:29: undefined: serverkit.EmptyTurnStoreMemory
+make: *** [Makefile:89: build] Error 1
+
+[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
+
+**Assistant interpretation:** Diagnose the dependency-upgrade compilation errors, migrate the adapters to Pinocchio's released API, and prove the recorded module—not only the local workspace checkout—builds.
+
+**Inferred user intent:** Complete the Go dependency upgrade without accidentally disabling chat history or timeline hydration.
+
+**Commit (code):** `0b1fffdac31465576f0ec2d35d0245f4c9299b74` — "fix(webchat): migrate to explicit Pinocchio store specs"
+
+### What I did
+
+- Updated the direct Pinocchio requirement to the user-published `v0.11.14` and tidied transitive dependencies.
+- Passed `context.Background()` to construction-time store openers.
+- Mapped empty timeline/turn options to `StoreBackendMemory`.
+- Mapped configured timeline paths and turn paths/DSNs to explicit SQLite `StoreSpec` values.
+- Trimmed configuration before backend selection and logging.
+- Ran generation, build, tests, vet, and released-module validation with `GOWORK=off`.
+
+### Why
+
+- Pinocchio no longer infers persistence policy from empty strings or DSN punctuation.
+- The old chat-overlay behavior intentionally provided in-memory turn history when no database was configured; using a zero-value v0.11.14 spec would disable it.
+
+### What worked
+
+```text
+go generate ./... && go build ./...                    # PASS
+ go test ./... -count=1                                 # PASS
+ go vet ./...                                           # PASS
+ GOWORK=off go generate/build/test ./...                # PASS
+ GOWORK=off pinocchio module                            # v0.11.14
+```
+
+### What didn't work
+
+The original adapter calls failed exactly as reported because they targeted the removed v0.11.5 signatures. No additional failure occurred after migration.
+
+### What I learned
+
+- Local `go list -m` omitted versions for Pinocchio, Sessionstream, and Geppetto because `go.work` resolves them to workspace modules.
+- `GOWORK=off` is required for release-consumer validation in this multi-repository workspace.
+- Explicit backend selection prevents a DSN from being silently classified by syntax.
+
+### What was tricky to build
+
+The compiler errors are mechanical, but blindly constructing a zero-value `StoreSpec` would compile while changing behavior from memory to disabled. The migration had to recover the old `EmptyTurnStoreMemory` policy explicitly for both timeline and turn stores.
+
+### What warrants a second pair of eyes
+
+- Decide whether chat-overlay should expose explicit MySQL/backend flags in a later CLI migration instead of preserving its current SQLite-only fields.
+- Confirm that supplying both `--turns-dsn` and `--turns-db` should now be rejected by Pinocchio rather than retaining the old DSN precedence.
+
+### What should be done in the future
+
+- Add backend CLI fields only if chat-overlay needs MySQL persistence parity with Pinocchio web-chat.
+- Keep `GOWORK=off` consumer validation in dependency-upgrade CI.
+
+### Code review instructions
+
+- Review the two files under `internal/webchat/*_store_options.go` and compare their empty-input behavior with Pinocchio v0.11.5.
+- Run `GOWORK=off go generate ./... && GOWORK=off go build ./... && GOWORK=off go test ./... -count=1`.
+
+### Technical details
+
+**Follow-up user prompt (verbatim):** "I published 0.11.14
+
+[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
+
+The validated dependency set records Pinocchio v0.11.14, Sessionstream v0.1.2, Geppetto v0.13.11, and Glazed v1.4.3.

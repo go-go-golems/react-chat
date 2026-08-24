@@ -12,3 +12,4 @@
 - [x] Run chat-provider typecheck/tests/dist, repository tests, PBUI consumer checks, and update diary <!-- t:cg35 -->
 - [ ] Coordinate protocol v2 invocation/executor identity with Pinocchio and PBUI <!-- t:u6gi -->
 - [ ] Implement durable recovery, deadlines, multi-tab executor lease, and publish migration after protocol v2 <!-- t:pcpq -->
+- [x] Migrate chat-overlay store adapters to published Pinocchio v0.11.14 APIs and validate outside go.work <!-- t:89o4 -->

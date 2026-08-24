@@ -54,3 +54,13 @@ Completed package and PBUI consumer validation; kept manifest acknowledgements i
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Internal manifest acknowledgement and public sync contract
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/reference/01-diary.md — Built-package PBUI validation and harness recovery
 
+
+## 2026-08-24
+
+Migrated chat-overlay persistence adapters to published Pinocchio v0.11.14 StoreSpec APIs and validated with GOWORK=off (commit 0b1fffd)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/hydration_store_options.go — Preserve in-memory timeline default
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/turn_store_options.go — Preserve in-memory turn-history default
+
