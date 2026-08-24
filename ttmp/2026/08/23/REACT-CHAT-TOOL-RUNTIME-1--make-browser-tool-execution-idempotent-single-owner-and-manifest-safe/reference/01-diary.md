@@ -2,17 +2,35 @@
 Title: Diary
 Ticket: REACT-CHAT-TOOL-RUNTIME-1
 Status: active
-Topics: [frontend-tools, chat-provider, typescript, frontend]
+Topics:
+    - frontend-tools
+    - chat-provider
+    - typescript
+    - frontend
 DocType: reference
 Intent: long-term
-Owners: [manuel]
-RelatedFiles: []
+Owners:
+    - manuel
+RelatedFiles:
+    - Path: repo://packages/chat-provider/src/core/createChatClient.ts
+      Note: Cancellation-before-stop ordering (commit e341aae)
+    - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
+      Note: Tool runtime debug classification (commit e341aae)
+    - Path: repo://packages/chat-provider/src/tools/ToolCallOutlet.tsx
+      Note: Runtime-subscribed human completion UX (commit e341aae)
+    - Path: repo://packages/chat-provider/src/tools/toolRuntime.test.ts
+      Note: Replay, retry, cancellation, CAS, retention tests (commit e341aae)
+    - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
+      Note: Invocation state machine, terminal retry, human CAS (commit e341aae)
+    - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
+      Note: Session-namespaced hydration (commit e341aae)
 ExternalSources: []
-Summary: 'Chronological investigation, design, validation, and delivery record for chat-provider browser frontend-tool runtime hardening.'
+Summary: Chronological investigation, design, validation, and delivery record for chat-provider browser frontend-tool runtime hardening.
 LastUpdated: 2026-08-23T17:25:00-04:00
-WhatFor: 'Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.'
-WhenToUse: 'When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.'
+WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
+WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 # Diary
 
@@ -236,3 +254,123 @@ The files existed remotely but name-based path traversal was ambiguous. A unique
 ### Technical details
 
 Canonical path: `/ai/2026/08/23-deliveries/REACT-CHAT-TOOL-RUNTIME-1`.
+
+## Step 4: Land the browser invocation state machine and human completion CAS
+
+I replaced the transient controller-map/human-set model with a session-namespaced invocation state machine. Automatic effects are claimed synchronously, successful completion remains terminal for a bounded replay window, delivery failures retry the cached completion rather than the effect, and duplicate live/snapshot requests cannot re-execute acknowledged work.
+
+Human response correctness now lives in the runtime rather than React callback timing. `completeHumanTool` compare-and-sets waiting state before validation/delivery, `ToolCallOutlet` subscribes to runtime phase and renders a non-actionable submitting state, and stop awaits cancellation submission before posting the run-stop command.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Noiw address the REACT-CHAT issues:                                                                                                                                                                                                             
+ - Ticket: PBUI-TOOLCALL-1                                                                                                                                                                                  
+ - Guide: design-doc/01-pbui-agent-to-ui-hardening-architecture-security-approvals-implementation-guide.md                                                                                                  
+ - 4,360 words, 2 diagrams.                                                                                                                                                                                  
+ - Covers route authorization, approval ledger, effect tracing, conversation drafts/lifecycle, title sync, workbench behavior, focus, and dependency integration.                                            
+ - Commits: 923e05b, 8f6d59f                                                                                                                                                                                
+                                                                                                                                                                                                             
+ ### Pinocchio                                                                                                                                                                                               
+                                                                                                                                                                                                             
+ - Ticket: PINOCCHIO-TOOLCALL-1                                                                                                                                                                              
+ - Guide: design-doc/01-pinocchio-frontend-tool-bridge-hardening-invocation-identity-result-validation-implementation-guide.md                                                                               
+ - 3,782 words, 2 diagrams.                                                                                                                                                                                  
+ - Covers composite invocation identity, strict result matching, terminal idempotency, manifest versions, protobuf evolution, locking, races, and tests.                                                     
+ - Commits: 2423ce4, d6e41ba                                                                                                                                                                                
+                                                                                                                                                                                                             
+ ### react-chat / chat-provider                                                                                                                                                                              
+                                                                                                                                                                                                             
+ - Ticket: REACT-CHAT-TOOL-RUNTIME-1                                                                                                                                                                        
+ - Guide: design-doc/01-chat-provider-browser-tool-runtime-hardening-idempotency-executor-ownership-manifests-implementation-guide.md                                                                        
+ - 3,953 words, 3 diagrams.                                                                                                                                                                                  
+ - Covers terminal invocation state, replay prevention, human completion CAS, executor ownership, manifest synchronization, deadlines, and package rollout.                                                  
+ - Commits: c7959db, eb96a12
+
+[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
+
+**Assistant interpretation:** Implement the react-chat/chat-provider-owned remediation in focused commits while maintaining the ticket diary and respecting cross-repository protocol sequencing.
+
+**Inferred user intent:** Close browser-side replay and duplicate-human-completion defects now, then continue through manifest safety without pretending client-only code can solve server-assigned executor ownership.
+
+**Commit (code):** `e341aae85b63c7da0ed3153daed353da8b8806cd` — "fix(chat-provider): make tool execution terminal and idempotent"
+
+### What I did
+
+- Added session+call v1 invocation encoding and running/waiting/completing/terminal state.
+- Added bounded terminal retention (1,000 entries/30 minutes by default).
+- Retained canonical JSON completion data for delivery retry without effect replay.
+- Added exponential retry scheduling with one in-flight submission per invocation.
+- Replaced permissive human response with atomic `completeHumanTool` outcomes.
+- Added runtime subscriptions/state views and a submitting state in `ToolCallOutlet`.
+- Terminalized stop cancellation and prevented late promises from overwriting cancellation.
+- Namespaced hydrated requests with snapshot session id and live requests with frame session id.
+- Added redacted runtime debug events and tool-family classification.
+- Added deterministic replay, retry, CAS, cancellation, validation, namespace, retention, and stop-order tests.
+
+### Why
+
+- Reconciliation after terminal acknowledgement previously replayed browser effects.
+- A failed result POST previously removed active state in `finally`, making replay possible.
+- Deleting a human pending id without checking ownership allowed double responses.
+- The server now rejects duplicate/conflicting results, but browser-side effects still need at-most-once execution.
+
+### What worked
+
+```text
+chat-provider typecheck: PASS
+chat-provider tests: 60 PASS
+repository tests: 66 PASS
+chat-provider build:dist: PASS
+```
+
+Deferred promises and an injected retry scheduler make effect/retry ordering deterministic without sleeps.
+
+### What didn't work
+
+The first typecheck caught an over-aggressive import cleanup in `ToolCallOutlet`:
+
+```text
+src/tools/ToolCallOutlet.tsx(63,28): error TS2552: Cannot find name 'parseToolResult'. Did you mean 'parsedResult'?
+```
+
+`parseToolResult` is still needed for backend result rendering, so I restored that import. A new stop-order test then exposed an inferred mock return mismatch:
+
+```text
+src/core/createChatClient.test.ts(210,68): error TS2322: Type 'Promise<void>' is not assignable to type 'Promise<undefined>'.
+```
+
+Annotating the mock callback as `Promise<void>` fixed the test type without weakening production types.
+
+### What I learned
+
+- Snapshot reconciliation already receives session identity at `applySnapshot`; it was only being dropped before the runtime call.
+- `useSyncExternalStore` gives the outlet phase-aware UX without making React state the correctness mechanism.
+- Runtime state lookup by bare call id must fail closed when two sessions contain the same id; explicit session lookup remains unambiguous.
+
+### What was tricky to build
+
+Completion must be claimed before every asynchronous boundary and remain `completing` after submission failure. The retry scheduler carries the same frozen completion object, while duplicate requests observe `retryScheduled`/`deliveryInFlight` and cannot create parallel POSTs or execute again.
+
+Cancellation races with the tool promise. `cancelActiveFrontendTools` aborts and compare-and-sets the running state to cancellation before awaiting delivery. A late resolution checks exact state identity and returns without completion.
+
+### What warrants a second pair of eyes
+
+- Review indefinite result-delivery retry and default 250ms–5s backoff against offline behavior.
+- Verify terminal memory defaults and the decision to keep completion results in memory during the bounded window.
+- Review reset: it starts cancellation delivery before disconnect/reset but remains a synchronous public method.
+
+### What should be done in the future
+
+- Implement owner-aware immutable manifest snapshots and serialized synchronization.
+- Add compact durable terminal recovery only after the server recovery contract exists.
+- Add executor assignment filtering with protocol v2 rather than browser election.
+
+### Code review instructions
+
+- Start with the state types and `claimRequest`/`claimCompletion`/`deliverCompletion` in `toolRuntime.ts`.
+- Read the replay and human-CAS tests before `ToolCallOutlet`.
+- Validate with package typecheck/test/dist and root `pnpm test`.
+
+### Technical details
+
+The v1 key is a length-prefixed `(sessionId, toolCallId)` tuple. Full message/run/manifest/executor identity remains a protocol-v2 task.

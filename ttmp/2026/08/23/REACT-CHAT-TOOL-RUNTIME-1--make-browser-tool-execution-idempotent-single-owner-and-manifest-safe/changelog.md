@@ -24,3 +24,13 @@ Dry-ran, uploaded, and verified the chat-provider guide at /ai/2026/08/23-delive
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/reference/01-diary.md — Delivery failure/recovery record
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/various/02-remarkable-delivery.md — Canonical upload and listing evidence
 
+
+## 2026-08-24
+
+Phase 0: added terminal invocation state, no-effect-replay result retries, human completion CAS, cancellation terminalization, session-namespaced hydration, and debug events (commit e341aae)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.test.ts — Deterministic regression matrix
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Browser runtime safety state machine
+
