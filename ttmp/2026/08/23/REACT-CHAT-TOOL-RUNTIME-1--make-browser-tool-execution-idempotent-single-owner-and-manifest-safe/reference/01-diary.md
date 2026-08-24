@@ -12,12 +12,16 @@ Intent: long-term
 Owners:
     - manuel
 RelatedFiles:
+    - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
+      Note: Serialized sync/dedup/failure recovery tests (commit 7aa6b94)
     - Path: repo://packages/chat-provider/src/core/createChatClient.ts
       Note: Cancellation-before-stop ordering (commit e341aae)
     - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
       Note: Tool runtime debug classification (commit e341aae)
     - Path: repo://packages/chat-provider/src/tools/ToolCallOutlet.tsx
       Note: Runtime-subscribed human completion UX (commit e341aae)
+    - Path: repo://packages/chat-provider/src/tools/toolRegistry.ts
+      Note: Owned immutable semantic manifest snapshots (commit 7aa6b94)
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.test.ts
       Note: Replay, retry, cancellation, CAS, retention tests (commit e341aae)
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
@@ -30,6 +34,7 @@ LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 # Diary
@@ -374,3 +379,93 @@ Cancellation races with the tool promise. `cancelActiveFrontendTools` aborts and
 ### Technical details
 
 The v1 key is a length-prefixed `(sessionId, toolCallId)` tuple. Full message/run/manifest/executor identity remains a protocol-v2 task.
+
+## Step 5: Make registrations owned and manifest synchronization monotonic
+
+I replaced order-dependent tool overwrite with explicit registration ownership and expected-owner replacement. The registry now creates deeply immutable, semantically sorted snapshots with a deterministic digest and a revision that advances when manifest content—including dynamic availability—changes.
+
+The client captures each snapshot before enqueueing it, serializes HTTP synchronization, skips only an already acknowledged digest for the same session, and recovers the queue after a failed POST. Background extension/hook/toolkit sync handles rejections after `syncManifest` has surfaced them through overlay error state.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 4)
+
+**Assistant interpretation:** Continue with the current-protocol manifest phase and commit it separately from runtime execution safety.
+
+**Inferred user intent:** Prevent silent duplicate registration and out-of-order browser manifest publication before coordinated executor identity is added.
+
+**Commit (code):** `7aa6b94bc289392896b280b0f4b317e42ae8cc46` — "feat(chat-provider): serialize owned manifest snapshots"
+
+### What I did
+
+- Added registration owner metadata, duplicate rejection, and expected-owner `replace`.
+- Preserved exact cleanup: an old unregister callback cannot remove a replacement.
+- Added immutable snapshots sorted by tool name with FNV-1a semantic digests.
+- Made dynamic availability changes produce a new digest/revision.
+- Added serialized manifest sync with per-session digest acknowledgement.
+- Kept the queue usable after failure without falsely acknowledging a failed snapshot.
+- Added stable owners for extensions, toolkits, config, and React hooks.
+- Caught background sync rejections after the client records them in overlay error state.
+- Added ownership, replacement, immutability, digest, ordering, deduplication, and queue recovery tests.
+
+### Why
+
+- Silent name overwrite made extension installation order an undocumented ownership policy.
+- Independent async manifest POSTs could arrive out of order.
+- A registry-local numeric revision alone did not identify semantic equality or dynamic availability changes.
+
+### What worked
+
+```text
+workspace typecheck: PASS
+repository tests: 74 PASS
+chat-provider build:dist: PASS
+```
+
+The deferred first-response test proves revision 2 does not POST until revision 1 finishes, and a third identical sync performs no network request after revision 2 acknowledgement.
+
+### What didn't work
+
+The first phase typecheck found two test-only typing mistakes:
+
+```text
+src/core/createChatClient.test.ts(145,52): error TS2493: Tuple type '[]' of length '0' has no element at index '1'.
+src/core/createChatClient.test.ts(145,86): error TS2339: Property 'body' does not exist on type 'never'.
+src/tools/toolRegistry.test.ts(57,36): error TS2339: Property 'execute' does not exist on type 'ToolDefinition'.
+```
+
+I gave the fetch mock its real `(input, init)` signature and narrowed the tool union with `'execute' in installed`; typecheck and all tests then passed.
+
+### What I learned
+
+- Snapshot revision must follow semantic content, not only register/unregister calls, because `available()` can change independently.
+- A failed queue item must reject its caller while the internal tail converts failure to a continuation point for later snapshots.
+- Fire-and-forget hook/extension synchronization needs an explicit catch even when the client already records the error.
+
+### What was tricky to build
+
+The registry returns the same frozen snapshot object while semantic content is unchanged, but `manifest()` must still return mutable deep copies for existing callers. Snapshot schemas are therefore cloned before freezing, and `manifest()` clones them again rather than leaking frozen references.
+
+The client must capture snapshots at call time but deduplicate at execution time. This preserves call ordering while allowing a queued snapshot to skip if an earlier queue item already acknowledged the same digest.
+
+### What warrants a second pair of eyes
+
+- Review FNV-1a as a non-security semantic digest; protocol-v2 security identity must not treat it as authentication.
+- Confirm initial empty-manifest revision 1 is acceptable to every current host.
+- Review whether a fresh WebSocket connection should force re-publication even when the same in-memory session digest was previously acknowledged.
+
+### What should be done in the future
+
+- Add client instance, connection generation, executor assignment, and server-acknowledged manifest identity in protocol v2.
+- Add a dedicated manifest/debug state instead of using only generic overlay error text.
+- Add connection-generation invalidation of acknowledgements during the coordinated transport phase.
+
+### Code review instructions
+
+- Start with `ChatToolRegistry.register/replace/snapshot`, then `syncToolManifest/postManifestSnapshot`.
+- Read the serialized deferred-response test and the failed-queue recovery test.
+- Run workspace typecheck, root tests, and chat-provider dist build.
+
+### Technical details
+
+Manifest digest input contains only sorted provider-visible entries. Registration owner and availability reason remain local diagnostics and are not sent to the server.

@@ -34,3 +34,13 @@ Phase 0: added terminal invocation state, no-effect-replay result retries, human
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.test.ts — Deterministic regression matrix
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Browser runtime safety state machine
 
+
+## 2026-08-24
+
+Phase 1: added owner-aware registration, immutable semantic manifest snapshots, monotonic revisions, and serialized/deduplicated recoverable sync (commit 7aa6b94)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Manifest synchronization queue and acknowledgement
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRegistry.ts — Registry ownership and snapshot contract
+
