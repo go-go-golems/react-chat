@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createChatStore } from '../store/store';
+import { createToolRegistry } from '../tools/toolRegistry';
 import { createChatClient, type ChatProviderConfig } from './createChatClient';
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -17,6 +28,7 @@ function clientWith(config: ChatProviderConfig) {
     connect: vi.fn(async () => undefined),
     disconnect: vi.fn(),
   };
+  const toolRegistry = createToolRegistry();
   const toolRuntime = {
     cancelActiveFrontendTools: vi.fn(async (): Promise<void> => undefined),
     handleFrontendToolUIEvent: vi.fn(),
@@ -29,12 +41,7 @@ function clientWith(config: ChatProviderConfig) {
   const client = createChatClient({
     config,
     store,
-    toolRegistry: {
-      register: vi.fn(),
-      get: vi.fn(),
-      manifest: vi.fn(() => []),
-      revision: vi.fn(() => 0),
-    },
+    toolRegistry,
     toolRuntime,
     adapterRegistry: {
       register: vi.fn(),
@@ -46,7 +53,7 @@ function clientWith(config: ChatProviderConfig) {
     },
     wsManager: wsManager as never,
   });
-  return { client, store, wsManager, toolRuntime };
+  return { client, store, wsManager, toolRuntime, toolRegistry };
 }
 
 afterEach(() => {
@@ -104,6 +111,63 @@ describe('chat session persistence', () => {
 
     expect(store.getState().overlay.sessionId).toBe('from-url');
     expect(localStorage.getItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('tool manifest synchronization', () => {
+  it('serializes snapshots, preserves revision order, and skips an acknowledged digest', async () => {
+    const firstResponse = deferred<Response>();
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (fetchImpl.mock.calls.length === 1) return firstResponse.promise;
+      return new Response(JSON.stringify({ accepted: true, revision: 2 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const { client, store, toolRegistry } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+
+    const first = client.tools.syncManifest();
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    toolRegistry.register({ name: 'beta', execute: () => ({}) }, { owner: 'test' });
+    const second = client.tools.syncManifest();
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    firstResponse.resolve(new Response(JSON.stringify({ accepted: true, revision: 1 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    await expect(first).resolves.toMatchObject({ revision: 1, accepted: true });
+    await expect(second).resolves.toMatchObject({ revision: 2, accepted: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const revisions = fetchImpl.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).revision);
+    expect(revisions).toEqual([1, 2]);
+
+    await expect(client.tools.syncManifest()).resolves.toMatchObject({ revision: 2 });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('continues the sync queue after a failed snapshot without acknowledging it', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (fetchImpl.mock.calls.length === 1) return new Response('offline', { status: 503 });
+      return new Response(JSON.stringify({ accepted: true, revision: 2 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const { client, store, toolRegistry } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+    const first = client.tools.syncManifest();
+    toolRegistry.register({ name: 'beta', execute: () => ({}) }, { owner: 'test' });
+    const second = client.tools.syncManifest();
+
+    await expect(first).rejects.toThrow('sync-tool-manifest failed: 503 offline');
+    await expect(second).resolves.toMatchObject({ revision: 2, accepted: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(store.getState().overlay.error).toContain('sync-tool-manifest failed: 503 offline');
   });
 });
 

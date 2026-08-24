@@ -2,7 +2,7 @@ import { overlaySlice } from '../store/overlaySlice';
 import { runStatsSlice } from '../store/runStatsSlice';
 import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
-import type { ToolRegistry } from '../tools/toolRegistry';
+import type { ToolManifestSnapshot, ToolRegistry } from '../tools/toolRegistry';
 import type { ToolCompletionStatus, ToolRuntime } from '../tools/toolRuntime';
 import type { TimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
 import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
@@ -67,8 +67,15 @@ export type ToolResultSubmission = {
   error?: string;
 };
 
+export type ToolManifestAck = {
+  accepted: boolean;
+  sessionId: string;
+  revision: number;
+  digest: string;
+};
+
 export type ChatClientTools = ToolRegistry & {
-  syncManifest: () => Promise<void>;
+  syncManifest: () => Promise<ToolManifestAck | null>;
   submitResult: (result: ToolResultSubmission) => Promise<void>;
 };
 
@@ -151,6 +158,8 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   const apiBase = config.apiBase ?? basePrefix;
   const dispatch = args.store.dispatch as AppDispatch;
   const fetchImpl = config.http?.fetch ?? fetch;
+  let manifestSyncTail: Promise<void> = Promise.resolve();
+  let lastManifestAck: ToolManifestAck | null = null;
 
   async function request(operation: ChatOperation, url: string, init: RequestInit = {}): Promise<Response> {
     await config.http?.beforeRequest?.(operation);
@@ -200,14 +209,37 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     });
   }
 
-  async function syncToolManifest() {
+  async function syncToolManifest(): Promise<ToolManifestAck | null> {
     const sessionId = args.store.getState().overlay.sessionId;
-    if (!sessionId) return;
-    await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
+    if (!sessionId) return null;
+    const snapshot = args.toolRegistry.snapshot();
+    const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot));
+    manifestSyncTail = operation.then(() => undefined, () => undefined);
+    try {
+      return await operation;
+    } catch (error) {
+      dispatch(overlaySlice.actions.setError(error instanceof Error ? error.message : String(error)));
+      throw error;
+    }
+  }
+
+  async function postManifestSnapshot(sessionId: string, snapshot: ToolManifestSnapshot): Promise<ToolManifestAck> {
+    if (lastManifestAck?.sessionId === sessionId && lastManifestAck.digest === snapshot.digest) return lastManifestAck;
+    const response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ revision: args.toolRegistry.revision(), tools: args.toolRegistry.manifest() }),
+      body: JSON.stringify({ revision: snapshot.revision, tools: snapshot.tools }),
     });
+    const body = await response.json().catch(() => ({})) as { accepted?: boolean; revision?: number };
+    if (body.accepted === false) throw new Error(`sync-tool-manifest rejected revision ${snapshot.revision}`);
+    const acknowledgement: ToolManifestAck = {
+      accepted: true,
+      sessionId,
+      revision: typeof body.revision === 'number' ? body.revision : snapshot.revision,
+      digest: snapshot.digest,
+    };
+    lastManifestAck = acknowledgement;
+    return acknowledgement;
   }
 
   async function submitToolResult(result: ToolResultSubmission) {
@@ -222,8 +254,11 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
 
   const tools: ChatClientTools = {
     register: args.toolRegistry.register.bind(args.toolRegistry),
+    replace: args.toolRegistry.replace.bind(args.toolRegistry),
     get: args.toolRegistry.get.bind(args.toolRegistry),
+    owner: args.toolRegistry.owner.bind(args.toolRegistry),
     manifest: args.toolRegistry.manifest.bind(args.toolRegistry),
+    snapshot: args.toolRegistry.snapshot.bind(args.toolRegistry),
     revision: args.toolRegistry.revision.bind(args.toolRegistry),
     syncManifest: syncToolManifest,
     submitResult: submitToolResult,

@@ -1,4 +1,4 @@
-export type { ChatAttachmentRef, ChatClient, ChatClientAttachments, ChatHttpConfig, ChatOperation, ChatProviderConfig, ChatClientTools, SendMessageRequest, SessionPolicy, ToolResultSubmission } from './core/createChatClient';
+export type { ChatAttachmentRef, ChatClient, ChatClientAttachments, ChatHttpConfig, ChatOperation, ChatProviderConfig, ChatClientTools, SendMessageRequest, SessionPolicy, ToolManifestAck, ToolResultSubmission } from './core/createChatClient';
 export { createChatClient } from './core/createChatClient';
 export { ChatProvider } from './react/ChatProvider';
 export { useChatClient, useChatRuntime } from './core/context';
@@ -24,7 +24,7 @@ export { UnknownWidget } from './widgets/UnknownWidget';
 export { defineTimelineAdapter, defineLiveAndHydrateAdapter, defineLiveOnlyAdapter, defineHydrateOnlyAdapter, createTimelineAdapterRegistry, ChatTimelineAdapterRegistry } from './ws/timelineAdapterRegistry';
 export type { TimelineAdapter, TimelineAdapterRegistry, LiveProjectionContext, SnapshotProjectionContext, TimelineProjectionResult, TimelineMutation, HydrationPolicy } from './ws/timelineAdapterRegistry';
 export { defineTool, defineToolUI, createToolRegistry, ChatToolRegistry, assertProviderSafeToolName, PROVIDER_SAFE_TOOL_NAME_PATTERN } from './tools/toolRegistry';
-export type { FrontendTool, HumanTool, BackendToolUI, ToolRegistry, ToolExecutionMode, ToolDefinition } from './tools/toolRegistry';
+export type { FrontendTool, HumanTool, BackendToolUI, ToolRegistry, ToolExecutionMode, ToolDefinition, ToolManifestSnapshot, ToolRegistrationOptions, ToolReplacementOptions } from './tools/toolRegistry';
 export { useTool } from './tools/useTool';
 export { useFrontendTool } from './tools/useFrontendTool';
 export { useHumanTool } from './tools/useHumanTool';

@@ -15,9 +15,10 @@ export function defineToolkit<T extends ChatToolkit>(toolkit: T): T {
 
 export function installToolkit(client: ChatClient, toolkit: ChatToolkit): () => void {
   const cleanupFns: Array<() => void> = [];
+  const owner = toolkit.name?.trim() || 'chat-provider.toolkit';
 
   for (const tool of toolkit.tools ?? []) {
-    cleanupFns.push(client.tools.register(tool));
+    cleanupFns.push(client.tools.register(tool, { owner }));
   }
 
   const customCleanup = toolkit.install?.(client);
@@ -25,12 +26,16 @@ export function installToolkit(client: ChatClient, toolkit: ChatToolkit): () => 
     cleanupFns.push(customCleanup);
   }
 
-  void client.tools.syncManifest();
+  syncManifestInBackground(client);
 
   return () => {
     for (let i = cleanupFns.length - 1; i >= 0; i--) {
       cleanupFns[i]?.();
     }
-    void client.tools.syncManifest();
+    syncManifestInBackground(client);
   };
+}
+
+function syncManifestInBackground(client: ChatClient): void {
+  void client.tools.syncManifest().catch(() => undefined);
 }
