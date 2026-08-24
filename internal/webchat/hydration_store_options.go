@@ -1,7 +1,9 @@
 package webchat
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-go-golems/pinocchio/pkg/chatapp/serverkit"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
@@ -9,7 +11,12 @@ import (
 )
 
 func openHydrationStore(path string, reg *sessionstream.SchemaRegistry) (sessionstream.HydrationStore, func() error, error) {
-	store, closeFn, err := serverkit.OpenHydrationStore("", path, reg)
+	path = strings.TrimSpace(path)
+	spec := serverkit.StoreSpec{Backend: serverkit.StoreBackendMemory}
+	if path != "" {
+		spec = serverkit.StoreSpec{Backend: serverkit.StoreBackendSQLite, Path: path}
+	}
+	store, closeFn, err := serverkit.OpenHydrationStore(context.Background(), spec, reg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open chat overlay timeline store: %w", err)
 	}
