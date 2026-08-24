@@ -5,3 +5,17 @@ export { useFrontendTool } from './useFrontendTool';
 export { useHumanTool } from './useHumanTool';
 export { useToolUI } from './useToolUI';
 export { ToolCallOutlet } from './ToolCallOutlet';
+export { createToolRuntime } from './toolRuntime';
+export type {
+  CreateToolRuntimeArgs,
+  HumanCompletionOutcome,
+  SubmitToolResult,
+  ToolCompletion,
+  ToolCompletionStatus,
+  ToolInvocationPhase,
+  ToolInvocationStateView,
+  ToolResultSubmission,
+  ToolRuntime,
+  ToolRuntimeDebugEvent,
+  ToolRuntimeRetention,
+} from './toolRuntime';

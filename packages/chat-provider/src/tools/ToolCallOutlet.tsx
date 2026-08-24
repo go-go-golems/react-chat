@@ -1,4 +1,5 @@
-import { formatToolValidationError, parseToolInput, parseToolResult, type HumanTool } from './toolRegistry';
+import { useSyncExternalStore } from 'react';
+import { parseToolInput, parseToolResult, type HumanTool } from './toolRegistry';
 import { useChatRuntime } from '../core/context';
 
 type ToolCallOutletProps = {
@@ -13,7 +14,13 @@ type ToolCallOutletProps = {
 export function ToolCallOutlet({ toolCallId, toolName, status, input, result, error }: ToolCallOutletProps) {
   const { client, toolRuntime } = useChatRuntime();
   const tool = client.tools.get(toolName);
-  const isHuman = tool?.mode === 'human' && toolRuntime.isPendingHumanTool(toolCallId) && !result;
+  const sessionId = client.getStore().getState().overlay.sessionId ?? '';
+  const runtimePhase = useSyncExternalStore(
+    toolRuntime.subscribe,
+    () => toolRuntime.stateOf(toolCallId, sessionId)?.phase ?? null,
+    () => null,
+  );
+  const isHuman = tool?.mode === 'human' && runtimePhase === 'waiting-human' && !result;
 
   if (isHuman && tool && 'render' in tool) {
     let parsedInput: unknown = input ?? {};
@@ -30,22 +37,20 @@ export function ToolCallOutlet({ toolCallId, toolName, status, input, result, er
           input: parsedInput,
           status,
           respond: (value) => {
-            try {
-              const parsedResult = parseToolResult(tool, value);
-              void toolRuntime.respondToHumanTool({ toolCallId, toolName, status: 'success', result: normalizeRecord(parsedResult) });
-            } catch (err) {
-              void toolRuntime.respondToHumanTool({
-                toolCallId,
-                toolName,
-                status: 'failed',
-                error: `invalid result for human tool ${toolName}: ${formatToolValidationError(err)}`,
-              });
-            }
+            void toolRuntime.completeHumanTool({ sessionId, toolCallId, toolName, status: 'success', result: value });
           },
           reject: (message = 'User denied the request') => {
-            void toolRuntime.respondToHumanTool({ toolCallId, toolName, status: 'denied', result: { approved: false }, error: message });
+            void toolRuntime.completeHumanTool({ sessionId, toolCallId, toolName, status: 'denied', result: { approved: false }, error: message });
           },
         })}
+      </div>
+    );
+  }
+
+  if (tool?.mode === 'human' && runtimePhase === 'completing' && !result) {
+    return (
+      <div className="border border-mac-black p-2 bg-mac-gray-5 text-xs" data-testid="human-tool-responding" aria-live="polite">
+        submitting response…
       </div>
     );
   }
@@ -81,9 +86,4 @@ export function ToolCallOutlet({ toolCallId, toolName, status, input, result, er
       {error && <div className="text-mac-gray-1" data-testid="tool-call-error">{error}</div>}
     </div>
   );
-}
-
-function normalizeRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { value };
-  return value as Record<string, unknown>;
 }

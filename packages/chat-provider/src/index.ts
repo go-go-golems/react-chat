@@ -30,6 +30,8 @@ export { useFrontendTool } from './tools/useFrontendTool';
 export { useHumanTool } from './tools/useHumanTool';
 export { useToolUI } from './tools/useToolUI';
 export { ToolCallOutlet } from './tools/ToolCallOutlet';
+export { createToolRuntime } from './tools/toolRuntime';
+export type { CreateToolRuntimeArgs, HumanCompletionOutcome, SubmitToolResult, ToolCompletion, ToolCompletionStatus, ToolInvocationPhase, ToolInvocationStateView, ToolRuntime, ToolRuntimeDebugEvent, ToolRuntimeRetention } from './tools/toolRuntime';
 export type { ChatDebugEvent, ChatDebugHandler } from './ws/wsManager';
 export type { TransportStatus } from './ws/sessionStreamTransport';
 export { createDefaultChatDebugClassifier, defaultChatDebugClassifier, createChatDebugEventStore, useChatDebugEntries } from './debug/index';

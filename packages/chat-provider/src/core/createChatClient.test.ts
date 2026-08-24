@@ -17,6 +17,15 @@ function clientWith(config: ChatProviderConfig) {
     connect: vi.fn(async () => undefined),
     disconnect: vi.fn(),
   };
+  const toolRuntime = {
+    cancelActiveFrontendTools: vi.fn(async (): Promise<void> => undefined),
+    handleFrontendToolUIEvent: vi.fn(),
+    reconcileFrontendToolRequests: vi.fn(),
+    stateOf: vi.fn(() => null),
+    subscribe: vi.fn(() => () => undefined),
+    isPendingHumanTool: vi.fn(() => false),
+    completeHumanTool: vi.fn(async () => 'not-pending' as const),
+  };
   const client = createChatClient({
     config,
     store,
@@ -26,13 +35,7 @@ function clientWith(config: ChatProviderConfig) {
       manifest: vi.fn(() => []),
       revision: vi.fn(() => 0),
     },
-    toolRuntime: {
-      cancelActiveFrontendTools: vi.fn(),
-      handleFrontendToolUIEvent: vi.fn(),
-      reconcileFrontendToolRequests: vi.fn(),
-      isPendingHumanTool: vi.fn(() => false),
-      respondToHumanTool: vi.fn(async () => undefined),
-    },
+    toolRuntime,
     adapterRegistry: {
       register: vi.fn(),
       projectLive: vi.fn(() => null),
@@ -43,7 +46,7 @@ function clientWith(config: ChatProviderConfig) {
     },
     wsManager: wsManager as never,
   });
-  return { client, store, wsManager };
+  return { client, store, wsManager, toolRuntime };
 }
 
 afterEach(() => {
@@ -195,6 +198,29 @@ describe('chat HTTP operations', () => {
 
     await expect(client.send({ prompt: 'hello' })).rejects.toThrow('send-message failed: 403 not allowed');
     expect(store.getState().overlay.error).toBe('send-message failed: 403 not allowed');
+  });
+
+  it('awaits frontend-tool cancellation before posting stop', async () => {
+    const localStorage = memoryStorage({ 'chat-provider.sessionId': 'session-1' });
+    vi.stubGlobal('window', { location: { href: 'https://example.test/' }, localStorage });
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const { client, store, toolRuntime } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    let finishCancellation!: () => void;
+    toolRuntime.cancelActiveFrontendTools.mockImplementation(() => new Promise<void>((resolve) => {
+      finishCancellation = resolve;
+    }));
+
+    const stopping = client.stop();
+    await Promise.resolve();
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    finishCancellation();
+    await stopping;
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/chat/sessions/session-1/stop',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('updates Redux and rejects when stopping a run fails', async () => {

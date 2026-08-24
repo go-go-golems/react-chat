@@ -1,5 +1,5 @@
 import { type AppDispatch } from '../store/store';
-import type { ToolRuntime } from '../tools/toolRuntime';
+import type { ToolRuntime, ToolRuntimeDebugEvent } from '../tools/toolRuntime';
 import type { TimelineAdapterRegistry } from './timelineAdapterRegistry';
 import { applyUIEvent } from './timelineEvents';
 import { applySnapshot } from './timelineSnapshot';
@@ -19,7 +19,8 @@ export type ChatDebugEvent =
   | { type: 'resume-requested'; sessionId: string; sinceOrdinal: string }
   | { type: 'buffer-depth'; sessionId: string; frames: number; bytes: number }
   | { type: 'snapshot'; sessionId: string; ordinal?: string; entityCount: number; droppedCount: number; entities: Array<Record<string, unknown>> }
-  | { type: 'ui-event'; sessionId: string; ordinal?: string; name: string; messageId?: string; toolCallId?: string; toolName?: string; status?: string; adapterName?: string };
+  | { type: 'ui-event'; sessionId: string; ordinal?: string; name: string; messageId?: string; toolCallId?: string; toolName?: string; status?: string; adapterName?: string }
+  | ToolRuntimeDebugEvent;
 
 export type ChatDebugHandler = (event: ChatDebugEvent) => void;
 

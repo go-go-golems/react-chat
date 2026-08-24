@@ -3,7 +3,7 @@ import { runStatsSlice } from '../store/runStatsSlice';
 import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
 import type { ToolRegistry } from '../tools/toolRegistry';
-import type { ToolRuntime } from '../tools/toolRuntime';
+import type { ToolCompletionStatus, ToolRuntime } from '../tools/toolRuntime';
 import type { TimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
 import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
 import type { SessionStreamTransportConfig } from '../ws/sessionStreamTransport';
@@ -62,7 +62,7 @@ export type ChatProviderConfig = ChatExtensionConfig & {
 export type ToolResultSubmission = {
   toolCallId: string;
   toolName: string;
-  status: 'success' | 'failed' | 'cancelled' | 'denied';
+  status: ToolCompletionStatus;
   result?: Record<string, unknown>;
   error?: string;
 };
@@ -301,7 +301,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
         dispatch(overlaySlice.actions.setError(null));
         const sessionId = args.store.getState().overlay.sessionId;
         if (!sessionId) return;
-        args.toolRuntime.cancelActiveFrontendTools();
+        await args.toolRuntime.cancelActiveFrontendTools();
         await request('stop-run', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`, { method: 'POST' });
       } catch (err) {
         dispatch(overlaySlice.actions.setError(err instanceof Error ? err.message : String(err)));
@@ -314,7 +314,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     toggle() { dispatch(overlaySlice.actions.toggleOpen()); },
 
     reset() {
-      args.toolRuntime.cancelActiveFrontendTools();
+      void args.toolRuntime.cancelActiveFrontendTools();
       args.wsManager.disconnect();
       persistSessionId(config, null);
       dispatch(overlaySlice.actions.reset());
