@@ -139,13 +139,13 @@ describe('tool manifest synchronization', () => {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     }));
-    await expect(first).resolves.toMatchObject({ revision: 1, accepted: true });
-    await expect(second).resolves.toMatchObject({ revision: 2, accepted: true });
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     const revisions = fetchImpl.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).revision);
     expect(revisions).toEqual([1, 2]);
 
-    await expect(client.tools.syncManifest()).resolves.toMatchObject({ revision: 2 });
+    await expect(client.tools.syncManifest()).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -165,7 +165,7 @@ describe('tool manifest synchronization', () => {
     const second = client.tools.syncManifest();
 
     await expect(first).rejects.toThrow('sync-tool-manifest failed: 503 offline');
-    await expect(second).resolves.toMatchObject({ revision: 2, accepted: true });
+    await expect(second).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(store.getState().overlay.error).toContain('sync-tool-manifest failed: 503 offline');
   });

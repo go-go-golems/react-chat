@@ -67,7 +67,7 @@ export type ToolResultSubmission = {
   error?: string;
 };
 
-export type ToolManifestAck = {
+type ToolManifestAck = {
   accepted: boolean;
   sessionId: string;
   revision: number;
@@ -75,7 +75,7 @@ export type ToolManifestAck = {
 };
 
 export type ChatClientTools = ToolRegistry & {
-  syncManifest: () => Promise<ToolManifestAck | null>;
+  syncManifest: () => Promise<void>;
   submitResult: (result: ToolResultSubmission) => Promise<void>;
 };
 
@@ -209,14 +209,14 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     });
   }
 
-  async function syncToolManifest(): Promise<ToolManifestAck | null> {
+  async function syncToolManifest(): Promise<void> {
     const sessionId = args.store.getState().overlay.sessionId;
-    if (!sessionId) return null;
+    if (!sessionId) return;
     const snapshot = args.toolRegistry.snapshot();
     const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot));
     manifestSyncTail = operation.then(() => undefined, () => undefined);
     try {
-      return await operation;
+      await operation;
     } catch (error) {
       dispatch(overlaySlice.actions.setError(error instanceof Error ? error.message : String(error)));
       throw error;
