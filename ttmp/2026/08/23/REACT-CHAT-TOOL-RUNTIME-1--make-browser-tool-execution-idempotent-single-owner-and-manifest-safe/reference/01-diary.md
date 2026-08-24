@@ -268,27 +268,27 @@ Human response correctness now lives in the runtime rather than React callback t
 
 ### Prompt Context
 
-**User prompt (verbatim):** "Noiw address the REACT-CHAT issues:                                                                                                                                                                                                             
- - Ticket: PBUI-TOOLCALL-1                                                                                                                                                                                  
- - Guide: design-doc/01-pbui-agent-to-ui-hardening-architecture-security-approvals-implementation-guide.md                                                                                                  
- - 4,360 words, 2 diagrams.                                                                                                                                                                                  
- - Covers route authorization, approval ledger, effect tracing, conversation drafts/lifecycle, title sync, workbench behavior, focus, and dependency integration.                                            
- - Commits: 923e05b, 8f6d59f                                                                                                                                                                                
-                                                                                                                                                                                                             
- ### Pinocchio                                                                                                                                                                                               
-                                                                                                                                                                                                             
- - Ticket: PINOCCHIO-TOOLCALL-1                                                                                                                                                                              
- - Guide: design-doc/01-pinocchio-frontend-tool-bridge-hardening-invocation-identity-result-validation-implementation-guide.md                                                                               
- - 3,782 words, 2 diagrams.                                                                                                                                                                                  
- - Covers composite invocation identity, strict result matching, terminal idempotency, manifest versions, protobuf evolution, locking, races, and tests.                                                     
- - Commits: 2423ce4, d6e41ba                                                                                                                                                                                
-                                                                                                                                                                                                             
- ### react-chat / chat-provider                                                                                                                                                                              
-                                                                                                                                                                                                             
- - Ticket: REACT-CHAT-TOOL-RUNTIME-1                                                                                                                                                                        
- - Guide: design-doc/01-chat-provider-browser-tool-runtime-hardening-idempotency-executor-ownership-manifests-implementation-guide.md                                                                        
- - 3,953 words, 3 diagrams.                                                                                                                                                                                  
- - Covers terminal invocation state, replay prevention, human completion CAS, executor ownership, manifest synchronization, deadlines, and package rollout.                                                  
+**User prompt (verbatim):** "Noiw address the REACT-CHAT issues:
+ - Ticket: PBUI-TOOLCALL-1
+ - Guide: design-doc/01-pbui-agent-to-ui-hardening-architecture-security-approvals-implementation-guide.md
+ - 4,360 words, 2 diagrams.
+ - Covers route authorization, approval ledger, effect tracing, conversation drafts/lifecycle, title sync, workbench behavior, focus, and dependency integration.
+ - Commits: 923e05b, 8f6d59f
+
+ ### Pinocchio
+
+ - Ticket: PINOCCHIO-TOOLCALL-1
+ - Guide: design-doc/01-pinocchio-frontend-tool-bridge-hardening-invocation-identity-result-validation-implementation-guide.md
+ - 3,782 words, 2 diagrams.
+ - Covers composite invocation identity, strict result matching, terminal idempotency, manifest versions, protobuf evolution, locking, races, and tests.
+ - Commits: 2423ce4, d6e41ba
+
+ ### react-chat / chat-provider
+
+ - Ticket: REACT-CHAT-TOOL-RUNTIME-1
+ - Guide: design-doc/01-chat-provider-browser-tool-runtime-hardening-idempotency-executor-ownership-manifests-implementation-guide.md
+ - 3,953 words, 3 diagrams.
+ - Covers terminal invocation state, replay prevention, human completion CAS, executor ownership, manifest synchronization, deadlines, and package rollout.
  - Commits: c7959db, eb96a12
 
 [REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
