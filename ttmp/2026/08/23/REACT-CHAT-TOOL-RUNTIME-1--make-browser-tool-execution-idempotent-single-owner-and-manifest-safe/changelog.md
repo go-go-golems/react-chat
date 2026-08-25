@@ -64,3 +64,13 @@ Migrated chat-overlay persistence adapters to published Pinocchio v0.11.14 Store
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/hydration_store_options.go — Preserve in-memory timeline default
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/turn_store_options.go — Preserve in-memory turn-history default
 
+
+## 2026-08-24
+
+Made the new make lint gate pass by checking server cleanup errors and ignoring local lint binaries (commits 888ab2a, 39659d6)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/cmd/chat-overlay/cmds/serve.go — Log deferred cleanup failure
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/server_test.go — Fail tests on cleanup errors
+

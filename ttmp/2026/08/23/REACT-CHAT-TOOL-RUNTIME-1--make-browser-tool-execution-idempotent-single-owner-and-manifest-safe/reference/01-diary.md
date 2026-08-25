@@ -12,12 +12,18 @@ Intent: long-term
 Owners:
     - manuel
 RelatedFiles:
+    - Path: repo://.gitignore
+      Note: Ignore Makefile-installed local lint binary (commit 39659d6)
+    - Path: repo://cmd/chat-overlay/cmds/serve.go
+      Note: Observable production cleanup failures (commit 888ab2a)
     - Path: repo://go.mod
       Note: Published Pinocchio v0.11.14 dependency contract (commit 0b1fffd)
     - Path: repo://go.sum
       Note: Resolved v0.11.14 transitive dependency graph (commit 0b1fffd)
     - Path: repo://internal/webchat/hydration_store_options.go
       Note: Explicit memory/SQLite hydration StoreSpec migration (commit 0b1fffd)
+    - Path: repo://internal/webchat/server_test.go
+      Note: Checked test server cleanup helper (commit 888ab2a)
     - Path: repo://internal/webchat/turn_store_options.go
       Note: Explicit memory/SQLite turn StoreSpec migration (commit 0b1fffd)
     - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
@@ -42,6 +48,7 @@ LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 
@@ -663,3 +670,78 @@ The compiler errors are mechanical, but blindly constructing a zero-value `Store
 [REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
 
 The validated dependency set records Pinocchio v0.11.14, Sessionstream v0.1.2, Geppetto v0.13.11, and Glazed v1.4.3.
+
+## Step 8: Make the new lint pipeline clean and repeatable
+
+The newly added Makefile exercised golangci-lint, Geppetto lint, and Glazed lint together for the first time. It found five unchecked server cleanup calls; default issue suppression displayed three, but the pre-commit `--max-same-issues=100` path confirmed and cleared the complete set.
+
+Production now logs shutdown cleanup failures, tests report cleanup errors through `t.Cleanup`, and `.bin/` is ignored because the Makefile installs its pinned local golangci-lint there.
+
+### Prompt Context
+
+**User prompt (verbatim):** "`make lint` in react-chat
+
+[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
+
+**Assistant interpretation:** Run the new repository lint target, fix actionable findings, and leave subsequent runs green and clean.
+
+**Inferred user intent:** Validate that the newly added project tooling is usable as a real quality gate.
+
+**Commit (code):** `888ab2a1172063a5731c0a22ba979de82c2573fd` — "fix(webchat): handle server cleanup errors"
+
+### What I did
+
+- Ran `make lint` and captured all errcheck findings.
+- Logged production cleanup errors with zerolog.
+- Replaced test `defer cleanup()` calls with one checked `t.Cleanup` helper.
+- Added `.bin/` to `.gitignore` in commit `39659d6`.
+- Re-ran `make lint`; the pre-commit hook also ran lint with unsuppressed duplicate findings plus all Go tests.
+
+### Why
+
+Cleanup can flush or close persistence resources and its errors should not be silently discarded. A lint target must also avoid leaving its own downloaded binary as untracked noise.
+
+### What worked
+
+```text
+make lint                    # PASS: golangci-lint, geppetto-lint, glazed-lint
+pre-commit lint + go test    # PASS
+```
+
+### What didn't work
+
+The first run failed with:
+
+```text
+cmd/chat-overlay/cmds/serve.go:135:15: Error return value is not checked (errcheck)
+internal/webchat/server_test.go:23:15: Error return value is not checked (errcheck)
+internal/webchat/server_test.go:69:15: Error return value is not checked (errcheck)
+3 issues; 2/5 issues with text "Error return value is not checked" were hidden
+make: *** [Makefile:67: lint] Error 1
+```
+
+### What I learned
+
+- The default golangci-lint duplicate cap can understate the number of affected call sites.
+- The repository's pre-commit configuration correctly uses `--max-same-issues=100` to expose all duplicates.
+
+### What was tricky to build
+
+Production cleanup happens in a deferred path where the primary server result may already be determined. Logging preserves the existing return contract while making resource-close failures observable; tests can be stricter and fail directly through `t.Cleanup`.
+
+### What warrants a second pair of eyes
+
+- Decide whether `ServeCommand.Run` should eventually join cleanup errors into its returned error instead of logging them.
+
+### What should be done in the future
+
+- Keep `make lint` in CI once the new Makefile/lefthook rollout is finalized.
+
+### Code review instructions
+
+- Review `ServeCommand.Run` and `requireServerCleanup`.
+- Run `make lint` and confirm `git status --short` remains clean.
+
+### Technical details
+
+The Makefile pins golangci-lint v2.11.2 and places it at `.bin/golangci-lint`; `.bin/` now matches Pinocchio's local-tool ignore convention.
