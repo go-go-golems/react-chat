@@ -10,6 +10,7 @@ export type ToolCompletion = {
 };
 
 export type ToolResultSubmission = ToolCompletion & {
+  sessionId: string;
   toolCallId: string;
   toolName: string;
 };
@@ -262,6 +263,7 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
     emit(debugEvent('tool-result-submit-attempt', delivering.request, 'completing', attempt));
     try {
       await args.submitToolResult({
+        sessionId: delivering.request.sessionId,
         toolCallId: delivering.request.toolCallId,
         toolName: delivering.request.toolName,
         ...delivering.completion,

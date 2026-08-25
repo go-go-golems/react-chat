@@ -70,6 +70,7 @@ describe('ToolRuntime invocation state machine', () => {
     await expectPhase(runtime, 'call-1', 'terminal');
     expect(execute).toHaveBeenCalledTimes(1);
     expect(submitToolResult).toHaveBeenCalledTimes(2);
+    expect(submissions[0]?.sessionId).toBe('session-1');
     expect(submissions[1]).toEqual(submissions[0]);
   });
 

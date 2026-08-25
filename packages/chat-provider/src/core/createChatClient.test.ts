@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createChatStore } from '../store/store';
 import { createToolRegistry } from '../tools/toolRegistry';
+import type { ConnectArgs } from '../ws/wsManager';
 import { createChatClient, type ChatProviderConfig } from './createChatClient';
 
 function deferred<T>() {
@@ -25,7 +26,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 function clientWith(config: ChatProviderConfig) {
   const store = createChatStore();
   const wsManager = {
-    connect: vi.fn(async () => undefined),
+    connect: vi.fn(async (_args: ConnectArgs) => undefined),
     disconnect: vi.fn(),
   };
   const toolRegistry = createToolRegistry();
@@ -149,6 +150,27 @@ describe('tool manifest synchronization', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it('republishes an acknowledged manifest after a connection becomes ready again', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ accepted: true, revision: 1 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const { client, store, toolRegistry, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+
+    await client.connect();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    connection?.onStatus?.('ready');
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect(fetchImpl.mock.calls.every(([url]) => String(url).endsWith('/sessions/session-1/tools/manifest'))).toBe(true);
+    await client.tools.syncManifest();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it('continues the sync queue after a failed snapshot without acknowledging it', async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       if (fetchImpl.mock.calls.length === 1) return new Response('offline', { status: 503 });
@@ -201,6 +223,33 @@ describe('chat HTTP operations', () => {
       attachments: [{ attachmentId: 'att-1', kind: 'image', mediaType: 'image/png' }],
     });
     expect(new Headers(messageCall?.[1]?.headers).get('Authorization')).toBe('Bearer test-token');
+  });
+
+  it('submits a retained tool result to its originating session', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const { client, store } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'new-session' });
+
+    await client.tools.submitResult({
+      sessionId: 'origin-session',
+      toolCallId: 'call-1',
+      toolName: 'mutate_ui',
+      status: 'success',
+      result: { changed: true },
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/chat/sessions/origin-session/tools/results',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          toolCallId: 'call-1',
+          toolName: 'mutate_ui',
+          status: 'success',
+          result: { changed: true },
+        }),
+      }),
+    );
   });
 
   it('uploads and removes attachments through the active session', async () => {

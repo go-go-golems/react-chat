@@ -60,6 +60,7 @@ export type ChatProviderConfig = ChatExtensionConfig & {
 };
 
 export type ToolResultSubmission = {
+  sessionId?: string;
   toolCallId: string;
   toolName: string;
   status: ToolCompletionStatus;
@@ -70,6 +71,7 @@ export type ToolResultSubmission = {
 type ToolManifestAck = {
   accepted: boolean;
   sessionId: string;
+  connectionGeneration: number;
   revision: number;
   digest: string;
 };
@@ -160,6 +162,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   const fetchImpl = config.http?.fetch ?? fetch;
   let manifestSyncTail: Promise<void> = Promise.resolve();
   let lastManifestAck: ToolManifestAck | null = null;
+  let connectionGeneration = 0;
 
   async function request(operation: ChatOperation, url: string, init: RequestInit = {}): Promise<Response> {
     await config.http?.beforeRequest?.(operation);
@@ -204,7 +207,13 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       dispatch,
       toolRuntime: args.toolRuntime,
       adapterRegistry: args.adapterRegistry,
-      onStatus: (s) => dispatch(overlaySlice.actions.setWsStatus(s)),
+      onStatus: (status) => {
+        dispatch(overlaySlice.actions.setWsStatus(status));
+        if (status === 'ready') {
+          connectionGeneration += 1;
+          void syncToolManifest().catch(() => undefined);
+        }
+      },
       onDebugEvent: config.onDebugEvent,
     });
   }
@@ -213,7 +222,8 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     const sessionId = args.store.getState().overlay.sessionId;
     if (!sessionId) return;
     const snapshot = args.toolRegistry.snapshot();
-    const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot));
+    const generation = connectionGeneration;
+    const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot, generation));
     manifestSyncTail = operation.then(() => undefined, () => undefined);
     try {
       await operation;
@@ -223,8 +233,12 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     }
   }
 
-  async function postManifestSnapshot(sessionId: string, snapshot: ToolManifestSnapshot): Promise<ToolManifestAck> {
-    if (lastManifestAck?.sessionId === sessionId && lastManifestAck.digest === snapshot.digest) return lastManifestAck;
+  async function postManifestSnapshot(sessionId: string, snapshot: ToolManifestSnapshot, generation: number): Promise<ToolManifestAck> {
+    if (
+      lastManifestAck?.sessionId === sessionId
+      && lastManifestAck.connectionGeneration === generation
+      && lastManifestAck.digest === snapshot.digest
+    ) return lastManifestAck;
     const response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -235,6 +249,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     const acknowledgement: ToolManifestAck = {
       accepted: true,
       sessionId,
+      connectionGeneration: generation,
       revision: typeof body.revision === 'number' ? body.revision : snapshot.revision,
       digest: snapshot.digest,
     };
@@ -243,12 +258,13 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   }
 
   async function submitToolResult(result: ToolResultSubmission) {
-    const sessionId = args.store.getState().overlay.sessionId;
+    const sessionId = result.sessionId?.trim() || args.store.getState().overlay.sessionId;
     if (!sessionId) throw new Error('cannot submit frontend tool result without a session');
+    const { sessionId: _sessionId, ...body } = result;
     await request('submit-tool-result', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/results`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result),
+      body: JSON.stringify(body),
     });
   }
 
