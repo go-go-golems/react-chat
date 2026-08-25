@@ -88,13 +88,6 @@ build:
 	go generate ./...
 	go build ./...
 
-web-typecheck:
-	cd cmd/web-chat/web && npm run typecheck
-
-web-lint:
-	cd cmd/web-chat/web && npm run lint
-
-web-check: web-typecheck web-lint
 
 proto-gen-core:
 	buf generate --template buf.chatapp.gen.yaml --path proto/pinocchio

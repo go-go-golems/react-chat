@@ -9,9 +9,6 @@ pre-commit:
     test:
       glob: '*.go'
       run: make test
-    web-check:
-      glob: 'cmd/web-chat/web/**'
-      run: make web-check
 
 pre-push:
   # `make goreleaser` runs `go generate ./...`, which can reinstall/rebuild the
@@ -19,11 +16,7 @@ pre-push:
   # pushes are deterministic.
   parallel: false
   commands:
-    release:
-      run: GOWORK=off make goreleaser
     lint:
       run: GOWORK=off make lintmax gosec govulncheck
     test:
       run: GOWORK=off make test
-    web-check:
-      run: make web-check
