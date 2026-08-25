@@ -949,6 +949,15 @@ This chooses possible temporary unavailability over duplicate consequential exec
 
 ## 14. Decision records
 
+### Decision: Keep timeline projections read-only and centralize action in ToolRuntime
+
+- **Context:** Pinocchio's built-in `ToolCallCard` inferred an approval interaction from arbitrary timeline input and posted results directly, independently of chat-provider's registry, assignment state, human completion CAS, cancellation, and retry state machine. Adding executor fields to that card still left it unable to prove the local browser owned the broadcast assignment.
+- **Options considered:** duplicate executor state in each card/application; pass request executor through and trust non-empty values; introduce a second approval-specific ownership context; make timeline cards projections only and route all actionable frontend/human interactions through `ToolCallOutlet` backed by the shared `ToolRuntime`.
+- **Decision:** Timeline adapters and generic cards are read-only projections. `ToolRuntime` is the only browser execution/completion authority. An application that wants actionable human UI must register a `HumanTool` and render it through `ToolCallOutlet`; it must not infer actionability from timeline payload shape or call result HTTP APIs directly.
+- **Rationale:** One state machine can enforce assignment matching before render, completion CAS, cancellation, terminal retention, and immutable retry provenance. Duplicating any subset repeatedly recreates split-brain authority bugs.
+- **Consequences:** Legacy heuristic approval buttons are removed rather than shimmed. Unknown/unregistered frontend tools remain visible but read-only. First-party applications must upgrade to the executor-aware chat-provider and explicitly register supported human tools.
+- **Status:** accepted.
+
 ### Decision: Use a three-part executor tuple
 
 - **Context:** Session/call identity cannot distinguish tabs; tab identity cannot distinguish reconnects or repeated ownership periods.

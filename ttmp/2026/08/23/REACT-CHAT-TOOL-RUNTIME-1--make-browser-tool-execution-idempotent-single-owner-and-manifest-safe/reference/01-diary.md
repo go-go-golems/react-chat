@@ -1044,3 +1044,58 @@ The manifest sync queue also spans connection generations. A response validates 
 ### Technical details
 
 Default storage key is `@go-go-golems/chat-provider.client-instance-id`. `createId` must provide cryptographically strong opaque values when injected. Current assignment is frozen; state views return clones. Missing or partial request executor emits `tool-request-executor-missing`; nonmatching assignments emit `tool-request-not-executor` without creating invocation state.
+
+## Step 12: Make single runtime authority an explicit design invariant
+
+Further Pinocchio review demonstrated that transporting executor provenance into a timeline card does not give that card local ownership: every subscriber sees the same broadcast tuple. The authoritative design now explicitly separates read-only timeline projection from actionable tool execution and human completion.
+
+### Prompt Context
+
+**User prompt (verbatim):** `Address further https://github.com/go-go-golems/pinocchio/pull/210 . Is this somehow a design pattern issue, if you take a step back? Is therea better architecture that would address these issues?`
+
+**Assistant interpretation:** Generalize the review feedback into a cross-repository architecture invariant rather than treating it as another Pinocchio-only missing field.
+
+**Inferred user intent:** Prevent recurrence by documenting one clear owner for actionability and completion.
+
+### What I did
+
+- Added an accepted decision record to the concise protocol design.
+- Declared timeline adapters/cards read-only.
+- Declared `ToolRuntime` the only browser execution/completion authority.
+- Required applications to register human tools and use `ToolCallOutlet` instead of posting from generic renderers.
+
+### Why
+
+- Broadcast provenance cannot prove local assignment; only runtime-held acknowledgement state can.
+
+### What worked
+
+- Pinocchio commit `04b5479` removed the duplicate card authority and both new review threads were resolved.
+
+### What didn't work
+
+- The earlier “thread executor through the card” fix was insufficient because every tab could replay the visible tuple.
+
+### What I learned
+
+- Command authority must live with the state machine that owns claims, not with a projection that merely displays events.
+
+### What was tricky to build
+
+The same UI can visually represent a tool call in all tabs while only one runtime may expose controls. That requires a projection/outlet split rather than conditional buttons based on event fields.
+
+### What warrants a second pair of eyes
+
+- Audit all consumers for direct `/tools/results` calls outside chat-provider.
+
+### What should be done in the future
+
+- Add static/contract checks forbidding result submission from timeline renderer packages.
+
+### Code review instructions
+
+- Review the new decision record and compare it with `ToolCallOutlet`/`ToolRuntime` ownership.
+
+### Technical details
+
+Unknown or unregistered frontend tools remain visible but read-only. Removing heuristic controls is an intentional strict-migration behavior change, not a compatibility shim.

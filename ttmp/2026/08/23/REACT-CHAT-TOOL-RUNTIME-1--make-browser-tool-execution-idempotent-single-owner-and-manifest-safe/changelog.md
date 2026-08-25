@@ -121,3 +121,12 @@ Implemented browser executor identity lifecycle, strict manifest acknowledgement
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Connection and acknowledgement ordering
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Browser ownership state machine
 
+
+## 2026-08-25
+
+PR 210 review exposed a duplicate renderer authority. The concise design now requires read-only timeline projections and makes ToolRuntime/ToolCallOutlet the sole browser execution and human-completion authority.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Accepted single-authority decision record
+
