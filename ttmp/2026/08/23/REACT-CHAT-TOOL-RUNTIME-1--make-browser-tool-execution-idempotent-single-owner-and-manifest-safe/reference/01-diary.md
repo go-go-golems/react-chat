@@ -1444,3 +1444,74 @@ The implementation needed to preserve useful manifest deduplication without allo
 ### Technical details
 
 The first-release fix is sufficient for ordinary honest clients because inactive tabs do not continuously republish. It does not claim atomic turn ownership under simultaneous multi-tab sends; that limitation is now explicit rather than hidden behind cache behavior.
+
+## Step 17: Prepare the immutable chat-provider 0.6.0 release
+
+The maintainer merged PR 15 at merge commit `4e4444248194a528c58273b19e15dcfd05676540`. A dedicated release branch now bumps only chat-provider to `0.6.0`, validates the exact publish artifact, and leaves PR 17 for maintainer merge before trusted publishing.
+
+### Prompt Context
+
+**User prompt (verbatim):** `merged`
+
+**Assistant interpretation:** Continue the release gate after the maintainer merged the executor-aware runtime.
+
+**Inferred user intent:** Publish a reproducible npm package from authoritative main and then consume it in PBUI.
+
+**Commit (code):** `48273f1` — "chore(chat-provider): prepare v0.6.0"
+
+### What I did
+
+- Verified PR 15's authoritative merge commit and green CI.
+- Created `release/chat-provider-0.6.0` from `origin/main`.
+- Bumped only `packages/chat-provider/package.json` from `0.5.1` to `0.6.0`.
+- Ran provider/workspace tests and typechecks, Go tests/vet, dist build, pack smoke, and local npm publish dry-run under `next`.
+- Opened maintainer-gated PR 17.
+
+### Why
+
+- Trusted publishing should build the versioned artifact from merged upstream history, not a feature branch or mutable local workspace.
+
+### What worked
+
+- 83 provider and 89 workspace tests passed.
+- Package smoke packed 82 files at 41.3 kB.
+- Local npm dry-run identified `@go-go-golems/chat-provider@0.6.0` and completed successfully under `next`.
+- Full push gates passed.
+
+### What didn't work
+
+A GitHub trusted-publishing dry run could not be dispatched from the fork-only release branch:
+
+```text
+could not create workflow dispatch event: HTTP 422: No ref found for: release/chat-provider-0.6.0
+```
+
+The workflow belongs to the upstream repository and accepts only refs present there. It will be run from authoritative `main` after PR 17 is maintainer-merged.
+
+### What I learned
+
+- Fork pull-request refs are not valid `workflow_dispatch` refs in the upstream repository.
+
+### What was tricky to build
+
+The release bump must not be published from the fork branch merely to bypass the workflow ref rule; that would weaken provenance. The correct gate is maintainer merge followed by dry-run and real trusted publishing from upstream main.
+
+### What warrants a second pair of eyes
+
+- Confirm PR 17 contains only the intended package version and diary evidence.
+
+### What should be done in the future
+
+- Maintainer merges PR 17.
+- Dispatch upstream dry-run, then real trusted publish with npm tag `next`.
+- Verify registry integrity and install exact `0.6.0` in PBUI.
+
+### Code review instructions
+
+1. Review the one-line package version bump.
+2. Confirm PR 17 is based on PR 15's merge commit.
+3. Re-run the workflow from upstream main after merge.
+
+### Technical details
+
+The local tarball shasum was `0569a3853d205662823f5ddcf84db84da58bfa6e`; npm reported dry-run integrity prefix `sha512-dMJsObneOmksP...`. The trusted-published artifact must be verified independently because build metadata may produce a different final integrity string.
