@@ -111,3 +111,13 @@ Validated all three companion tickets and uploaded the four-document concise exe
 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/various/02-remarkable-delivery.md — Dry-run and successful upload evidence
 
+
+## 2026-08-25
+
+Implemented browser executor identity lifecycle, strict manifest acknowledgement, pre-claim filtering, immutable retry provenance, and hydration reconciliation in a281080; npm release waits for maintainer-merged Pinocchio hotfix.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Connection and acknowledgement ordering
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Browser ownership state machine
+

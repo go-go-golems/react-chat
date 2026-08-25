@@ -17,3 +17,4 @@
 - [x] Address PR 12 reconnect-manifest and session-bound result retry review findings <!-- t:3gts -->
 - [x] Finalize concise client connection assignment executor protocol across Pinocchio react-chat and PBUI <!-- t:rxt5 -->
 - [x] Validate and upload concise executor protocol design bundle to reMarkable <!-- t:ogge -->
+- [ ] After Pinocchio hotfix release, consume it, publish chat-provider 0.6.0, and verify the installed two-runtime package <!-- t:da8g -->

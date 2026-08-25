@@ -30,14 +30,18 @@ RelatedFiles:
       Note: Checked test server cleanup helper (commit 888ab2a)
     - Path: repo://internal/webchat/turn_store_options.go
       Note: Explicit memory/SQLite turn StoreSpec migration (commit 0b1fffd)
+    - Path: repo://packages/chat-provider/README.md
+      Note: Strict executor migration contract
     - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
       Note: |-
         Serialized sync/dedup/failure recovery tests (commit 7aa6b94)
         Reconnect republish and origin-session endpoint regressions (commit 88d6255)
+        Connection acknowledgement and hydration regressions (a281080)
     - Path: repo://packages/chat-provider/src/core/createChatClient.ts
       Note: |-
         Cancellation-before-stop ordering (commit e341aae)
         Connection-generation manifest acknowledgement and origin-session endpoint (commit 88d6255)
+        Tab/connection identity and exact assignment acknowledgement (a281080)
     - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
       Note: Tool runtime debug classification (commit e341aae)
     - Path: repo://packages/chat-provider/src/tools/ToolCallOutlet.tsx
@@ -48,10 +52,14 @@ RelatedFiles:
       Note: |-
         Replay, retry, cancellation, CAS, retention tests (commit e341aae)
         Retry session identity regression (commit 88d6255)
+        Two-runtime single-owner and retry regressions (a281080)
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
       Note: |-
         Invocation state machine, terminal retry, human CAS (commit e341aae)
         Immutable invocation session in result submissions (commit 88d6255)
+        Pre-claim assignment filtering and immutable result provenance (a281080)
+    - Path: repo://packages/chat-provider/src/ws/timelineEvents.ts
+      Note: Live and hydrated executor projection (a281080)
     - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
       Note: Session-namespaced hydration (commit e341aae)
     - Path: repo://ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md
@@ -62,6 +70,7 @@ LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 
@@ -950,3 +959,88 @@ Delivery succeeded as one four-document PDF bundle:
 ```text
 OK: uploaded Concise Frontend Tool Executor Ownership Protocol.pdf -> /ai/2026/08/25-deliveries/REACT-CHAT-TOOL-RUNTIME-1
 ```
+
+## Step 11: Make the browser runtime obey assignments
+
+This implementation interval added the browser half of concise executor ownership. Chat-provider now creates a tab-stable client identity, rotates connection identity on each ready transport generation, installs only a matching server acknowledgement, filters before automatic or human claim, and carries invocation-captured assignment through result retries and hydration.
+
+The code is committed but deliberately not released yet. Late Pinocchio PR 208 feedback exposed two server/first-party-client defects; follow-up PR 210 is open for maintainer merge, and the user explicitly reserved merge authority. React-chat must consume the immutable Pinocchio hotfix rather than published `v0.11.15` before npm `0.6.0` can be cut.
+
+### Prompt Context
+
+**User prompt (verbatim):** `go ahead, commit at appropriate intervals and keep a detailed diary as you work (using the diary format from the skill). Print out a brutalist work slip with the plan / different phases for the ticket. then before stsarting a phase, plrint a split about the phase, and print one when the phase is done.`
+
+**Assistant interpretation:** Implement browser ownership as a separately committed phase, keep exact failure/validation evidence, and withhold its completion slip and package release until the upstream server hotfix is maintainer-merged and published.
+
+**Inferred user intent:** Deliver one-executor behavior with clear phase gates and no premature release claims.
+
+**Commit (code):** `a281080f5ad5639a41bf8ff93f375f9f92fd6fe0` — "feat(chat-provider): obey server executor assignments"
+
+### What I did
+
+- Added public `FrontendToolExecutor` and executor identity configuration types.
+- Added lazy sessionStorage client identity with injectable storage/ID generation.
+- Created a fresh connection ID for every ready generation and cleared executable assignment on disconnect/backoff/failure.
+- Required exact accepted revision and matching client/connection in manifest acknowledgements.
+- Installed the server assignment in `ToolRuntime` and reconciled hydrated requested entities afterward.
+- Required complete matching executor identity before runtime claim, automatic execution, or human pending state.
+- Captured executor in invocation state/view, result submission, retry cache, diagnostics, and timeline projection.
+- Added two-runtime single-owner, missing-identity fail-closed, stale-current/retry provenance, manifest acknowledgement, reconnect rotation, sessionStorage stability, and hydration-order tests.
+- Updated the package README with the strict migration contract.
+
+### Why
+
+- Independent in-memory terminal ledgers cannot coordinate tabs.
+- Browser filtering must happen before claim/render/effect, while result retry must use immutable invocation identity rather than mutable current ownership.
+- Hydrated requests seen before manifest acknowledgement need an explicit post-ack reconciliation pass.
+
+### What worked
+
+- Package typecheck passed.
+- Chat-provider tests increased from 70 to 77 and pass.
+- Full workspace typecheck and 83-test suite pass.
+- Both publish distribution builds and pack smoke tests pass.
+- Full `GOWORK=off` Go test and vet pass against the currently pinned released server baseline.
+
+### What didn't work
+
+1. The first typecheck after extending `ToolRuntime` failed because test doubles lacked `setExecutorIdentity`/`executorIdentity`, and a public result fixture lacked `executor`. The mocks and fixture now implement the strict API.
+2. The first test run after changing direct manifest tests to `client.connect()` inverted which queued promise observed a synthetic 503 and produced an unhandled rejection. Waiting for the first request and attaching the rejection expectation immediately restored deterministic queue semantics.
+3. `git diff --check` found one trailing space on the executor identity-conflict debug line; it was removed before commit.
+4. Pinocchio's late PR 208 review means published `v0.11.15` is not an acceptable final dependency. React-chat release remains blocked on maintainer merge of PR 210 and a new immutable server patch tag.
+
+### What I learned
+
+- Initial ready should establish identity but let `connect`/`send` perform the awaited manifest sync; reconnect-ready must trigger autonomous republishing.
+- A strict acknowledgement must validate `accepted === true`, exact revision, and exact client/connection—not infer authority from any successful HTTP response.
+- Timeline state is the right bounded source for post-ack hydration reconciliation; no second deferred-request ledger is needed.
+
+### What was tricky to build
+
+Connection and invocation lifetimes overlap. Clearing current assignment on backoff must prevent new claims, but it must not mutate running/completing invocations. Each `ToolRequest` therefore owns a cloned executor tuple, and `deliverCompletion` always submits that clone. A reconnect changes only current eligibility and future requests.
+
+The manifest sync queue also spans connection generations. A response validates both numeric local generation and captured connection ID before installing authority, so a delayed old response cannot overwrite a newer ready generation.
+
+### What warrants a second pair of eyes
+
+- Review initial-ready versus reconnect-ready manifest synchronization ordering.
+- Review sessionStorage behavior for browser “duplicate tab” implementations that may clone storage at creation.
+- Review timeline scan/reconciliation costs and entity filtering.
+- Confirm assignment debug events with blank session/call fields are suitable for current diagnostics API.
+
+### What should be done in the future
+
+- After Manuel merges Pinocchio PR 210, publish and consume the immutable hotfix with `GOWORK=off`.
+- Bump chat-provider to `0.6.0`, rerun clean installed-package probes, open a PR, and leave merge to Manuel.
+- Publish npm only after the human merge gate.
+
+### Code review instructions
+
+1. Start in `createChatClient.ts` at ready status, `postManifestSnapshot`, and `reconcileRequestedTools`.
+2. Review `toolRuntime.ts` request parsing/filtering before `claimRequest` and captured executor in `deliverCompletion`.
+3. Run chat-provider and full workspace typecheck/tests/build/pack commands.
+4. Run two runtime instances with different acknowledged identities against one assigned request; require one execution/submission.
+
+### Technical details
+
+Default storage key is `@go-go-golems/chat-provider.client-instance-id`. `createId` must provide cryptographically strong opaque values when injected. Current assignment is frozen; state views return clones. Missing or partial request executor emits `tool-request-executor-missing`; nonmatching assignments emit `tool-request-not-executor` without creating invocation state.
