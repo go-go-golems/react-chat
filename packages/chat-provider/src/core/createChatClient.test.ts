@@ -287,6 +287,52 @@ describe('tool manifest synchronization', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it('waits for reconnect readiness before a send synchronizes its manifest', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    const send = client.send({ prompt: 'during reconnect' });
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    connection?.onStatus?.('ready');
+    await expect(send).resolves.toBeUndefined();
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/messages'),
+    ]);
+  });
+
+  it('aborts an in-flight stale manifest when the transport enters backoff', async () => {
+    const firstStarted = deferred<void>();
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (fetchImpl.mock.calls.length > 1) return new Response('{}', { status: 200 });
+      firstStarted.resolve();
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+      });
+    });
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    const initialConnect = client.connect();
+    const initialFailure = expect(initialConnect).rejects.toThrow('aborted');
+    await firstStarted.promise;
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    await initialFailure;
+
+    connection?.onStatus?.('ready');
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)).connectionId).toBe('connection-2');
+  });
+
   it('continues the sync queue after a failed snapshot without acknowledging it', async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       if (fetchImpl.mock.calls.length === 1) return new Response('offline', { status: 503 });

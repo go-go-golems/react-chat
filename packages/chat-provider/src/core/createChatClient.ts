@@ -227,6 +227,25 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   let hasReadyConnection = false;
   let clientInstanceId = '';
   let connectionId = '';
+  let resolveReadyConnection: (() => void) | null = null;
+  let readyConnectionPromise: Promise<void> = Promise.resolve();
+  let activeManifestController: AbortController | null = null;
+
+  function markConnectionNotReady(): void {
+    if (resolveReadyConnection) return;
+    readyConnectionPromise = new Promise<void>((resolve) => {
+      resolveReadyConnection = resolve;
+    });
+  }
+
+  function markConnectionReady(): void {
+    resolveReadyConnection?.();
+    resolveReadyConnection = null;
+  }
+
+  async function waitForReadyConnection(): Promise<void> {
+    while (!connectionId) await readyConnectionPromise;
+  }
 
   async function request(operation: ChatOperation, url: string, init: RequestInit = {}): Promise<Response> {
     await config.http?.beforeRequest?.(operation);
@@ -281,10 +300,14 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
           connectionId = createOpaqueExecutorId(config);
           lastManifestAck = null;
           args.toolRuntime.setExecutorIdentity(null);
+          markConnectionReady();
           if (isReconnect) void syncToolManifest().catch(() => undefined);
         } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
+          markConnectionNotReady();
           connectionId = '';
           lastManifestAck = null;
+          activeManifestController?.abort();
+          activeManifestController = null;
           args.toolRuntime.setExecutorIdentity(null);
         }
       },
@@ -295,9 +318,18 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   async function syncToolManifest(): Promise<void> {
     const sessionId = args.store.getState().overlay.sessionId;
     if (!sessionId) return;
+    await waitForReadyConnection();
     const snapshot = args.toolRegistry.snapshot();
     const generation = connectionGeneration;
-    const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot, generation));
+    const requestedClientId = clientInstanceId;
+    const requestedConnectionId = connectionId;
+    const operation = manifestSyncTail.then(() => postManifestSnapshot(
+      sessionId,
+      snapshot,
+      generation,
+      requestedClientId,
+      requestedConnectionId,
+    ));
     manifestSyncTail = operation.then(() => undefined, () => undefined);
     try {
       await operation;
@@ -307,25 +339,42 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     }
   }
 
-  async function postManifestSnapshot(sessionId: string, snapshot: ToolManifestSnapshot, generation: number): Promise<ToolManifestAck> {
-    if (!clientInstanceId || !connectionId) throw new Error('cannot sync frontend tool manifest without a ready executor connection');
-    const requestedClientId = clientInstanceId;
-    const requestedConnectionId = connectionId;
+  async function postManifestSnapshot(
+    sessionId: string,
+    snapshot: ToolManifestSnapshot,
+    generation: number,
+    requestedClientId: string,
+    requestedConnectionId: string,
+  ): Promise<ToolManifestAck> {
+    if (
+      !requestedClientId
+      || !requestedConnectionId
+      || generation !== connectionGeneration
+      || requestedConnectionId !== connectionId
+    ) throw new Error(`cannot sync stale frontend tool manifest for connection generation ${generation}`);
     if (
       lastManifestAck?.sessionId === sessionId
       && lastManifestAck.connectionGeneration === generation
       && lastManifestAck.digest === snapshot.digest
     ) return lastManifestAck;
-    const response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clientInstanceId: requestedClientId,
-        connectionId: requestedConnectionId,
-        revision: snapshot.revision,
-        tools: snapshot.tools,
-      }),
-    });
+    const controller = new AbortController();
+    activeManifestController = controller;
+    let response: Response;
+    try {
+      response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientInstanceId: requestedClientId,
+          connectionId: requestedConnectionId,
+          revision: snapshot.revision,
+          tools: snapshot.tools,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      if (activeManifestController === controller) activeManifestController = null;
+    }
     const body = await response.json().catch(() => ({})) as { accepted?: boolean; revision?: number; executor?: unknown };
     if (body.accepted !== true || body.revision !== snapshot.revision) {
       throw new Error(`sync-tool-manifest rejected revision ${snapshot.revision}`);
@@ -470,9 +519,12 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     reset() {
       void args.toolRuntime.cancelActiveFrontendTools();
       args.toolRuntime.setExecutorIdentity(null);
+      markConnectionNotReady();
       connectionId = '';
       hasReadyConnection = false;
       lastManifestAck = null;
+      activeManifestController?.abort();
+      activeManifestController = null;
       args.wsManager.disconnect();
       persistSessionId(config, null);
       dispatch(overlaySlice.actions.reset());
