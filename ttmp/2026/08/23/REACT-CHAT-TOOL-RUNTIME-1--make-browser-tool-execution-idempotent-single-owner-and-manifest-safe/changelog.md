@@ -170,3 +170,12 @@ PR 15 ownership-cache review: every send now obtains a fresh assignment acknowle
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Fresh authority acknowledgement before send
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Accepted send-revalidation decision and turn-binding limitation
 
+
+## 2026-08-25
+
+PR 15 maintainer-merged; prepared chat-provider 0.6.0 release, validated local publish artifact, and opened maintainer-gated PR 17.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/package.json — Release version 0.6.0
+
