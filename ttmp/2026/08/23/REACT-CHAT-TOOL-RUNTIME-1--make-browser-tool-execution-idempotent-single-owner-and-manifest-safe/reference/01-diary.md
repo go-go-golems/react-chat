@@ -1179,3 +1179,86 @@ The test round trips needed to retain the server-generated assignment from manif
 ### Technical details
 
 `v0.11.16` is a lightweight immutable tag on the PR 210 merge commit. The adapter now returns revision plus executor from `AcceptManifest`; result errors preserve bad-request/not-found/gone/conflict distinctions.
+
+## Step 14: Gate sends on reconnect readiness and cancel stale manifest work
+
+PR 15 review identified that `WsManager.connect()` returns its already-resolved initial promise during transport backoff. A send could therefore proceed directly to manifest synchronization after executor identity had been cleared and fail instead of waiting for the replacement ready generation.
+
+The fix adds an explicit ready-connection barrier inside the chat client and aborts an in-flight manifest request as soon as transport authority is lost. Manifest queue entries capture client, connection, and generation before enqueueing and refuse to POST if those values are stale when their turn arrives.
+
+### Prompt Context
+
+**User prompt (verbatim):** `packages/chat-provider/src/core/createChatClient.ts
+Comment on lines +285 to +286
+        } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
+          connectionId = '';
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+3 minutes ago
+
+P1 Badge Wait for reconnect readiness before syncing a send
+
+When the transport enters backoff, clearing connectionId makes every send() attempted during that reconnect fail: WsManager.connect() returns its cached, already-resolved connection promise for the same session (wsManager.ts lines 73–81), so ensureConnection() does not wait for the next ready transition and syncToolManifest() immediately throws because there is no ready executor connection. Thus a user message submitted during any transient reconnect is rejected instead of being held until the new assignment can be acknowledged; the send path needs to await the reconnect's readiness before synchronizing.
+
+Useful? React with 👍 / 👎.`
+
+**Assistant interpretation:** Make send and manifest synchronization wait for the actual replacement ready transition, and inspect all PR 15 threads for related stale-generation races.
+
+**Inferred user intent:** Preserve normal sends during transient reconnect while ensuring no request runs under absent or stale executor authority.
+
+**Commit (code):** `b0bd1d8` — "fix(chat-provider): gate sends on reconnect readiness"
+
+### What I did
+
+- Added a ready-connection deferred barrier driven by transport lifecycle callbacks.
+- Made every manifest synchronization await non-empty ready connection identity.
+- Captured generation/client/connection before queue insertion and rejected stale queued work before HTTP mutation.
+- Added an `AbortController` for the active manifest request and abort it on backoff, stop, failure, or reset.
+- Added regressions for send-during-backoff and in-flight manifest cancellation.
+
+### Why
+
+- `connect()` represents creation of the transport, not every future ready generation.
+- Clearing authority is correct, but callers must wait for authority to be re-established rather than fail immediately.
+- Best-effort HTTP cancellation propagates reconnect invalidation to the server request context and narrows stale assignment exposure.
+
+### What worked
+
+- Provider tests increased from 77 to 79 and pass.
+- Workspace tests increased from 83 to 85 and pass.
+- Provider/workspace typechecks, dist builds, pack smoke, Go tests, and vet pass.
+
+### What didn't work
+
+- No implementation attempt failed. The review exposed a lifecycle semantic gap not covered by the earlier reconnect republish test.
+
+### What I learned
+
+- A cached transport connection promise and transport readiness are separate synchronization primitives.
+- A reconnect-safe manifest queue must validate identity both when work is enqueued and immediately before it mutates server state.
+
+### What was tricky to build
+
+A send and the autonomous reconnect manifest sync can awaken on the same ready transition. Both enter one serialized queue; the first posts, and the second deduplicates against the exact generation/digest acknowledgement. The barrier must be recreated before clearing `connectionId`, otherwise a caller can observe the empty identity with an already-resolved wait promise.
+
+HTTP cancellation cannot prove that a server did not commit immediately before disconnect was observed. That residual case is identical to any selected owner disappearing immediately after acknowledgement and remains within the protocol's explicit no-lease liveness boundary. The new abort signal prevents obsolete in-flight work whenever cancellation reaches the server before acceptance commits; the immediate next-generation sync supersedes any already-completed old acceptance.
+
+### What warrants a second pair of eyes
+
+- Review ready barrier resolution/recreation ordering.
+- Review AbortSignal propagation through custom fetch implementations.
+- Confirm the explicit owner-disappears boundary remains acceptable without timed leases.
+
+### What should be done in the future
+
+- If the threat model requires proving connection liveness at manifest acceptance, move acceptance onto or cryptographically bind it to the WebSocket transport in a separately reviewed protocol version.
+
+### Code review instructions
+
+1. Review lifecycle callbacks, `waitForReadyConnection`, and `syncToolManifest` together.
+2. Run the two new focused tests, then the full 85-test workspace suite.
+3. Confirm sends remain pending during backoff and resume only after the replacement manifest is acknowledged.
+
+### Technical details
+
+The active manifest controller is cleared with identity comparison in `finally`, so completion of an older request cannot erase a newer request's controller. Queue operations retain failure-continuation semantics through `manifestSyncTail`.

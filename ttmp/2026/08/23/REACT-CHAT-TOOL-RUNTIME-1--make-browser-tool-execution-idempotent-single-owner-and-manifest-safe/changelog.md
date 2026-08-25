@@ -140,3 +140,13 @@ Maintainer merged Pinocchio PR 210. Published and proxy-verified immutable v0.11
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/go.mod — Consumes corrected Pinocchio v0.11.16
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/handlers.go — Strict first-party executor HTTP adapter
 
+
+## 2026-08-25
+
+PR 15 reconnect review: sends now wait for actual ready authority; stale queued manifests fail before POST; in-flight manifests abort when transport authority is lost (b0bd1d8).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.test.ts — Backoff-send and cancellation regressions
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Reconnect readiness and manifest cancellation
+
