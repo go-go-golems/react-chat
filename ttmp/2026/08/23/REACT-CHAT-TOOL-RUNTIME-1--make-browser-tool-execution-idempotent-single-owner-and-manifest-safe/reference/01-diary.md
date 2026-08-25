@@ -882,6 +882,8 @@ The document is grounded in the current Pinocchio protobuf/manager, react-chat r
 
 **Inferred user intent:** Make the smallest reasonable single-owner design reviewable and actionable enough to implement immediately without losing important reconnect or stale-assignment correctness.
 
+**Commit (docs):** `98aea622a363b69ebd4d9861a4b1c7f6a153b3b6` — "REACT-CHAT-TOOL-RUNTIME-1: define concise executor protocol"
+
 ### What I did
 
 - Created `design-doc/02-concise-frontend-tool-executor-ownership-protocol.md` as the authoritative contract.
@@ -902,6 +904,7 @@ The document is grounded in the current Pinocchio protobuf/manager, react-chat r
 
 - Existing code boundaries support the design: PBUI already owns both Hub and Manager, the Hub is an event publisher, react-chat already tracks ready generations, and Pinocchio already captures immutable pending/terminal state.
 - The selected tuple composes with current terminal idempotency and durable timeline projection without introducing a parallel runtime.
+- `docmgr doctor` passed for all three tickets; the reMarkable dry run matched all four intended design documents, and upload returned `OK`.
 
 ### What didn't work
 
@@ -941,3 +944,9 @@ The hardest ordering edge is reconnect hydration. A new connection needs its man
 ### Technical details
 
 The first-release executor tuple is complete only when all three fields are non-empty. Assignment changes apply to future calls only. Same-connection higher manifest revisions retain assignment; same-revision identical manifests are idempotent; same-revision divergent manifests and lower revisions are rejected. Missing identity has no legacy fallback.
+
+Delivery succeeded as one four-document PDF bundle:
+
+```text
+OK: uploaded Concise Frontend Tool Executor Ownership Protocol.pdf -> /ai/2026/08/25-deliveries/REACT-CHAT-TOOL-RUNTIME-1
+```
