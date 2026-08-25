@@ -93,3 +93,80 @@ Cleared PR 12 push security gate by preserving unsigned snapshot ordinals (commi
 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/helpers.go — Remove overflowing uint64-to-int64 conversion
 
+
+## 2026-08-25
+
+Authored the authoritative concise cross-tab executor protocol using client, connection, and server assignment identities; narrowed the prior timed-lease proposal and defined strict rollout/testing.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Primary design deliverable
+
+
+## 2026-08-25
+
+Validated all three companion tickets and uploaded the four-document concise executor protocol bundle to /ai/2026/08/25-deliveries/REACT-CHAT-TOOL-RUNTIME-1.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/various/02-remarkable-delivery.md — Dry-run and successful upload evidence
+
+
+## 2026-08-25
+
+Implemented browser executor identity lifecycle, strict manifest acknowledgement, pre-claim filtering, immutable retry provenance, and hydration reconciliation in a281080; npm release waits for maintainer-merged Pinocchio hotfix.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Connection and acknowledgement ordering
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Browser ownership state machine
+
+
+## 2026-08-25
+
+PR 210 review exposed a duplicate renderer authority. The concise design now requires read-only timeline projections and makes ToolRuntime/ToolCallOutlet the sole browser execution and human-completion authority.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Accepted single-authority decision record
+
+
+## 2026-08-25
+
+Maintainer merged Pinocchio PR 210. Published and proxy-verified immutable v0.11.16, upgraded react-chat with GOWORK=off, and migrated chat-overlay to exact executor acknowledgements and executor-bound results (c97ca57).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/go.mod — Consumes corrected Pinocchio v0.11.16
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/handlers.go — Strict first-party executor HTTP adapter
+
+
+## 2026-08-25
+
+PR 15 reconnect review: sends now wait for actual ready authority; stale queued manifests fail before POST; in-flight manifests abort when transport authority is lost (b0bd1d8).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.test.ts — Backoff-send and cancellation regressions
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Reconnect readiness and manifest cancellation
+
+
+## 2026-08-25
+
+PR 15 readiness follow-up: pre-connect sync now waits without spinning; terminal/reset transitions reject waiters and invalidate operations before they can cross into a future connection (c750caf).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.test.ts — Pre-connect, failure, and reset regressions
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Terminal/reset-safe readiness lifecycle
+
+
+## 2026-08-25
+
+PR 15 ownership-cache review: every send now obtains a fresh assignment acknowledgement; design distinguishes capability-content caching from authority and records turn-scoped atomic executor capture as the stronger architecture (7104f9a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Fresh authority acknowledgement before send
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Accepted send-revalidation decision and turn-binding limitation
+

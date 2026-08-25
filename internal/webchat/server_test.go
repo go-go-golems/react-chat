@@ -69,10 +69,10 @@ func TestFrontendToolRoundTripResumesMockRun(t *testing.T) {
 	requireServerCleanup(t, cleanup)
 
 	sessionID := createSession(t, server)
-	postToolManifest(t, server, sessionID)
+	executor := postToolManifest(t, server, sessionID)
 	submitPrompt(t, server, sessionID, "add boots to cart")
 	waitForToolCall(t, server, sessionID)
-	postToolResult(t, server, sessionID, "overlay-msg-1:tool:cart-add")
+	postToolResult(t, server, sessionID, "overlay-msg-1:tool:cart-add", executor)
 	waitIdle(t, server, sessionID)
 
 	snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
@@ -111,7 +111,7 @@ func TestHumanToolRoundTripResumesMockRun(t *testing.T) {
 	requireServerCleanup(t, cleanup)
 
 	sessionID := createSession(t, server)
-	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
+	executor := postToolManifestWithTools(t, server, sessionID, []map[string]any{{
 		"name":        "checkout_confirm",
 		"description": "Ask for checkout approval",
 		"mode":        "human",
@@ -120,7 +120,7 @@ func TestHumanToolRoundTripResumesMockRun(t *testing.T) {
 	}})
 	submitPrompt(t, server, sessionID, "approve checkout")
 	waitForNamedToolCall(t, server, sessionID, "checkout_confirm", "requested")
-	postNamedToolResult(t, server, sessionID, "overlay-msg-1:tool:checkout-confirm", "checkout_confirm", map[string]any{"approved": true, "approvalCount": float64(1)})
+	postNamedToolResult(t, server, sessionID, "overlay-msg-1:tool:checkout-confirm", "checkout_confirm", map[string]any{"approved": true, "approvalCount": float64(1)}, executor)
 	waitIdle(t, server, sessionID)
 
 	snap, err := server.service.Snapshot(context.Background(), sessionstream.SessionId(sessionID))
@@ -216,9 +216,9 @@ func submitPrompt(t *testing.T, server *Server, sessionID, prompt string) {
 	}
 }
 
-func postToolManifest(t *testing.T, server *Server, sessionID string) {
+func postToolManifest(t *testing.T, server *Server, sessionID string) frontendToolExecutor {
 	t.Helper()
-	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
+	return postToolManifestWithTools(t, server, sessionID, []map[string]any{{
 		"name":        "cart_add",
 		"description": "Add an item to the browser cart",
 		"mode":        "frontend",
@@ -227,26 +227,36 @@ func postToolManifest(t *testing.T, server *Server, sessionID string) {
 	}})
 }
 
-func postToolManifestWithTools(t *testing.T, server *Server, sessionID string, tools []map[string]any) {
+func postToolManifestWithTools(t *testing.T, server *Server, sessionID string, tools []map[string]any) frontendToolExecutor {
 	t.Helper()
 	rec := httptest.NewRecorder()
 	body, _ := json.Marshal(map[string]any{
-		"revision": 1,
-		"tools":    tools,
+		"clientInstanceId": "test-client",
+		"connectionId":     "test-connection",
+		"revision":         1,
+		"tools":            tools,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/"+sessionID+"/tools/manifest", bytes.NewReader(body))
 	server.Mux().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("tool manifest status=%d body=%s", rec.Code, rec.Body.String())
 	}
+	var response toolCommandResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode tool manifest response: %v", err)
+	}
+	if response.Executor == nil {
+		t.Fatalf("tool manifest response missing executor: %s", rec.Body.String())
+	}
+	return *response.Executor
 }
 
-func postToolResult(t *testing.T, server *Server, sessionID, toolCallID string) {
+func postToolResult(t *testing.T, server *Server, sessionID, toolCallID string, executor frontendToolExecutor) {
 	t.Helper()
-	postNamedToolResult(t, server, sessionID, toolCallID, "cart_add", map[string]any{"ok": true, "cartCount": float64(1)})
+	postNamedToolResult(t, server, sessionID, toolCallID, "cart_add", map[string]any{"ok": true, "cartCount": float64(1)}, executor)
 }
 
-func postNamedToolResult(t *testing.T, server *Server, sessionID, toolCallID, toolName string, result map[string]any) {
+func postNamedToolResult(t *testing.T, server *Server, sessionID, toolCallID, toolName string, result map[string]any, executor frontendToolExecutor) {
 	t.Helper()
 	rec := httptest.NewRecorder()
 	body, _ := json.Marshal(map[string]any{
@@ -254,6 +264,7 @@ func postNamedToolResult(t *testing.T, server *Server, sessionID, toolCallID, to
 		"toolName":   toolName,
 		"status":     "success",
 		"result":     result,
+		"executor":   executor,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/chat/sessions/"+sessionID+"/tools/results", bytes.NewReader(body))
 	server.Mux().ServeHTTP(rec, req)

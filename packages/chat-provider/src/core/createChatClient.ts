@@ -3,7 +3,7 @@ import { runStatsSlice } from '../store/runStatsSlice';
 import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
 import type { ToolManifestSnapshot, ToolRegistry } from '../tools/toolRegistry';
-import type { ToolCompletionStatus, ToolRuntime } from '../tools/toolRuntime';
+import type { FrontendToolExecutor, ToolCompletionStatus, ToolRuntime } from '../tools/toolRuntime';
 import type { TimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
 import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
 import type { SessionStreamTransportConfig } from '../ws/sessionStreamTransport';
@@ -47,6 +47,13 @@ export type SendMessageRequest = {
   attachments?: ChatAttachmentRef[];
 };
 
+export type ExecutorIdentityConfig = {
+  clientInstanceId?: string;
+  storageKey?: string;
+  storage?: Pick<Storage, 'getItem' | 'setItem'>;
+  createId?: () => string;
+};
+
 export type ChatProviderConfig = ChatExtensionConfig & {
   basePrefix?: string;
   apiBase?: string;
@@ -57,6 +64,7 @@ export type ChatProviderConfig = ChatExtensionConfig & {
   onDebugEvent?: ChatDebugHandler;
   createSessionBody?: () => ChatRequestBody | Promise<ChatRequestBody>;
   sendMessageBody?: (request: SendMessageRequest) => ChatRequestBody | Promise<ChatRequestBody>;
+  executorIdentity?: ExecutorIdentityConfig;
 };
 
 export type ToolResultSubmission = {
@@ -66,6 +74,7 @@ export type ToolResultSubmission = {
   status: ToolCompletionStatus;
   result?: Record<string, unknown>;
   error?: string;
+  executor: FrontendToolExecutor;
 };
 
 type ToolManifestAck = {
@@ -74,6 +83,7 @@ type ToolManifestAck = {
   connectionGeneration: number;
   revision: number;
   digest: string;
+  executor: FrontendToolExecutor;
 };
 
 export type ChatClientTools = ToolRegistry & {
@@ -109,6 +119,7 @@ export type CreateChatClientArgs = {
 };
 
 const DEFAULT_SESSION_STORAGE_KEY = 'chat-provider.sessionId';
+const DEFAULT_EXECUTOR_STORAGE_KEY = '@go-go-golems/chat-provider.client-instance-id';
 const DEFAULT_SESSION_ID_PARAM = 'chatSessionId';
 const DEFAULT_SESSION_POLICY: SessionPolicy = {
   restore: 'url',
@@ -154,6 +165,56 @@ function persistSessionId(config: ChatProviderConfig, sessionId: string | null) 
   }
 }
 
+function createOpaqueExecutorId(config: ChatProviderConfig): string {
+  const value = (config.executorIdentity?.createId?.() ?? globalThis.crypto?.randomUUID?.() ?? '').trim();
+  if (!value) throw new Error('executor identity requires crypto.randomUUID or an injected createId');
+  return value;
+}
+
+function executorStorage(config: ChatProviderConfig): Pick<Storage, 'getItem' | 'setItem'> | null {
+  if (config.executorIdentity?.storage) return config.executorIdentity.storage;
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function loadOrCreateClientInstanceId(config: ChatProviderConfig): string {
+  const configured = config.executorIdentity?.clientInstanceId?.trim();
+  if (configured) return configured;
+  const storage = executorStorage(config);
+  const key = config.executorIdentity?.storageKey ?? DEFAULT_EXECUTOR_STORAGE_KEY;
+  try {
+    const stored = storage?.getItem(key)?.trim();
+    if (stored) return stored;
+  } catch {
+    // A process-local identity still provides strict ownership for this runtime.
+  }
+  const created = createOpaqueExecutorId(config);
+  try {
+    storage?.setItem(key, created);
+  } catch {
+    // Embedded/private contexts may reject storage; keep the process-local id.
+  }
+  return created;
+}
+
+function parseExecutor(value: unknown): FrontendToolExecutor | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const clientInstanceId = String(record.clientInstanceId ?? '').trim();
+  const connectionId = String(record.connectionId ?? '').trim();
+  const assignmentId = String(record.assignmentId ?? '').trim();
+  if (!clientInstanceId || !connectionId || !assignmentId) return null;
+  return Object.freeze({ clientInstanceId, connectionId, assignmentId });
+}
+
+function sameConnection(executor: FrontendToolExecutor, clientInstanceId: string, connectionId: string): boolean {
+  return executor.clientInstanceId === clientInstanceId && executor.connectionId === connectionId;
+}
+
 export function createChatClient(args: CreateChatClientArgs): ChatClient {
   const config = args.config ?? {};
   const basePrefix = config.basePrefix ?? '';
@@ -163,6 +224,43 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   let manifestSyncTail: Promise<void> = Promise.resolve();
   let lastManifestAck: ToolManifestAck | null = null;
   let connectionGeneration = 0;
+  let hasReadyConnection = false;
+  let clientInstanceId = '';
+  let connectionId = '';
+  type ReadyWaiter = { resolve: () => void; reject: (error: Error) => void };
+  const readyWaiters = new Set<ReadyWaiter>();
+  let readinessInvalidation = 0;
+  let activeManifestController: AbortController | null = null;
+
+  function markConnectionReady(): void {
+    for (const waiter of readyWaiters) waiter.resolve();
+    readyWaiters.clear();
+  }
+
+  function rejectReadyWaiters(reason: string): void {
+    readinessInvalidation += 1;
+    const error = new Error(reason);
+    for (const waiter of readyWaiters) waiter.reject(error);
+    readyWaiters.clear();
+  }
+
+  async function waitForReadyConnection(): Promise<void> {
+    while (!connectionId) {
+      await new Promise<void>((resolve, reject) => {
+        const waiter: ReadyWaiter = {
+          resolve: () => {
+            readyWaiters.delete(waiter);
+            resolve();
+          },
+          reject: (error) => {
+            readyWaiters.delete(waiter);
+            reject(error);
+          },
+        };
+        readyWaiters.add(waiter);
+      });
+    }
+  }
 
   async function request(operation: ChatOperation, url: string, init: RequestInit = {}): Promise<Response> {
     await config.http?.beforeRequest?.(operation);
@@ -210,20 +308,48 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       onStatus: (status) => {
         dispatch(overlaySlice.actions.setWsStatus(status));
         if (status === 'ready') {
+          const isReconnect = hasReadyConnection;
+          hasReadyConnection = true;
           connectionGeneration += 1;
-          void syncToolManifest().catch(() => undefined);
+          clientInstanceId ||= loadOrCreateClientInstanceId(config);
+          connectionId = createOpaqueExecutorId(config);
+          lastManifestAck = null;
+          args.toolRuntime.setExecutorIdentity(null);
+          markConnectionReady();
+          if (isReconnect) void syncToolManifest().catch(() => undefined);
+        } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
+          connectionId = '';
+          lastManifestAck = null;
+          activeManifestController?.abort();
+          activeManifestController = null;
+          args.toolRuntime.setExecutorIdentity(null);
+          if (status === 'stopped' || status === 'failed') {
+            rejectReadyWaiters(`frontend tool connection ${status} before executor readiness`);
+          }
         }
       },
       onDebugEvent: config.onDebugEvent,
     });
   }
 
-  async function syncToolManifest(): Promise<void> {
+  async function syncToolManifest(expectedInvalidation = readinessInvalidation, forceAcknowledgement = false): Promise<void> {
+    if (expectedInvalidation !== readinessInvalidation) throw new Error('frontend tool connection invalidated before manifest synchronization');
     const sessionId = args.store.getState().overlay.sessionId;
     if (!sessionId) return;
+    await waitForReadyConnection();
+    if (expectedInvalidation !== readinessInvalidation) throw new Error('frontend tool connection invalidated before manifest synchronization');
     const snapshot = args.toolRegistry.snapshot();
     const generation = connectionGeneration;
-    const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot, generation));
+    const requestedClientId = clientInstanceId;
+    const requestedConnectionId = connectionId;
+    const operation = manifestSyncTail.then(() => postManifestSnapshot(
+      sessionId,
+      snapshot,
+      generation,
+      requestedClientId,
+      requestedConnectionId,
+      forceAcknowledgement,
+    ));
     manifestSyncTail = operation.then(() => undefined, () => undefined);
     try {
       await operation;
@@ -233,28 +359,76 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     }
   }
 
-  async function postManifestSnapshot(sessionId: string, snapshot: ToolManifestSnapshot, generation: number): Promise<ToolManifestAck> {
+  async function postManifestSnapshot(
+    sessionId: string,
+    snapshot: ToolManifestSnapshot,
+    generation: number,
+    requestedClientId: string,
+    requestedConnectionId: string,
+    forceAcknowledgement: boolean,
+  ): Promise<ToolManifestAck> {
     if (
-      lastManifestAck?.sessionId === sessionId
+      !requestedClientId
+      || !requestedConnectionId
+      || generation !== connectionGeneration
+      || requestedConnectionId !== connectionId
+    ) throw new Error(`cannot sync stale frontend tool manifest for connection generation ${generation}`);
+    if (
+      !forceAcknowledgement
+      && lastManifestAck?.sessionId === sessionId
       && lastManifestAck.connectionGeneration === generation
       && lastManifestAck.digest === snapshot.digest
     ) return lastManifestAck;
-    const response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ revision: snapshot.revision, tools: snapshot.tools }),
-    });
-    const body = await response.json().catch(() => ({})) as { accepted?: boolean; revision?: number };
-    if (body.accepted === false) throw new Error(`sync-tool-manifest rejected revision ${snapshot.revision}`);
+    const controller = new AbortController();
+    activeManifestController = controller;
+    let response: Response;
+    try {
+      response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientInstanceId: requestedClientId,
+          connectionId: requestedConnectionId,
+          revision: snapshot.revision,
+          tools: snapshot.tools,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      if (activeManifestController === controller) activeManifestController = null;
+    }
+    const body = await response.json().catch(() => ({})) as { accepted?: boolean; revision?: number; executor?: unknown };
+    if (body.accepted !== true || body.revision !== snapshot.revision) {
+      throw new Error(`sync-tool-manifest rejected revision ${snapshot.revision}`);
+    }
+    const executor = parseExecutor(body.executor);
+    if (!executor || !sameConnection(executor, requestedClientId, requestedConnectionId)) {
+      throw new Error(`sync-tool-manifest returned an invalid executor assignment for revision ${snapshot.revision}`);
+    }
+    if (generation !== connectionGeneration || requestedConnectionId !== connectionId) {
+      throw new Error(`sync-tool-manifest acknowledgement is stale for connection generation ${generation}`);
+    }
     const acknowledgement: ToolManifestAck = {
       accepted: true,
       sessionId,
       connectionGeneration: generation,
-      revision: typeof body.revision === 'number' ? body.revision : snapshot.revision,
+      revision: body.revision,
       digest: snapshot.digest,
+      executor,
     };
     lastManifestAck = acknowledgement;
+    args.toolRuntime.setExecutorIdentity(executor);
+    reconcileRequestedTools(sessionId);
     return acknowledgement;
+  }
+
+  function reconcileRequestedTools(sessionId: string): void {
+    const state = args.store.getState().timeline;
+    const requests = state.order
+      .map((id) => state.byId[id])
+      .filter((entity) => entity?.kind === 'tool_call' && String(entity.props.status ?? '').toLowerCase() === 'requested')
+      .map((entity) => entity!.props);
+    args.toolRuntime.reconcileFrontendToolRequests(requests, sessionId);
   }
 
   async function submitToolResult(result: ToolResultSubmission) {
@@ -320,9 +494,10 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     async connect() {
       try {
         dispatch(overlaySlice.actions.setError(null));
+        const expectedInvalidation = readinessInvalidation;
         const sessionId = await ensureSession();
         await ensureConnection(sessionId);
-        await syncToolManifest();
+        await syncToolManifest(expectedInvalidation);
       } catch (err) {
         dispatch(overlaySlice.actions.setError(err instanceof Error ? err.message : String(err)));
         throw err;
@@ -332,9 +507,12 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     async send(message: SendMessageRequest) {
       try {
         dispatch(overlaySlice.actions.setError(null));
+        const expectedInvalidation = readinessInvalidation;
         const sessionId = await ensureSession();
         await ensureConnection(sessionId);
-        await syncToolManifest();
+        // A cached acknowledgement proves manifest content, not current ownership:
+        // another tab may have accepted a manifest since this connection's last sync.
+        await syncToolManifest(expectedInvalidation, true);
         const sendBody = await (config.sendMessageBody?.(message) ?? message);
         await request('send-message', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
           method: 'POST',
@@ -366,6 +544,13 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
 
     reset() {
       void args.toolRuntime.cancelActiveFrontendTools();
+      args.toolRuntime.setExecutorIdentity(null);
+      connectionId = '';
+      hasReadyConnection = false;
+      lastManifestAck = null;
+      rejectReadyWaiters('frontend tool connection reset before executor readiness');
+      activeManifestController?.abort();
+      activeManifestController = null;
       args.wsManager.disconnect();
       persistSessionId(config, null);
       dispatch(overlaySlice.actions.reset());

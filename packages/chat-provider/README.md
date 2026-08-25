@@ -64,3 +64,52 @@ This is a breaking pre-1.0 release:
 - raw-frame diagnostics are disabled unless explicitly enabled.
 
 Consumers should remove local heartbeat and reconnect loops after adopting 0.5. The shared transport must remain the single owner of ping/pong, backoff, resubscription, and resume cursors.
+
+## Executor assignment contract
+
+The next breaking package release requires a server that implements the concise frontend-tool executor contract. Each browser tab keeps a `clientInstanceId` in `sessionStorage`, each ready transport generation creates a fresh `connectionId`, and the server returns an `assignmentId` from manifest synchronization.
+
+Requests and results carry the complete executor tuple:
+
+```ts
+type FrontendToolExecutor = {
+  clientInstanceId: string;
+  connectionId: string;
+  assignmentId: string;
+};
+```
+
+The runtime filters a request before automatic execution or human presentation unless it exactly matches the acknowledged tuple. Result retries retain the invocation's original tuple even if a reconnect or another tab changes current ownership.
+
+Manifest responses must include the exact accepted revision and assignment:
+
+```json
+{
+  "accepted": true,
+  "revision": 12,
+  "executor": {
+    "clientInstanceId": "client-a",
+    "connectionId": "connection-a1",
+    "assignmentId": "assignment-1"
+  }
+}
+```
+
+Missing, partial, stale, or mismatched assignments fail closed. There is no legacy unassigned execution fallback.
+
+Tests and non-browser hosts can inject deterministic identity behavior:
+
+```tsx
+<ChatProvider
+  config={{
+    executorIdentity: {
+      clientInstanceId: "test-client",
+      createId: () => crypto.randomUUID(),
+    },
+  }}
+>
+  <App />
+</ChatProvider>
+```
+
+Production normally omits this option and uses `sessionStorage` plus `crypto.randomUUID()`.

@@ -30,14 +30,18 @@ RelatedFiles:
       Note: Checked test server cleanup helper (commit 888ab2a)
     - Path: repo://internal/webchat/turn_store_options.go
       Note: Explicit memory/SQLite turn StoreSpec migration (commit 0b1fffd)
+    - Path: repo://packages/chat-provider/README.md
+      Note: Strict executor migration contract
     - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
       Note: |-
         Serialized sync/dedup/failure recovery tests (commit 7aa6b94)
         Reconnect republish and origin-session endpoint regressions (commit 88d6255)
+        Connection acknowledgement and hydration regressions (a281080)
     - Path: repo://packages/chat-provider/src/core/createChatClient.ts
       Note: |-
         Cancellation-before-stop ordering (commit e341aae)
         Connection-generation manifest acknowledgement and origin-session endpoint (commit 88d6255)
+        Tab/connection identity and exact assignment acknowledgement (a281080)
     - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
       Note: Tool runtime debug classification (commit e341aae)
     - Path: repo://packages/chat-provider/src/tools/ToolCallOutlet.tsx
@@ -48,18 +52,26 @@ RelatedFiles:
       Note: |-
         Replay, retry, cancellation, CAS, retention tests (commit e341aae)
         Retry session identity regression (commit 88d6255)
+        Two-runtime single-owner and retry regressions (a281080)
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
       Note: |-
         Invocation state machine, terminal retry, human CAS (commit e341aae)
         Immutable invocation session in result submissions (commit 88d6255)
+        Pre-claim assignment filtering and immutable result provenance (a281080)
+    - Path: repo://packages/chat-provider/src/ws/timelineEvents.ts
+      Note: Live and hydrated executor projection (a281080)
     - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
       Note: Session-namespaced hydration (commit e341aae)
+    - Path: repo://ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md
+      Note: Authoritative concise executor protocol and Step 10 evidence
 ExternalSources: []
 Summary: Chronological investigation, design, validation, and delivery record for chat-provider browser frontend-tool runtime hardening.
 LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
+
 
 
 
@@ -864,3 +876,571 @@ The result fix also had to avoid a breaking public API. Runtime submissions requ
 [REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
 
 The PR comments are `discussion_r3848533670` (manifest reconnect) and `discussion_r3848533674` (session-bound retry). Push-gate follow-up commit `03d733a5953f7007b4447f140154dee1abc32e0f` preserves unsigned snapshot ordinals.
+
+## Step 10: Specify the concise cross-tab executor protocol
+
+This step turned the broad protocol-v2/lease proposal into an authoritative first-release contract. The design keeps the safety property needed by the reproduced two-tab failure while removing timed leases, heartbeats, deadlines, run IDs, capability fields, and automatic in-flight takeover. It uses a tab-stable client ID, a ready-transport connection ID, and a server-generated assignment epoch.
+
+The document is grounded in the current Pinocchio protobuf/manager, react-chat runtime/client/hydration path, and PBUI HTTP adapter. It defines strict migration, acknowledgement ordering, pending-call immutability, human-tool behavior, publication rollback, durable projection, tests, rollout, and the honest-client security boundary.
+
+### Prompt Context
+
+**User prompt (verbatim):** `Ok,write a detailed design doc about this concise version, (and/or update existing ones). Upload to remarkable.`
+
+**Assistant interpretation:** Consolidate the agreed concise executor tuple into one implementation-ready cross-repository design, update older guides so they do not continue prescribing the broader timed-lease scope, validate ticket metadata, commit the documentation, and deliver it as a reMarkable bundle.
+
+**Inferred user intent:** Make the smallest reasonable single-owner design reviewable and actionable enough to implement immediately without losing important reconnect or stale-assignment correctness.
+
+**Commit (docs):** `98aea622a363b69ebd4d9861a4b1c7f6a153b3b6` — "REACT-CHAT-TOOL-RUNTIME-1: define concise executor protocol"
+
+### What I did
+
+- Created `design-doc/02-concise-frontend-tool-executor-ownership-protocol.md` as the authoritative contract.
+- Inspected current protobuf, manager, projection, runtime, manifest sync, hydration, result retry, and PBUI handler code.
+- Defined `(client_instance_id, connection_id, assignment_id)` semantics and wire/API sketches.
+- Defined latest-accepted-different-connection ownership for future calls, same-connection assignment retention, and no in-flight reassignment.
+- Specified atomic `AcceptManifest` acknowledgement and compare-before-rollback publication semantics.
+- Added exhaustive test matrices, file-level implementation phases, compatibility table, risks, alternatives, and six decision records.
+- Updated the older react-chat guide to defer to the concise document.
+
+### Why
+
+- A client ID alone does not distinguish reconnect incarnations or repeated ownership periods.
+- A timed lease system is not required to prevent the demonstrated honest-client double execution.
+- One authoritative document prevents the three repositories from implementing subtly incompatible identity shapes.
+
+### What worked
+
+- Existing code boundaries support the design: PBUI already owns both Hub and Manager, the Hub is an event publisher, react-chat already tracks ready generations, and Pinocchio already captures immutable pending/terminal state.
+- The selected tuple composes with current terminal idempotency and durable timeline projection without introducing a parallel runtime.
+- `docmgr doctor` passed for all three tickets; the reMarkable dry run matched all four intended design documents, and upload returned `OK`.
+
+### What didn't work
+
+- The prior guides distributed executor requirements across three tickets and mixed immediate duplicate-execution containment with future leases, run identity, capabilities, and durable recovery. They could not serve as a concise authoritative implementation contract without a superseding document.
+- No implementation was attempted; this interval is design and delivery only.
+
+### What I learned
+
+- Manifest acknowledgement must return the exact assignment from the same atomic acceptance operation. `Submit` followed by `CurrentManifest` would race another tab.
+- The assignment ID is observable broadcast provenance, not an authentication secret. Existing route authorization remains the security boundary.
+- Reassigning an in-flight call is unsafe without knowing whether the old executor already performed its effect; cancellation/timeout is the correct first-release behavior.
+
+### What was tricky to build
+
+The hardest ordering edge is reconnect hydration. A new connection needs its manifest acknowledgement before hydrated requested calls become executable, while old assigned requests must remain visible but inert. The design resolves this by clearing executable assignment on a new ready generation, acknowledging the new tuple, then reconciling durable requested entities. Result retries retain the invocation-captured tuple rather than reading mutable current assignment.
+
+### What warrants a second pair of eyes
+
+- Review whether latest accepted different connection is acceptable as the first ownership-selection UX.
+- Review compare-before-rollback behavior when manifest event publication fails concurrently with a newer manifest.
+- Confirm that opaque bounded IDs, rather than strict UUID parsing in Pinocchio, are the right host-compatibility boundary.
+- Confirm explicit acknowledgement can be exposed through `Manager.AcceptManifest` without creating duplicate publish paths.
+
+### What should be done in the future
+
+- Implement and validate the accepted concise contract in Pinocchio, react-chat, then PBUI.
+- Keep heartbeat/timed-lease, hostile-client proof, active-tab selection, and durable recovery as separately reviewed follow-ups.
+
+### Code review instructions
+
+1. Read the new design from executive summary through §§4–10 before reviewing file-level phases.
+2. Compare protobuf sketches with Pinocchio's current `frontend_tool.proto` field numbers.
+3. Trace `AcceptManifest -> Request -> pendingCall -> HandleResult -> plugin projection`.
+4. Trace `ready -> manifest ack -> runtime assignment -> hydrate/reconcile -> captured result retry` in react-chat.
+5. Run `docmgr doctor --ticket REACT-CHAT-TOOL-RUNTIME-1 --stale-after 30` and inspect the rendered PDF bundle.
+
+### Technical details
+
+The first-release executor tuple is complete only when all three fields are non-empty. Assignment changes apply to future calls only. Same-connection higher manifest revisions retain assignment; same-revision identical manifests are idempotent; same-revision divergent manifests and lower revisions are rejected. Missing identity has no legacy fallback.
+
+Delivery succeeded as one four-document PDF bundle:
+
+```text
+OK: uploaded Concise Frontend Tool Executor Ownership Protocol.pdf -> /ai/2026/08/25-deliveries/REACT-CHAT-TOOL-RUNTIME-1
+```
+
+## Step 11: Make the browser runtime obey assignments
+
+This implementation interval added the browser half of concise executor ownership. Chat-provider now creates a tab-stable client identity, rotates connection identity on each ready transport generation, installs only a matching server acknowledgement, filters before automatic or human claim, and carries invocation-captured assignment through result retries and hydration.
+
+The code is committed but deliberately not released yet. Late Pinocchio PR 208 feedback exposed two server/first-party-client defects; follow-up PR 210 is open for maintainer merge, and the user explicitly reserved merge authority. React-chat must consume the immutable Pinocchio hotfix rather than published `v0.11.15` before npm `0.6.0` can be cut.
+
+### Prompt Context
+
+**User prompt (verbatim):** `go ahead, commit at appropriate intervals and keep a detailed diary as you work (using the diary format from the skill). Print out a brutalist work slip with the plan / different phases for the ticket. then before stsarting a phase, plrint a split about the phase, and print one when the phase is done.`
+
+**Assistant interpretation:** Implement browser ownership as a separately committed phase, keep exact failure/validation evidence, and withhold its completion slip and package release until the upstream server hotfix is maintainer-merged and published.
+
+**Inferred user intent:** Deliver one-executor behavior with clear phase gates and no premature release claims.
+
+**Commit (code):** `a281080f5ad5639a41bf8ff93f375f9f92fd6fe0` — "feat(chat-provider): obey server executor assignments"
+
+### What I did
+
+- Added public `FrontendToolExecutor` and executor identity configuration types.
+- Added lazy sessionStorage client identity with injectable storage/ID generation.
+- Created a fresh connection ID for every ready generation and cleared executable assignment on disconnect/backoff/failure.
+- Required exact accepted revision and matching client/connection in manifest acknowledgements.
+- Installed the server assignment in `ToolRuntime` and reconciled hydrated requested entities afterward.
+- Required complete matching executor identity before runtime claim, automatic execution, or human pending state.
+- Captured executor in invocation state/view, result submission, retry cache, diagnostics, and timeline projection.
+- Added two-runtime single-owner, missing-identity fail-closed, stale-current/retry provenance, manifest acknowledgement, reconnect rotation, sessionStorage stability, and hydration-order tests.
+- Updated the package README with the strict migration contract.
+
+### Why
+
+- Independent in-memory terminal ledgers cannot coordinate tabs.
+- Browser filtering must happen before claim/render/effect, while result retry must use immutable invocation identity rather than mutable current ownership.
+- Hydrated requests seen before manifest acknowledgement need an explicit post-ack reconciliation pass.
+
+### What worked
+
+- Package typecheck passed.
+- Chat-provider tests increased from 70 to 77 and pass.
+- Full workspace typecheck and 83-test suite pass.
+- Both publish distribution builds and pack smoke tests pass.
+- Full `GOWORK=off` Go test and vet pass against the currently pinned released server baseline.
+
+### What didn't work
+
+1. The first typecheck after extending `ToolRuntime` failed because test doubles lacked `setExecutorIdentity`/`executorIdentity`, and a public result fixture lacked `executor`. The mocks and fixture now implement the strict API.
+2. The first test run after changing direct manifest tests to `client.connect()` inverted which queued promise observed a synthetic 503 and produced an unhandled rejection. Waiting for the first request and attaching the rejection expectation immediately restored deterministic queue semantics.
+3. `git diff --check` found one trailing space on the executor identity-conflict debug line; it was removed before commit.
+4. Pinocchio's late PR 208 review means published `v0.11.15` is not an acceptable final dependency. React-chat release remains blocked on maintainer merge of PR 210 and a new immutable server patch tag.
+
+### What I learned
+
+- Initial ready should establish identity but let `connect`/`send` perform the awaited manifest sync; reconnect-ready must trigger autonomous republishing.
+- A strict acknowledgement must validate `accepted === true`, exact revision, and exact client/connection—not infer authority from any successful HTTP response.
+- Timeline state is the right bounded source for post-ack hydration reconciliation; no second deferred-request ledger is needed.
+
+### What was tricky to build
+
+Connection and invocation lifetimes overlap. Clearing current assignment on backoff must prevent new claims, but it must not mutate running/completing invocations. Each `ToolRequest` therefore owns a cloned executor tuple, and `deliverCompletion` always submits that clone. A reconnect changes only current eligibility and future requests.
+
+The manifest sync queue also spans connection generations. A response validates both numeric local generation and captured connection ID before installing authority, so a delayed old response cannot overwrite a newer ready generation.
+
+### What warrants a second pair of eyes
+
+- Review initial-ready versus reconnect-ready manifest synchronization ordering.
+- Review sessionStorage behavior for browser “duplicate tab” implementations that may clone storage at creation.
+- Review timeline scan/reconciliation costs and entity filtering.
+- Confirm assignment debug events with blank session/call fields are suitable for current diagnostics API.
+
+### What should be done in the future
+
+- After Manuel merges Pinocchio PR 210, publish and consume the immutable hotfix with `GOWORK=off`.
+- Bump chat-provider to `0.6.0`, rerun clean installed-package probes, open a PR, and leave merge to Manuel.
+- Publish npm only after the human merge gate.
+
+### Code review instructions
+
+1. Start in `createChatClient.ts` at ready status, `postManifestSnapshot`, and `reconcileRequestedTools`.
+2. Review `toolRuntime.ts` request parsing/filtering before `claimRequest` and captured executor in `deliverCompletion`.
+3. Run chat-provider and full workspace typecheck/tests/build/pack commands.
+4. Run two runtime instances with different acknowledged identities against one assigned request; require one execution/submission.
+
+### Technical details
+
+Default storage key is `@go-go-golems/chat-provider.client-instance-id`. `createId` must provide cryptographically strong opaque values when injected. Current assignment is frozen; state views return clones. Missing or partial request executor emits `tool-request-executor-missing`; nonmatching assignments emit `tool-request-not-executor` without creating invocation state.
+
+## Step 12: Make single runtime authority an explicit design invariant
+
+Further Pinocchio review demonstrated that transporting executor provenance into a timeline card does not give that card local ownership: every subscriber sees the same broadcast tuple. The authoritative design now explicitly separates read-only timeline projection from actionable tool execution and human completion.
+
+### Prompt Context
+
+**User prompt (verbatim):** `Address further https://github.com/go-go-golems/pinocchio/pull/210 . Is this somehow a design pattern issue, if you take a step back? Is therea better architecture that would address these issues?`
+
+**Assistant interpretation:** Generalize the review feedback into a cross-repository architecture invariant rather than treating it as another Pinocchio-only missing field.
+
+**Inferred user intent:** Prevent recurrence by documenting one clear owner for actionability and completion.
+
+### What I did
+
+- Added an accepted decision record to the concise protocol design.
+- Declared timeline adapters/cards read-only.
+- Declared `ToolRuntime` the only browser execution/completion authority.
+- Required applications to register human tools and use `ToolCallOutlet` instead of posting from generic renderers.
+
+### Why
+
+- Broadcast provenance cannot prove local assignment; only runtime-held acknowledgement state can.
+
+### What worked
+
+- Pinocchio commit `04b5479` removed the duplicate card authority and both new review threads were resolved.
+
+### What didn't work
+
+- The earlier “thread executor through the card” fix was insufficient because every tab could replay the visible tuple.
+
+### What I learned
+
+- Command authority must live with the state machine that owns claims, not with a projection that merely displays events.
+
+### What was tricky to build
+
+The same UI can visually represent a tool call in all tabs while only one runtime may expose controls. That requires a projection/outlet split rather than conditional buttons based on event fields.
+
+### What warrants a second pair of eyes
+
+- Audit all consumers for direct `/tools/results` calls outside chat-provider.
+
+### What should be done in the future
+
+- Add static/contract checks forbidding result submission from timeline renderer packages.
+
+### Code review instructions
+
+- Review the new decision record and compare it with `ToolCallOutlet`/`ToolRuntime` ownership.
+
+### Technical details
+
+Unknown or unregistered frontend tools remain visible but read-only. Removing heuristic controls is an intentional strict-migration behavior change, not a compatibility shim.
+
+## Step 13: Consume the corrected immutable server contract
+
+The maintainer merged Pinocchio PR 210 after all checks passed. I tagged the authoritative merge commit as immutable `v0.11.16`, verified it through the public Go proxy with workspace resolution disabled, and updated react-chat from `v0.11.14` to the corrected contract.
+
+That upgrade deliberately broke chat-overlay's legacy manifest/result adapter tests: the adapter still omitted client/connection identity and executor-bound result provenance. The adapter now uses `Manager.AcceptManifest`, returns the exact acknowledged assignment, echoes executor identity in results, and maps stable protocol errors to HTTP statuses.
+
+### Prompt Context
+
+**User prompt (verbatim):** `merged`
+
+**Assistant interpretation:** Continue the gated release sequence now that the maintainer has merged Pinocchio PR 210.
+
+**Inferred user intent:** Publish and consume the corrected immutable Pinocchio contract, then move react-chat toward its maintainer merge and npm release without self-merging.
+
+**Commit (code):** `c97ca57` — "fix(chat-overlay): adopt strict executor protocol"
+
+### What I did
+
+- Tagged Pinocchio merge commit `d0fb2e485bb21a14d0b43968276ab876443b28c0` as `v0.11.16` and pushed the tag upstream.
+- Verified `v0.11.16` through `proxy.golang.org` with `GOWORK=off`.
+- Updated react-chat's Go dependency and sums to exact `v0.11.16`.
+- Migrated chat-overlay manifest and result adapters to the strict executor protocol.
+- Updated automatic and human round-trip tests to consume the server acknowledgement and echo its executor.
+- Re-ran TypeScript tests/typechecks, dist builds, pack smoke, Go tests/vet, and the commit lint/test gate.
+
+### Why
+
+- The browser package must compile and test against a public immutable server artifact rather than the sibling workspace checkout.
+- Chat-overlay is a first-party consumer and must not retain a hidden legacy adapter during strict migration.
+
+### What worked
+
+- Public proxy resolution returned `Origin.Hash = d0fb2e485bb21a14d0b43968276ab876443b28c0` and `Ref = refs/tags/v0.11.16`.
+- Chat-provider's 77 tests and the 83-test workspace suite passed.
+- Workspace/provider typechecks, both distribution builds, and package smoke passed.
+- Focused and full `GOWORK=off` Go tests plus vet passed after adapter migration.
+- The commit gate passed build, lint, custom vet, and tests.
+
+### What didn't work
+
+The first `GOWORK=off go test ./... -count=1` against `v0.11.16` failed exactly with:
+
+```text
+--- FAIL: TestFrontendToolRoundTripResumesMockRun (0.01s)
+    server_test.go:72: tool manifest status=500 body={"error":"frontend tool manifest rejected: code=identity_missing session_id=... revision=1"}
+--- FAIL: TestHumanToolRoundTripResumesMockRun (0.01s)
+    server_test.go:114: tool manifest status=500 body={"error":"frontend tool manifest rejected: code=identity_missing session_id=... revision=1"}
+```
+
+The failure correctly exposed chat-overlay's old submit-only adapter. Migrating the production adapter and tests, rather than weakening Pinocchio or adding fallback identity, made the rerun pass.
+
+### What I learned
+
+- `GOWORK=off` is not just release ceremony; it exposed a real first-party compatibility gap hidden by the previous dependency version.
+- Every server adapter must return the exact assignment acknowledgement, not merely forward a manifest command.
+
+### What was tricky to build
+
+The test round trips needed to retain the server-generated assignment from manifest response and echo it only for the corresponding result. Hard-coded assignment IDs would bypass the protocol behavior the integration test is intended to prove.
+
+### What warrants a second pair of eyes
+
+- Review chat-overlay's error-to-HTTP status mapping against Pinocchio web-chat.
+- Confirm the shared adapter should eventually move into `serverkit` to avoid contract drift.
+
+### What should be done in the future
+
+- Maintainer merges react-chat PR 15.
+- Bump and publish chat-provider `0.6.0`, then install that exact package in PBUI.
+
+### Code review instructions
+
+1. Review `internal/webchat/handlers.go` and `helpers.go` against Pinocchio's strict adapter.
+2. Review the automatic and human round-trip fixtures in `server_test.go`.
+3. Run `GOWORK=off go test ./... -count=1`, `GOWORK=off go vet ./...`, provider/workspace tests, and package smoke.
+
+### Technical details
+
+`v0.11.16` is a lightweight immutable tag on the PR 210 merge commit. The adapter now returns revision plus executor from `AcceptManifest`; result errors preserve bad-request/not-found/gone/conflict distinctions.
+
+## Step 14: Gate sends on reconnect readiness and cancel stale manifest work
+
+PR 15 review identified that `WsManager.connect()` returns its already-resolved initial promise during transport backoff. A send could therefore proceed directly to manifest synchronization after executor identity had been cleared and fail instead of waiting for the replacement ready generation.
+
+The fix adds an explicit ready-connection barrier inside the chat client and aborts an in-flight manifest request as soon as transport authority is lost. Manifest queue entries capture client, connection, and generation before enqueueing and refuse to POST if those values are stale when their turn arrives.
+
+### Prompt Context
+
+**User prompt (verbatim):** `packages/chat-provider/src/core/createChatClient.ts
+Comment on lines +285 to +286
+        } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
+          connectionId = '';
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+3 minutes ago
+
+P1 Badge Wait for reconnect readiness before syncing a send
+
+When the transport enters backoff, clearing connectionId makes every send() attempted during that reconnect fail: WsManager.connect() returns its cached, already-resolved connection promise for the same session (wsManager.ts lines 73–81), so ensureConnection() does not wait for the next ready transition and syncToolManifest() immediately throws because there is no ready executor connection. Thus a user message submitted during any transient reconnect is rejected instead of being held until the new assignment can be acknowledged; the send path needs to await the reconnect's readiness before synchronizing.
+
+Useful? React with 👍 / 👎.`
+
+**Assistant interpretation:** Make send and manifest synchronization wait for the actual replacement ready transition, and inspect all PR 15 threads for related stale-generation races.
+
+**Inferred user intent:** Preserve normal sends during transient reconnect while ensuring no request runs under absent or stale executor authority.
+
+**Commit (code):** `b0bd1d8` — "fix(chat-provider): gate sends on reconnect readiness"
+
+### What I did
+
+- Added a ready-connection deferred barrier driven by transport lifecycle callbacks.
+- Made every manifest synchronization await non-empty ready connection identity.
+- Captured generation/client/connection before queue insertion and rejected stale queued work before HTTP mutation.
+- Added an `AbortController` for the active manifest request and abort it on backoff, stop, failure, or reset.
+- Added regressions for send-during-backoff and in-flight manifest cancellation.
+
+### Why
+
+- `connect()` represents creation of the transport, not every future ready generation.
+- Clearing authority is correct, but callers must wait for authority to be re-established rather than fail immediately.
+- Best-effort HTTP cancellation propagates reconnect invalidation to the server request context and narrows stale assignment exposure.
+
+### What worked
+
+- Provider tests increased from 77 to 79 and pass.
+- Workspace tests increased from 83 to 85 and pass.
+- Provider/workspace typechecks, dist builds, pack smoke, Go tests, and vet pass.
+
+### What didn't work
+
+- No implementation attempt failed. The review exposed a lifecycle semantic gap not covered by the earlier reconnect republish test.
+
+### What I learned
+
+- A cached transport connection promise and transport readiness are separate synchronization primitives.
+- A reconnect-safe manifest queue must validate identity both when work is enqueued and immediately before it mutates server state.
+
+### What was tricky to build
+
+A send and the autonomous reconnect manifest sync can awaken on the same ready transition. Both enter one serialized queue; the first posts, and the second deduplicates against the exact generation/digest acknowledgement. The barrier must be recreated before clearing `connectionId`, otherwise a caller can observe the empty identity with an already-resolved wait promise.
+
+HTTP cancellation cannot prove that a server did not commit immediately before disconnect was observed. That residual case is identical to any selected owner disappearing immediately after acknowledgement and remains within the protocol's explicit no-lease liveness boundary. The new abort signal prevents obsolete in-flight work whenever cancellation reaches the server before acceptance commits; the immediate next-generation sync supersedes any already-completed old acceptance.
+
+### What warrants a second pair of eyes
+
+- Review ready barrier resolution/recreation ordering.
+- Review AbortSignal propagation through custom fetch implementations.
+- Confirm the explicit owner-disappears boundary remains acceptable without timed leases.
+
+### What should be done in the future
+
+- If the threat model requires proving connection liveness at manifest acceptance, move acceptance onto or cryptographically bind it to the WebSocket transport in a separately reviewed protocol version.
+
+### Code review instructions
+
+1. Review lifecycle callbacks, `waitForReadyConnection`, and `syncToolManifest` together.
+2. Run the two new focused tests, then the full 85-test workspace suite.
+3. Confirm sends remain pending during backoff and resume only after the replacement manifest is acknowledged.
+
+### Technical details
+
+The active manifest controller is cleared with identity comparison in `finally`, so completion of an older request cannot erase a newer request's controller. Queue operations retain failure-continuation semantics through `manifestSyncTail`.
+
+## Step 15: Make readiness waits terminal and reset-safe
+
+Follow-up review found two lifecycle holes in the initial ready barrier. It began resolved, so a direct pre-connect `syncManifest()` could spin while `connectionId` remained empty. It also had no rejection path, allowing a send to wait forever after retries were exhausted or survive reset into a future connection.
+
+The barrier is now an explicit waiter set. Ready resolves current waiters; failed, stopped, and reset reject them and increment an invalidation epoch. Connect/send capture the epoch before their first await, and manifest sync validates it before inspecting mutable session state and again after readiness.
+
+### Prompt Context
+
+**User prompt (verbatim):** `packages/chat-provider/src/core/createChatClient.ts
+Comment on lines +305 to +306
+        } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
+          markConnectionNotReady();
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+4 minutes ago
+
+P1 Badge Reject readiness waiters on terminal transport states
+
+The new readiness barrier has no rejection path when a reconnect ends in failed or stopped, so a send() already waiting in waitForReadyConnection() remains pending forever after retries are exhausted. A reset is worse: a later connection can resolve that same waiter, allowing the stale send—which already captured the previous session ID—to publish a manifest and message to the old session. Terminal transitions should reject or invalidate existing waiters rather than leave them eligible for a future connection.
+
+Useful? React with 👍 / 👎.
+
+
+packages/chat-provider/src/core/createChatClient.ts
+Comment on lines +230 to +231
+  let resolveReadyConnection: (() => void) | null = null;
+  let readyConnectionPromise: Promise<void> = Promise.resolve();
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+4 minutes ago
+
+P2 Badge Initialize the readiness barrier as pending
+
+If the public tools.syncManifest() is called with a session already present in the store before the first connect(), connectionId is empty while readyConnectionPromise is already resolved. The loop in waitForReadyConnection() therefore repeatedly awaits an immediately resolved promise, starving the event loop instead of waiting for a future ready transition. Initialize the first barrier as unresolved, or explicitly reject/return when synchronization is requested before connecting.
+
+Useful? React with 👍 / 👎.`
+
+**Assistant interpretation:** Replace the one-shot deferred barrier with lifecycle-scoped waiters that can resolve on ready and reject permanently on terminal/reset transitions, including operations that have not yet registered their waiter.
+
+**Inferred user intent:** Ensure reconnect waiting has bounded terminal behavior and cannot carry stale sends across reset or session replacement.
+
+**Commit (code):** `c750caf` — "fix(chat-provider): invalidate terminal readiness waits"
+
+### What I did
+
+- Replaced the initially resolved promise with an initially pending waiter set.
+- Resolve waiters only on ready.
+- Reject waiters on stopped, failed, and reset.
+- Added a monotonic invalidation epoch captured before connect/send's first await.
+- Validate that epoch before session lookup and after readiness.
+- Corrected the WebSocket manager test double to model cached same-session `connect()` behavior.
+- Added pre-connect sync, terminal reconnect failure, and immediate reset regressions.
+
+### Why
+
+- Transient backoff should wait; terminal failure and reset must invalidate.
+- Rejecting only currently registered waiters is insufficient because reset can occur between an operation's awaits before it registers.
+
+### What worked
+
+- Provider tests increased from 79 to 82 and pass.
+- Workspace tests increased from 85 to 88 and pass.
+- Full typecheck, builds, package smoke, Go tests, and vet pass.
+
+### What didn't work
+
+The first terminal/reset tests timed out or unexpectedly resolved because the shared `clientWith` WebSocket double called `ready` on every cached `connect()`, unlike production `WsManager`. Making the double retain one active connection reproduced the review condition.
+
+The immediate-reset regression then initially resolved because `syncToolManifest` returned on the now-empty session before checking invalidation. Moving the epoch check before session lookup made the stale operation reject.
+
+### What I learned
+
+- Waiter rejection and operation invalidation are different requirements. A token is needed for operations reset before waiter registration.
+- Test doubles for lifecycle managers must preserve caching semantics or concurrency regressions can pass for the wrong reason.
+
+### What was tricky to build
+
+Backoff remains non-terminal and keeps waiters pending, while stopped/failed/reset reject them. The invalidation epoch prevents a stale operation from creating or using a later ready connection even if reset occurs during `ensureSession` or cached `connect` continuation scheduling.
+
+### What warrants a second pair of eyes
+
+- Review ordering of epoch capture, session resolution, connection ensuring, and manifest synchronization.
+- Confirm stopped should remain terminal for existing operations even when a later explicit call reconnects.
+
+### What should be done in the future
+
+- Consider moving lifecycle waiting into `WsManager` as an explicit `waitUntilReady` API if other consumers need identical semantics.
+
+### Code review instructions
+
+1. Review `readyWaiters`, `readinessInvalidation`, and terminal callbacks.
+2. Review the corrected cached-connect test double.
+3. Run the 82 provider and 88 workspace tests.
+
+### Technical details
+
+Epoch validation occurs before mutable session lookup so reset cannot turn a stale operation into a harmless-looking no-op or allow it to acquire a future session/connection. Public pre-connect manifest sync captures the current epoch and remains pending until the first legitimate ready transition.
+
+## Step 16: Reassert authority before each send and identify the turn-binding gap
+
+PR review exposed a deeper issue than cache invalidation. A manifest acknowledgement has two meanings: it confirms manifest content and records executor ownership at one instant. Content can remain unchanged while ownership becomes stale because another tab accepts a manifest. Reusing one cache entry for both meanings allowed a tab to send while believing it still owned tool execution.
+
+The immediate fix forces a fresh manifest acceptance before every message send. The design now records the stronger architectural endpoint: if concurrent tabs must bind each model turn to its initiating browser, executor selection must be captured atomically with the message/turn and propagated into tool requests from that turn.
+
+### Prompt Context
+
+**User prompt (verbatim):** `packages/chat-provider/src/core/createChatClient.ts
+      revision: typeof body.revision === 'number' ? body.revision : snapshot.revision,
+      revision: body.revision,
+      digest: snapshot.digest,
+      executor,
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+now
+
+P1 Badge Revalidate cached ownership before sending
+
+When two tabs share a session and tab B accepts a manifest after tab A, A's cached executor here is no longer the server's current assignment. A later send() from A hits the lastManifestAck fast path at lines 375–378 and sends the message without another manifest POST, so any resulting tool calls use B's manifest and assignment while A still believes it owns assignment A; A's tools or human controls therefore remain inert, and tools absent from B's manifest may be unavailable entirely. Deduplication should be limited to concurrent queued syncs, or each send must obtain a fresh authoritative acknowledgement.
+
+Useful? React with 👍 / 👎.
+
+
+Is this something that is worth addressing architecturally or are we just stamping out bugs?`
+
+**Assistant interpretation:** Fix stale cached ownership before send and determine whether recurring review findings reveal a missing abstraction rather than isolated mistakes.
+
+**Inferred user intent:** Stop incremental bug repair from obscuring a more coherent ownership architecture.
+
+**Commit (code):** `7104f9a` — "fix(chat-provider): reassert ownership before send"
+
+### What I did
+
+- Added a force-acknowledgement path through manifest synchronization.
+- Made every `send()` bypass `lastManifestAck` deduplication.
+- Kept ordinary content sync deduplication for non-authority-sensitive calls.
+- Added a regression where the same connection receives a new assignment before message POST.
+- Updated the authoritative design with send-time revalidation and the deferred turn-scoped executor architecture.
+
+### Why
+
+- Cached manifest content and current authority have different invalidation rules.
+- The server is the only source of current assignment truth.
+
+### What worked
+
+- Provider tests increased from 82 to 83 and pass.
+- Workspace tests increased from 88 to 89 and pass.
+- Full typechecks, builds, package smoke, Go tests, and vet pass.
+
+### What didn't work
+
+The reconnect-send test initially expected one reconnect manifest before the message. With mandatory send-time revalidation, the autonomous reconnect sync and authority-sensitive send each post, yielding three total manifests including the initial connection. Updating the assertion captured the intended contract.
+
+### What I learned
+
+- A cache of accepted capabilities is not a cache of current ownership.
+- Fresh acceptance immediately before send closes ordinary stale ownership, but two independent HTTP operations do not provide turn-level causal atomicity under simultaneous sends.
+
+### What was tricky to build
+
+The implementation needed to preserve useful manifest deduplication without allowing authority-sensitive send paths to use it. A force flag keeps this distinction explicit. The remaining interleaving is architectural: A can accept, B can accept, then A can post its message. Preventing that requires server-side turn capture, not another browser cache check.
+
+### What warrants a second pair of eyes
+
+- Review whether one extra manifest POST per send is operationally acceptable.
+- Decide whether concurrent prompting requires a follow-up protocol with message-bound executor identity.
+
+### What should be done in the future
+
+- Design a turn-scoped executor capture: message acceptance returns/captures executor identity, and all frontend requests from that turn use it immutably.
+- Keep current session-current assignment for calls not associated with a user message only if their provenance is explicit.
+
+### Code review instructions
+
+1. Review the forced acknowledgement argument from `send` through `postManifestSnapshot`.
+2. Review the new stale-cache regression.
+3. Read the updated acknowledgement-ordering section and decision record.
+
+### Technical details
+
+The first-release fix is sufficient for ordinary honest clients because inactive tabs do not continuously republish. It does not claim atomic turn ownership under simultaneous multi-tab sends; that limitation is now explicit rather than hidden behind cache behavior.

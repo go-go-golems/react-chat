@@ -8,6 +8,7 @@ export { ToolCallOutlet } from './ToolCallOutlet';
 export { createToolRuntime } from './toolRuntime';
 export type {
   CreateToolRuntimeArgs,
+  FrontendToolExecutor,
   HumanCompletionOutcome,
   SubmitToolResult,
   ToolCompletion,

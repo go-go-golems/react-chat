@@ -149,11 +149,28 @@ func (s *Server) HandleToolManifest(w http.ResponseWriter, r *http.Request) {
 			Available:   t.Available,
 		})
 	}
-	if err := s.hub.Submit(r.Context(), sessionstream.SessionId(sessionID), frontendtools.CommandManifest, &toolv1.FrontendToolManifestCommand{Tools: tools, Revision: in.Revision}); err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+	if s.frontendToolManager == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errorResponse{Error: "frontend tools not initialized"})
 		return
 	}
-	writeJSON(w, http.StatusOK, toolCommandResponse{SessionID: sessionID, Accepted: true, Status: "manifest_updated"})
+	updated, err := s.frontendToolManager.AcceptManifest(r.Context(), sessionstream.SessionId(sessionID), s.hub, &toolv1.FrontendToolManifestCommand{
+		Tools:            tools,
+		Revision:         in.Revision,
+		ClientInstanceId: strings.TrimSpace(in.ClientInstanceID),
+		ConnectionId:     strings.TrimSpace(in.ConnectionID),
+	})
+	if err != nil {
+		writeJSON(w, toolManifestErrorStatus(err), errorResponse{Error: err.Error()})
+		return
+	}
+	executor := frontendToolExecutorFromProto(updated.GetExecutor())
+	writeJSON(w, http.StatusOK, toolCommandResponse{
+		SessionID: sessionID,
+		Accepted:  true,
+		Status:    "manifest_updated",
+		Revision:  updated.GetRevision(),
+		Executor:  &executor,
+	})
 }
 
 func (s *Server) HandleToolResult(w http.ResponseWriter, r *http.Request) {
@@ -190,11 +207,68 @@ func (s *Server) HandleToolResult(w http.ResponseWriter, r *http.Request) {
 		Result:     result,
 		Status:     status,
 		Error:      in.Error,
+		Executor:   in.Executor.toProto(),
 	}); err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		writeJSON(w, toolResultErrorStatus(err), errorResponse{Error: err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, toolCommandResponse{SessionID: sessionID, Accepted: true, Status: "result_received"})
+}
+
+func toolManifestErrorStatus(err error) int {
+	code, ok := frontendtools.ManifestErrorCodeOf(err)
+	if !ok {
+		return http.StatusInternalServerError
+	}
+	switch code {
+	case frontendtools.ManifestErrorIdentityMissing, frontendtools.ManifestErrorIdentityTooLong:
+		return http.StatusBadRequest
+	case frontendtools.ManifestErrorRevisionRegression, frontendtools.ManifestErrorRevisionConflict:
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func toolResultErrorStatus(err error) int {
+	code, ok := frontendtools.InvocationErrorCodeOf(err)
+	if !ok {
+		return http.StatusInternalServerError
+	}
+	switch code {
+	case frontendtools.InvocationErrorInvalidStatus, frontendtools.InvocationErrorExecutorMissing:
+		return http.StatusBadRequest
+	case frontendtools.InvocationErrorUnknownResult:
+		return http.StatusNotFound
+	case frontendtools.InvocationErrorLateResult:
+		return http.StatusGone
+	case frontendtools.InvocationErrorDuplicatePending,
+		frontendtools.InvocationErrorSessionMismatch,
+		frontendtools.InvocationErrorToolMismatch,
+		frontendtools.InvocationErrorTerminalConflict,
+		frontendtools.InvocationErrorKeyReuse,
+		frontendtools.InvocationErrorExecutorMismatch,
+		frontendtools.InvocationErrorExecutorUnavailable:
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (executor frontendToolExecutor) toProto() *toolv1.FrontendToolExecutor {
+	return &toolv1.FrontendToolExecutor{
+		ClientInstanceId: strings.TrimSpace(executor.ClientInstanceID),
+		ConnectionId:     strings.TrimSpace(executor.ConnectionID),
+		AssignmentId:     strings.TrimSpace(executor.AssignmentID),
+	}
+}
+
+func frontendToolExecutorFromProto(executor *toolv1.FrontendToolExecutor) frontendToolExecutor {
+	return frontendToolExecutor{
+		ClientInstanceID: executor.GetClientInstanceId(),
+		ConnectionID:     executor.GetConnectionId(),
+		AssignmentID:     executor.GetAssignmentId(),
+	}
 }
 
 func parseToolMode(mode string) toolv1.ToolExecutionMode {

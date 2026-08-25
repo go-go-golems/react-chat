@@ -25,13 +25,47 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 function clientWith(config: ChatProviderConfig) {
   const store = createChatStore();
+  let activeConnection: ConnectArgs | null = null;
   const wsManager = {
-    connect: vi.fn(async (_args: ConnectArgs) => undefined),
-    disconnect: vi.fn(),
+    connect: vi.fn(async (args: ConnectArgs) => {
+      if (activeConnection) return;
+      activeConnection = args;
+      args.onStatus?.('ready');
+    }),
+    disconnect: vi.fn(() => { activeConnection = null; }),
+  };
+  let generatedId = 0;
+  const baseFetch = config.http?.fetch ?? fetch;
+  const identityAwareFetch: typeof fetch = async (input, init) => {
+    const response = await baseFetch(input, init);
+    if (!String(input).endsWith('/tools/manifest') || !response.ok) return response;
+    const responseBody = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+    if (responseBody.executor) return response;
+    const requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      ...responseBody,
+      accepted: responseBody.accepted ?? true,
+      revision: responseBody.revision ?? requestBody.revision,
+      executor: {
+        clientInstanceId: requestBody.clientInstanceId,
+        connectionId: requestBody.connectionId,
+        assignmentId: `assignment-${String(requestBody.connectionId)}`,
+      },
+    }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
+  };
+  const effectiveConfig: ChatProviderConfig = {
+    ...config,
+    http: { ...config.http, fetch: identityAwareFetch },
+    executorIdentity: config.executorIdentity ?? {
+      clientInstanceId: 'client-test',
+      createId: () => `connection-${++generatedId}`,
+    },
   };
   const toolRegistry = createToolRegistry();
   const toolRuntime = {
     cancelActiveFrontendTools: vi.fn(async (): Promise<void> => undefined),
+    setExecutorIdentity: vi.fn(),
+    executorIdentity: vi.fn(() => null),
     handleFrontendToolUIEvent: vi.fn(),
     reconcileFrontendToolRequests: vi.fn(),
     stateOf: vi.fn(() => null),
@@ -40,7 +74,7 @@ function clientWith(config: ChatProviderConfig) {
     completeHumanTool: vi.fn(async () => 'not-pending' as const),
   };
   const client = createChatClient({
-    config,
+    config: effectiveConfig,
     store,
     toolRegistry,
     toolRuntime,
@@ -129,7 +163,7 @@ describe('tool manifest synchronization', () => {
     store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
     toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
 
-    const first = client.tools.syncManifest();
+    const first = client.connect();
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     toolRegistry.register({ name: 'beta', execute: () => ({}) }, { owner: 'test' });
     const second = client.tools.syncManifest();
@@ -150,6 +184,91 @@ describe('tool manifest synchronization', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it('persists one client identity per sessionStorage while rotating connections', async () => {
+    const storage = memoryStorage();
+    const firstIds = ['client-stable', 'connection-first'];
+    const secondIds = ['connection-second'];
+    const firstFetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const secondFetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const first = clientWith({
+      http: { fetch: firstFetch as typeof fetch },
+      executorIdentity: { storage, createId: () => firstIds.shift() ?? 'unexpected-first' },
+    });
+    const second = clientWith({
+      http: { fetch: secondFetch as typeof fetch },
+      executorIdentity: { storage, createId: () => secondIds.shift() ?? 'unexpected-second' },
+    });
+    first.store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    second.store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await first.client.connect();
+    await second.client.connect();
+
+    const firstBody = JSON.parse(String(firstFetch.mock.calls[0]?.[1]?.body));
+    const secondBody = JSON.parse(String(secondFetch.mock.calls[0]?.[1]?.body));
+    expect(firstBody.clientInstanceId).toBe('client-stable');
+    expect(secondBody.clientInstanceId).toBe('client-stable');
+    expect(firstBody.connectionId).toBe('connection-first');
+    expect(secondBody.connectionId).toBe('connection-second');
+  });
+
+  it('posts client and connection identity and installs the acknowledged assignment', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, toolRegistry, toolRuntime } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+
+    await client.connect();
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({ clientInstanceId: 'client-test', connectionId: 'connection-1', revision: 1 });
+    expect(toolRuntime.setExecutorIdentity).toHaveBeenCalledWith(null);
+    expect(toolRuntime.setExecutorIdentity).toHaveBeenCalledWith({
+      clientInstanceId: 'client-test',
+      connectionId: 'connection-1',
+      assignmentId: 'assignment-connection-1',
+    });
+  });
+
+  it('rejects an acknowledgement for another connection', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      accepted: true,
+      revision: 1,
+      executor: { clientInstanceId: 'client-test', connectionId: 'wrong', assignmentId: 'assignment-wrong' },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const { client, store } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await expect(client.connect()).rejects.toThrow('invalid executor assignment');
+  });
+
+  it('reconciles hydrated requested calls after assignment acknowledgement', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const { client, store, toolRuntime } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    store.dispatch({
+      type: 'timeline/upsertEntity',
+      payload: {
+        id: 'call-1',
+        kind: 'tool_call',
+        createdAt: 1,
+        props: {
+          toolCallId: 'call-1',
+          toolName: 'lookup',
+          status: 'requested',
+          input: {},
+          executor: { clientInstanceId: 'client-test', connectionId: 'connection-1', assignmentId: 'assignment-connection-1' },
+        },
+      },
+    });
+
+    await client.connect();
+
+    expect(toolRuntime.reconcileFrontendToolRequests).toHaveBeenCalledWith([
+      expect.objectContaining({ toolCallId: 'call-1', status: 'requested' }),
+    ], 'session-1');
+  });
+
   it('republishes an acknowledged manifest after a connection becomes ready again', async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ accepted: true, revision: 1 }), {
       status: 200,
@@ -167,8 +286,138 @@ describe('tool manifest synchronization', () => {
 
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
     expect(fetchImpl.mock.calls.every(([url]) => String(url).endsWith('/sessions/session-1/tools/manifest'))).toBe(true);
+    const connectionIds = fetchImpl.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).connectionId);
+    expect(connectionIds).toEqual(['connection-1', 'connection-2']);
     await client.tools.syncManifest();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for reconnect readiness before a send synchronizes its manifest', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    const send = client.send({ prompt: 'during reconnect' });
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    connection?.onStatus?.('ready');
+    await expect(send).resolves.toBeUndefined();
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/messages'),
+    ]);
+  });
+
+  it('allows a pre-connect manifest sync to wait for the first ready transition', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    const sync = client.tools.syncManifest();
+    await Promise.resolve();
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await client.connect();
+    await expect(sync).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a send waiting for readiness when reconnect reaches a terminal state', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    const send = client.send({ prompt: 'must not survive failure' });
+    const failure = expect(send).rejects.toThrow('connection failed before executor readiness');
+    await vi.waitFor(() => expect(wsManager.connect).toHaveBeenCalledTimes(2));
+    connection?.onStatus?.('failed');
+
+    await failure;
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates readiness waiters on reset', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    const send = client.send({ prompt: 'must not cross reset' });
+    const failure = expect(send).rejects.toThrow('connection invalidated before manifest synchronization');
+    client.reset();
+
+    await failure;
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts an in-flight stale manifest when the transport enters backoff', async () => {
+    const firstStarted = deferred<void>();
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (fetchImpl.mock.calls.length > 1) return new Response('{}', { status: 200 });
+      firstStarted.resolve();
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+      });
+    });
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    const initialConnect = client.connect();
+    const initialFailure = expect(initialConnect).rejects.toThrow('aborted');
+    await firstStarted.promise;
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    await initialFailure;
+
+    connection?.onStatus?.('ready');
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)).connectionId).toBe('connection-2');
+  });
+
+  it('obtains a fresh authoritative acknowledgement before every send', async () => {
+    let manifestAcceptance = 0;
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).endsWith('/tools/manifest')) return new Response('{}', { status: 200 });
+      manifestAcceptance += 1;
+      const requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        accepted: true,
+        revision: requestBody.revision,
+        executor: {
+          clientInstanceId: requestBody.clientInstanceId,
+          connectionId: requestBody.connectionId,
+          assignmentId: `assignment-${manifestAcceptance}`,
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const { client, store, toolRuntime } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    await client.send({ prompt: 'reclaim before this turn' });
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/messages'),
+    ]);
+    expect(toolRuntime.setExecutorIdentity).toHaveBeenLastCalledWith({
+      clientInstanceId: 'client-test',
+      connectionId: 'connection-1',
+      assignmentId: 'assignment-2',
+    });
   });
 
   it('continues the sync queue after a failed snapshot without acknowledging it', async () => {
@@ -182,11 +431,13 @@ describe('tool manifest synchronization', () => {
     const { client, store, toolRegistry } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
     store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
     toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
-    const first = client.tools.syncManifest();
+    const first = client.connect();
+    const firstFailure = expect(first).rejects.toThrow('sync-tool-manifest failed: 503 offline');
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     toolRegistry.register({ name: 'beta', execute: () => ({}) }, { owner: 'test' });
     const second = client.tools.syncManifest();
 
-    await expect(first).rejects.toThrow('sync-tool-manifest failed: 503 offline');
+    await firstFailure;
     await expect(second).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(store.getState().overlay.error).toContain('sync-tool-manifest failed: 503 offline');
@@ -236,6 +487,7 @@ describe('chat HTTP operations', () => {
       toolName: 'mutate_ui',
       status: 'success',
       result: { changed: true },
+      executor: { clientInstanceId: 'client-a', connectionId: 'connection-a', assignmentId: 'assignment-a' },
     });
 
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -247,6 +499,7 @@ describe('chat HTTP operations', () => {
           toolName: 'mutate_ui',
           status: 'success',
           result: { changed: true },
+          executor: { clientInstanceId: 'client-a', connectionId: 'connection-a', assignmentId: 'assignment-a' },
         }),
       }),
     );
