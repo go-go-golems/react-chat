@@ -332,7 +332,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     });
   }
 
-  async function syncToolManifest(expectedInvalidation = readinessInvalidation): Promise<void> {
+  async function syncToolManifest(expectedInvalidation = readinessInvalidation, forceAcknowledgement = false): Promise<void> {
     if (expectedInvalidation !== readinessInvalidation) throw new Error('frontend tool connection invalidated before manifest synchronization');
     const sessionId = args.store.getState().overlay.sessionId;
     if (!sessionId) return;
@@ -348,6 +348,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       generation,
       requestedClientId,
       requestedConnectionId,
+      forceAcknowledgement,
     ));
     manifestSyncTail = operation.then(() => undefined, () => undefined);
     try {
@@ -364,6 +365,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     generation: number,
     requestedClientId: string,
     requestedConnectionId: string,
+    forceAcknowledgement: boolean,
   ): Promise<ToolManifestAck> {
     if (
       !requestedClientId
@@ -372,7 +374,8 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       || requestedConnectionId !== connectionId
     ) throw new Error(`cannot sync stale frontend tool manifest for connection generation ${generation}`);
     if (
-      lastManifestAck?.sessionId === sessionId
+      !forceAcknowledgement
+      && lastManifestAck?.sessionId === sessionId
       && lastManifestAck.connectionGeneration === generation
       && lastManifestAck.digest === snapshot.digest
     ) return lastManifestAck;
@@ -507,7 +510,9 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
         const expectedInvalidation = readinessInvalidation;
         const sessionId = await ensureSession();
         await ensureConnection(sessionId);
-        await syncToolManifest(expectedInvalidation);
+        // A cached acknowledgement proves manifest content, not current ownership:
+        // another tab may have accepted a manifest since this connection's last sync.
+        await syncToolManifest(expectedInvalidation, true);
         const sendBody = await (config.sendMessageBody?.(message) ?? message);
         await request('send-message', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
           method: 'POST',

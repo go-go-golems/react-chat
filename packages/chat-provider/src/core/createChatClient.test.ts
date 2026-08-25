@@ -309,6 +309,7 @@ describe('tool manifest synchronization', () => {
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       expect.stringContaining('/tools/manifest'),
       expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/tools/manifest'),
       expect.stringContaining('/messages'),
     ]);
   });
@@ -383,6 +384,40 @@ describe('tool manifest synchronization', () => {
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
     expect(fetchImpl.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
     expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body)).connectionId).toBe('connection-2');
+  });
+
+  it('obtains a fresh authoritative acknowledgement before every send', async () => {
+    let manifestAcceptance = 0;
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).endsWith('/tools/manifest')) return new Response('{}', { status: 200 });
+      manifestAcceptance += 1;
+      const requestBody = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        accepted: true,
+        revision: requestBody.revision,
+        executor: {
+          clientInstanceId: requestBody.clientInstanceId,
+          connectionId: requestBody.connectionId,
+          assignmentId: `assignment-${manifestAcceptance}`,
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const { client, store, toolRuntime } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    await client.send({ prompt: 'reclaim before this turn' });
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/tools/manifest'),
+      expect.stringContaining('/messages'),
+    ]);
+    expect(toolRuntime.setExecutorIdentity).toHaveBeenLastCalledWith({
+      clientInstanceId: 'client-test',
+      connectionId: 'connection-1',
+      assignmentId: 'assignment-2',
+    });
   });
 
   it('continues the sync queue after a failed snapshot without acknowledging it', async () => {
