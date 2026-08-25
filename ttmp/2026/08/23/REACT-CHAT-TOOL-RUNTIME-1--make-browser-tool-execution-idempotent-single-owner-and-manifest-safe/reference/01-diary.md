@@ -20,6 +20,10 @@ RelatedFiles:
       Note: Published Pinocchio v0.11.14 dependency contract (commit 0b1fffd)
     - Path: repo://go.sum
       Note: Resolved v0.11.14 transitive dependency graph (commit 0b1fffd)
+    - Path: repo://internal/webchat/helpers.go
+      Note: Preserve unsigned snapshot ordinals for gosec G115 (commit 03d733a)
+    - Path: repo://internal/webchat/helpers_test.go
+      Note: MaxUint64 snapshot ordinal regression (commit 03d733a)
     - Path: repo://internal/webchat/hydration_store_options.go
       Note: Explicit memory/SQLite hydration StoreSpec migration (commit 0b1fffd)
     - Path: repo://internal/webchat/server_test.go
@@ -56,6 +60,7 @@ LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 
@@ -811,11 +816,22 @@ TS2339: Property 'onStatus' does not exist on type 'never'.
 
 Typing the WebSocket mock with `ConnectArgs` and the fetch mock with Fetch parameters made captured callback inspection type-safe. The unchanged production code had no compiler failure.
 
+The first push then failed in the new pre-push security gate:
+
+```text
+internal/webchat/helpers.go:84 - G115: integer overflow conversion uint64 -> int64
+CreatedAt: int64(e.CreatedOrdinal)
+make: *** [Makefile:78: gosec] Error 1
+```
+
+`CreatedOrdinal` is natively unsigned, so commit `03d733a` changed the response field to `uint64` instead of adding a lossy guard. A `math.MaxUint64` regression proves the full ordinal survives, and `make gosec` then reported zero issues.
+
 ### What I learned
 
 - `SessionStreamTransport` emits `ready` once per successful socket generation, including reconnects, which is the correct invalidation boundary.
 - Serializing manifest posts plus recording the captured generation handles a reconnect racing an older in-flight HTTP acknowledgement: the newer queued operation cannot deduplicate against the older generation.
 - The runtime already retained session identity internally; the loss occurred only when constructing `ToolResultSubmission`.
+- Snapshot ordinals are `uint64`; preserving that type is safer and simpler than narrowing them for JSON output.
 
 ### What was tricky to build
 
@@ -828,6 +844,7 @@ The result fix also had to avoid a breaking public API. Runtime submissions requ
 - Confirm that one manifest POST per ready connection generation is acceptable operationally.
 - Review whether explicit session should become mandatory for the public submit API in protocol v2.
 - Confirm server-side routing treats the URL session as authoritative and ignores no removed body field.
+- Confirm browser consumers do not coerce very large JSON ordinals into unsafe JavaScript integer arithmetic; protocol ordinal handling should remain string-based where exact comparison matters.
 
 ### What should be done in the future
 
@@ -846,4 +863,4 @@ The result fix also had to avoid a breaking public API. Runtime submissions requ
 
 [REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
 
-The PR comments are `discussion_r3848533670` (manifest reconnect) and `discussion_r3848533674` (session-bound retry).
+The PR comments are `discussion_r3848533670` (manifest reconnect) and `discussion_r3848533674` (session-bound retry). Push-gate follow-up commit `03d733a5953f7007b4447f140154dee1abc32e0f` preserves unsigned snapshot ordinals.

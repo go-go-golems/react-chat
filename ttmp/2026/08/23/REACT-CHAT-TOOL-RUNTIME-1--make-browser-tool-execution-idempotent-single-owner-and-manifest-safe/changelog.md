@@ -84,3 +84,12 @@ Addressed PR 12 P1 findings by binding manifest acks to ready generations and re
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Reconnect-safe manifest and session routing
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Session-bound completion retry
 
+
+## 2026-08-25
+
+Cleared PR 12 push security gate by preserving unsigned snapshot ordinals (commit 03d733a)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/helpers.go — Remove overflowing uint64-to-int64 conversion
+
