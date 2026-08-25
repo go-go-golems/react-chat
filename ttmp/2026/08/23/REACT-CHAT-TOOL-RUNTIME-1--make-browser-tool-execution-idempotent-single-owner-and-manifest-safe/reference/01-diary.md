@@ -27,9 +27,13 @@ RelatedFiles:
     - Path: repo://internal/webchat/turn_store_options.go
       Note: Explicit memory/SQLite turn StoreSpec migration (commit 0b1fffd)
     - Path: repo://packages/chat-provider/src/core/createChatClient.test.ts
-      Note: Serialized sync/dedup/failure recovery tests (commit 7aa6b94)
+      Note: |-
+        Serialized sync/dedup/failure recovery tests (commit 7aa6b94)
+        Reconnect republish and origin-session endpoint regressions (commit 88d6255)
     - Path: repo://packages/chat-provider/src/core/createChatClient.ts
-      Note: Cancellation-before-stop ordering (commit e341aae)
+      Note: |-
+        Cancellation-before-stop ordering (commit e341aae)
+        Connection-generation manifest acknowledgement and origin-session endpoint (commit 88d6255)
     - Path: repo://packages/chat-provider/src/debug/classifyDebugEvent.ts
       Note: Tool runtime debug classification (commit e341aae)
     - Path: repo://packages/chat-provider/src/tools/ToolCallOutlet.tsx
@@ -37,9 +41,13 @@ RelatedFiles:
     - Path: repo://packages/chat-provider/src/tools/toolRegistry.ts
       Note: Owned immutable semantic manifest snapshots (commit 7aa6b94)
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.test.ts
-      Note: Replay, retry, cancellation, CAS, retention tests (commit e341aae)
+      Note: |-
+        Replay, retry, cancellation, CAS, retention tests (commit e341aae)
+        Retry session identity regression (commit 88d6255)
     - Path: repo://packages/chat-provider/src/tools/toolRuntime.ts
-      Note: Invocation state machine, terminal retry, human CAS (commit e341aae)
+      Note: |-
+        Invocation state machine, terminal retry, human CAS (commit e341aae)
+        Immutable invocation session in result submissions (commit 88d6255)
     - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
       Note: Session-namespaced hydration (commit e341aae)
 ExternalSources: []
@@ -48,6 +56,7 @@ LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 
@@ -745,3 +754,96 @@ Production cleanup happens in a deferred path where the primary server result ma
 ### Technical details
 
 The Makefile pins golangci-lint v2.11.2 and places it at `.bin/golangci-lint`; `.bin/` now matches Pinocchio's local-tool ignore convention.
+
+## Step 9: Bind manifests to connections and result retries to sessions
+
+PR 12 review found two mutable-context bugs at the browser/server boundary. A cached manifest acknowledgement could outlive the server connection that accepted it, while a delayed result retry could resolve its endpoint from a newly selected Redux session.
+
+I tied manifest acknowledgements to ready-connection generations and trigger immediate serialized synchronization whenever a connection becomes ready. Runtime submissions now carry the invocation's immutable session through every retry, and the HTTP client prefers that explicit session while preserving the existing manual-submit fallback.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address https://github.com/go-go-golems/react-chat/pull/12
+
+[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
+
+**Assistant interpretation:** Inspect all PR 12 review threads, fix each actionable finding with regression coverage, validate the repository, respond to the comments, and resolve the threads.
+
+**Inferred user intent:** Make the tool-runtime PR safe against reconnect and session-switch races and leave reviewers a concrete explanation of each fix.
+
+**Commit (code):** `88d6255361b814c089af8a88e7ac9fac26e4af95` — "fix(chat-provider): bind retries to connection identity"
+
+### What I did
+
+- Queried REST reviews/comments and GraphQL review threads for PR 12.
+- Added a monotonically increasing ready-connection generation to manifest acknowledgement identity.
+- Triggered background manifest synchronization on every `ready` transition.
+- Added immutable `sessionId` to runtime-owned result submissions and retries.
+- Kept `client.tools.submitResult` backward-compatible by falling back to active Redux session only when no explicit session is supplied.
+- Removed `sessionId` from the JSON body because it is authoritative in the URL path.
+- Added reconnect republish, origin-session endpoint, and retry identity assertions.
+- Ran package/workspace tests, typechecks, distribution builds, pack smoke, and Go lint.
+
+### Why
+
+- An HTTP acknowledgement from one backend lifetime says nothing about a replacement backend's in-memory manifest.
+- A tool completion belongs to the invocation that produced it; mutable UI selection must never redirect a retry.
+
+### What worked
+
+```text
+chat-provider typecheck                         # PASS
+chat-provider tests                             # 70 PASS
+workspace typecheck                             # PASS
+workspace tests                                 # 76 PASS
+build:publish + pack:smoke                      # PASS
+make lint                                       # PASS
+```
+
+### What didn't work
+
+The first new reconnect test failed TypeScript compilation because zero-argument Vitest mocks infer an empty call tuple:
+
+```text
+TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+TS2339: Property 'onStatus' does not exist on type 'never'.
+```
+
+Typing the WebSocket mock with `ConnectArgs` and the fetch mock with Fetch parameters made captured callback inspection type-safe. The unchanged production code had no compiler failure.
+
+### What I learned
+
+- `SessionStreamTransport` emits `ready` once per successful socket generation, including reconnects, which is the correct invalidation boundary.
+- Serializing manifest posts plus recording the captured generation handles a reconnect racing an older in-flight HTTP acknowledgement: the newer queued operation cannot deduplicate against the older generation.
+- The runtime already retained session identity internally; the loss occurred only when constructing `ToolResultSubmission`.
+
+### What was tricky to build
+
+The manifest fix needed more than clearing one cache variable. If an old post completes after reconnect, it can overwrite the cache. Capturing the generation in each queued operation and including it in the acknowledgement ensures the next-generation operation still posts even after that stale completion.
+
+The result fix also had to avoid a breaking public API. Runtime submissions require `sessionId`, while manual client submissions accept it optionally and retain active-session fallback.
+
+### What warrants a second pair of eyes
+
+- Confirm that one manifest POST per ready connection generation is acceptable operationally.
+- Review whether explicit session should become mandatory for the public submit API in protocol v2.
+- Confirm server-side routing treats the URL session as authoritative and ignores no removed body field.
+
+### What should be done in the future
+
+- Replace local connection generation with protocol-v2 server/client generation identity when available.
+- Make full invocation identity mandatory across every completion API in the coordinated rollout.
+
+### Code review instructions
+
+- Start with `syncToolManifest`, `postManifestSnapshot`, and the `onStatus('ready')` callback.
+- Then trace `ToolRequest.sessionId` through `deliverCompletion` to `submitToolResult`.
+- Run `pnpm typecheck`, `pnpm test`, `npm run build:publish`, `npm run pack:smoke`, and `make lint`.
+
+### Technical details
+
+**Follow-up user prompt (verbatim):** "respond to comments when done
+
+[REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
+
+The PR comments are `discussion_r3848533670` (manifest reconnect) and `discussion_r3848533674` (session-bound retry).

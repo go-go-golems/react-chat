@@ -14,3 +14,4 @@
 - [ ] Implement durable recovery, deadlines, multi-tab executor lease, and publish migration after protocol v2 <!-- t:pcpq -->
 - [x] Migrate chat-overlay store adapters to published Pinocchio v0.11.14 APIs and validate outside go.work <!-- t:89o4 -->
 - [x] Run new make lint target and resolve cleanup errcheck findings <!-- t:rwmb -->
+- [x] Address PR 12 reconnect-manifest and session-bound result retry review findings <!-- t:3gts -->

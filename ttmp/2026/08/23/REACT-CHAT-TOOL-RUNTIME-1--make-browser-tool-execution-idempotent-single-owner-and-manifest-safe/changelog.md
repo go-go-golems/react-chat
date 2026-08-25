@@ -74,3 +74,13 @@ Made the new make lint gate pass by checking server cleanup errors and ignoring 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/cmd/chat-overlay/cmds/serve.go — Log deferred cleanup failure
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/server_test.go — Fail tests on cleanup errors
 
+
+## 2026-08-25
+
+Addressed PR 12 P1 findings by binding manifest acks to ready generations and result retries to invocation sessions (commit 88d6255)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Reconnect-safe manifest and session routing
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/tools/toolRuntime.ts — Session-bound completion retry
+
