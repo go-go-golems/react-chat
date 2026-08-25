@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strings"
 
-	mockengine "github.com/go-go-golems/chat-overlay/internal/mockengine"
 	"github.com/go-go-golems/pinocchio/pkg/chatapp/frontendtools"
 	toolv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/frontendtools/v1"
 	chatappv1 "github.com/go-go-golems/pinocchio/pkg/chatapp/pb/proto/pinocchio/chatapp/v1"
+	mockengine "github.com/go-go-golems/react-chat/internal/mockengine"
 	sessionstream "github.com/go-go-golems/sessionstream/pkg/sessionstream"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"

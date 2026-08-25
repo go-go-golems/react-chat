@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/go-go-golems/chat-overlay/cmd/chat-overlay/cmds"
-	chatdoc "github.com/go-go-golems/chat-overlay/pkg/doc"
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/help"
 	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
+	"github.com/go-go-golems/react-chat/cmd/chat-overlay/cmds"
+	chatdoc "github.com/go-go-golems/react-chat/pkg/doc"
 	"github.com/spf13/cobra"
 )
 

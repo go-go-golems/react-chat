@@ -1,4 +1,4 @@
-module github.com/go-go-golems/chat-overlay
+module github.com/go-go-golems/react-chat
 
 go 1.26.6
 
