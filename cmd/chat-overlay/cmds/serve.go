@@ -132,7 +132,11 @@ func (c *ServeCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	defer cleanup()
+	defer func() {
+		if err := cleanup(); err != nil {
+			log.Error().Err(err).Msg("close chat overlay server")
+		}
+	}()
 
 	mux := server.Mux()
 	httpServer := &http.Server{

@@ -20,7 +20,7 @@ func TestSubmitBootsProducesAssistantMessageAndWidgetSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	defer cleanup()
+	requireServerCleanup(t, cleanup)
 
 	sessionID := createSession(t, server)
 	submitPrompt(t, server, sessionID, "show me boots")
@@ -66,7 +66,7 @@ func TestFrontendToolRoundTripResumesMockRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	defer cleanup()
+	requireServerCleanup(t, cleanup)
 
 	sessionID := createSession(t, server)
 	postToolManifest(t, server, sessionID)
@@ -108,7 +108,7 @@ func TestHumanToolRoundTripResumesMockRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	defer cleanup()
+	requireServerCleanup(t, cleanup)
 
 	sessionID := createSession(t, server)
 	postToolManifestWithTools(t, server, sessionID, []map[string]any{{
@@ -154,7 +154,7 @@ func TestStopCancelsCustomMockRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	defer cleanup()
+	requireServerCleanup(t, cleanup)
 
 	sessionID := createSession(t, server)
 	submitPrompt(t, server, sessionID, "long response")
@@ -176,6 +176,15 @@ func TestStopCancelsCustomMockRun(t *testing.T) {
 		}
 	}
 	t.Fatalf("snapshot did not contain stopped assistant message: %#v", snap.Entities)
+}
+
+func requireServerCleanup(t *testing.T, cleanup func() error) {
+	t.Helper()
+	t.Cleanup(func() {
+		if err := cleanup(); err != nil {
+			t.Errorf("cleanup server: %v", err)
+		}
+	})
 }
 
 func createSession(t *testing.T, server *Server) string {
