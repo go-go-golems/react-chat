@@ -150,3 +150,13 @@ PR 15 reconnect review: sends now wait for actual ready authority; stale queued 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.test.ts — Backoff-send and cancellation regressions
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Reconnect readiness and manifest cancellation
 
+
+## 2026-08-25
+
+PR 15 readiness follow-up: pre-connect sync now waits without spinning; terminal/reset transitions reject waiters and invalidate operations before they can cross into a future connection (c750caf).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.test.ts — Pre-connect, failure, and reset regressions
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Terminal/reset-safe readiness lifecycle
+

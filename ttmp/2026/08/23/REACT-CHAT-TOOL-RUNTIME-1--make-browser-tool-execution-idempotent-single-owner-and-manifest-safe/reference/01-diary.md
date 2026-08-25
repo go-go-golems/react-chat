@@ -1262,3 +1262,101 @@ HTTP cancellation cannot prove that a server did not commit immediately before d
 ### Technical details
 
 The active manifest controller is cleared with identity comparison in `finally`, so completion of an older request cannot erase a newer request's controller. Queue operations retain failure-continuation semantics through `manifestSyncTail`.
+
+## Step 15: Make readiness waits terminal and reset-safe
+
+Follow-up review found two lifecycle holes in the initial ready barrier. It began resolved, so a direct pre-connect `syncManifest()` could spin while `connectionId` remained empty. It also had no rejection path, allowing a send to wait forever after retries were exhausted or survive reset into a future connection.
+
+The barrier is now an explicit waiter set. Ready resolves current waiters; failed, stopped, and reset reject them and increment an invalidation epoch. Connect/send capture the epoch before their first await, and manifest sync validates it before inspecting mutable session state and again after readiness.
+
+### Prompt Context
+
+**User prompt (verbatim):** `packages/chat-provider/src/core/createChatClient.ts
+Comment on lines +305 to +306
+        } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
+          markConnectionNotReady();
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+4 minutes ago
+
+P1 Badge Reject readiness waiters on terminal transport states
+
+The new readiness barrier has no rejection path when a reconnect ends in failed or stopped, so a send() already waiting in waitForReadyConnection() remains pending forever after retries are exhausted. A reset is worse: a later connection can resolve that same waiter, allowing the stale send—which already captured the previous session ID—to publish a manifest and message to the old session. Terminal transitions should reject or invalidate existing waiters rather than leave them eligible for a future connection.
+
+Useful? React with 👍 / 👎.
+
+
+packages/chat-provider/src/core/createChatClient.ts
+Comment on lines +230 to +231
+  let resolveReadyConnection: (() => void) | null = null;
+  let readyConnectionPromise: Promise<void> = Promise.resolve();
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+4 minutes ago
+
+P2 Badge Initialize the readiness barrier as pending
+
+If the public tools.syncManifest() is called with a session already present in the store before the first connect(), connectionId is empty while readyConnectionPromise is already resolved. The loop in waitForReadyConnection() therefore repeatedly awaits an immediately resolved promise, starving the event loop instead of waiting for a future ready transition. Initialize the first barrier as unresolved, or explicitly reject/return when synchronization is requested before connecting.
+
+Useful? React with 👍 / 👎.`
+
+**Assistant interpretation:** Replace the one-shot deferred barrier with lifecycle-scoped waiters that can resolve on ready and reject permanently on terminal/reset transitions, including operations that have not yet registered their waiter.
+
+**Inferred user intent:** Ensure reconnect waiting has bounded terminal behavior and cannot carry stale sends across reset or session replacement.
+
+**Commit (code):** `c750caf` — "fix(chat-provider): invalidate terminal readiness waits"
+
+### What I did
+
+- Replaced the initially resolved promise with an initially pending waiter set.
+- Resolve waiters only on ready.
+- Reject waiters on stopped, failed, and reset.
+- Added a monotonic invalidation epoch captured before connect/send's first await.
+- Validate that epoch before session lookup and after readiness.
+- Corrected the WebSocket manager test double to model cached same-session `connect()` behavior.
+- Added pre-connect sync, terminal reconnect failure, and immediate reset regressions.
+
+### Why
+
+- Transient backoff should wait; terminal failure and reset must invalidate.
+- Rejecting only currently registered waiters is insufficient because reset can occur between an operation's awaits before it registers.
+
+### What worked
+
+- Provider tests increased from 79 to 82 and pass.
+- Workspace tests increased from 85 to 88 and pass.
+- Full typecheck, builds, package smoke, Go tests, and vet pass.
+
+### What didn't work
+
+The first terminal/reset tests timed out or unexpectedly resolved because the shared `clientWith` WebSocket double called `ready` on every cached `connect()`, unlike production `WsManager`. Making the double retain one active connection reproduced the review condition.
+
+The immediate-reset regression then initially resolved because `syncToolManifest` returned on the now-empty session before checking invalidation. Moving the epoch check before session lookup made the stale operation reject.
+
+### What I learned
+
+- Waiter rejection and operation invalidation are different requirements. A token is needed for operations reset before waiter registration.
+- Test doubles for lifecycle managers must preserve caching semantics or concurrency regressions can pass for the wrong reason.
+
+### What was tricky to build
+
+Backoff remains non-terminal and keeps waiters pending, while stopped/failed/reset reject them. The invalidation epoch prevents a stale operation from creating or using a later ready connection even if reset occurs during `ensureSession` or cached `connect` continuation scheduling.
+
+### What warrants a second pair of eyes
+
+- Review ordering of epoch capture, session resolution, connection ensuring, and manifest synchronization.
+- Confirm stopped should remain terminal for existing operations even when a later explicit call reconnects.
+
+### What should be done in the future
+
+- Consider moving lifecycle waiting into `WsManager` as an explicit `waitUntilReady` API if other consumers need identical semantics.
+
+### Code review instructions
+
+1. Review `readyWaiters`, `readinessInvalidation`, and terminal callbacks.
+2. Review the corrected cached-connect test double.
+3. Run the 82 provider and 88 workspace tests.
+
+### Technical details
+
+Epoch validation occurs before mutable session lookup so reset cannot turn a stale operation into a harmless-looking no-op or allow it to acquire a future session/connection. Public pre-connect manifest sync captures the current epoch and remains pending until the first legitimate ready transition.
