@@ -130,3 +130,13 @@ PR 210 review exposed a duplicate renderer authority. The concise design now req
 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Accepted single-authority decision record
 
+
+## 2026-08-25
+
+Maintainer merged Pinocchio PR 210. Published and proxy-verified immutable v0.11.16, upgraded react-chat with GOWORK=off, and migrated chat-overlay to exact executor acknowledgements and executor-bound results (c97ca57).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/go.mod — Consumes corrected Pinocchio v0.11.16
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/handlers.go — Strict first-party executor HTTP adapter
+

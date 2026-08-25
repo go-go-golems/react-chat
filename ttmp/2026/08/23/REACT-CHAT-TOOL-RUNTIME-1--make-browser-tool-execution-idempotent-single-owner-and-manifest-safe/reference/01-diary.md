@@ -1099,3 +1099,83 @@ The same UI can visually represent a tool call in all tabs while only one runtim
 ### Technical details
 
 Unknown or unregistered frontend tools remain visible but read-only. Removing heuristic controls is an intentional strict-migration behavior change, not a compatibility shim.
+
+## Step 13: Consume the corrected immutable server contract
+
+The maintainer merged Pinocchio PR 210 after all checks passed. I tagged the authoritative merge commit as immutable `v0.11.16`, verified it through the public Go proxy with workspace resolution disabled, and updated react-chat from `v0.11.14` to the corrected contract.
+
+That upgrade deliberately broke chat-overlay's legacy manifest/result adapter tests: the adapter still omitted client/connection identity and executor-bound result provenance. The adapter now uses `Manager.AcceptManifest`, returns the exact acknowledged assignment, echoes executor identity in results, and maps stable protocol errors to HTTP statuses.
+
+### Prompt Context
+
+**User prompt (verbatim):** `merged`
+
+**Assistant interpretation:** Continue the gated release sequence now that the maintainer has merged Pinocchio PR 210.
+
+**Inferred user intent:** Publish and consume the corrected immutable Pinocchio contract, then move react-chat toward its maintainer merge and npm release without self-merging.
+
+**Commit (code):** `c97ca57` — "fix(chat-overlay): adopt strict executor protocol"
+
+### What I did
+
+- Tagged Pinocchio merge commit `d0fb2e485bb21a14d0b43968276ab876443b28c0` as `v0.11.16` and pushed the tag upstream.
+- Verified `v0.11.16` through `proxy.golang.org` with `GOWORK=off`.
+- Updated react-chat's Go dependency and sums to exact `v0.11.16`.
+- Migrated chat-overlay manifest and result adapters to the strict executor protocol.
+- Updated automatic and human round-trip tests to consume the server acknowledgement and echo its executor.
+- Re-ran TypeScript tests/typechecks, dist builds, pack smoke, Go tests/vet, and the commit lint/test gate.
+
+### Why
+
+- The browser package must compile and test against a public immutable server artifact rather than the sibling workspace checkout.
+- Chat-overlay is a first-party consumer and must not retain a hidden legacy adapter during strict migration.
+
+### What worked
+
+- Public proxy resolution returned `Origin.Hash = d0fb2e485bb21a14d0b43968276ab876443b28c0` and `Ref = refs/tags/v0.11.16`.
+- Chat-provider's 77 tests and the 83-test workspace suite passed.
+- Workspace/provider typechecks, both distribution builds, and package smoke passed.
+- Focused and full `GOWORK=off` Go tests plus vet passed after adapter migration.
+- The commit gate passed build, lint, custom vet, and tests.
+
+### What didn't work
+
+The first `GOWORK=off go test ./... -count=1` against `v0.11.16` failed exactly with:
+
+```text
+--- FAIL: TestFrontendToolRoundTripResumesMockRun (0.01s)
+    server_test.go:72: tool manifest status=500 body={"error":"frontend tool manifest rejected: code=identity_missing session_id=... revision=1"}
+--- FAIL: TestHumanToolRoundTripResumesMockRun (0.01s)
+    server_test.go:114: tool manifest status=500 body={"error":"frontend tool manifest rejected: code=identity_missing session_id=... revision=1"}
+```
+
+The failure correctly exposed chat-overlay's old submit-only adapter. Migrating the production adapter and tests, rather than weakening Pinocchio or adding fallback identity, made the rerun pass.
+
+### What I learned
+
+- `GOWORK=off` is not just release ceremony; it exposed a real first-party compatibility gap hidden by the previous dependency version.
+- Every server adapter must return the exact assignment acknowledgement, not merely forward a manifest command.
+
+### What was tricky to build
+
+The test round trips needed to retain the server-generated assignment from manifest response and echo it only for the corresponding result. Hard-coded assignment IDs would bypass the protocol behavior the integration test is intended to prove.
+
+### What warrants a second pair of eyes
+
+- Review chat-overlay's error-to-HTTP status mapping against Pinocchio web-chat.
+- Confirm the shared adapter should eventually move into `serverkit` to avoid contract drift.
+
+### What should be done in the future
+
+- Maintainer merges react-chat PR 15.
+- Bump and publish chat-provider `0.6.0`, then install that exact package in PBUI.
+
+### Code review instructions
+
+1. Review `internal/webchat/handlers.go` and `helpers.go` against Pinocchio's strict adapter.
+2. Review the automatic and human round-trip fixtures in `server_test.go`.
+3. Run `GOWORK=off go test ./... -count=1`, `GOWORK=off go vet ./...`, provider/workspace tests, and package smoke.
+
+### Technical details
+
+`v0.11.16` is a lightweight immutable tag on the PR 210 merge commit. The adapter now returns revision plus executor from `AcceptManifest`; result errors preserve bad-request/not-found/gone/conflict distinctions.
