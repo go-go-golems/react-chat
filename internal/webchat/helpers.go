@@ -57,7 +57,7 @@ type snapshotEntityResponse struct {
 	Kind      string `json:"kind"`
 	ID        string `json:"id"`
 	Payload   any    `json:"payload"`
-	CreatedAt int64  `json:"createdAt,omitempty"`
+	CreatedAt uint64 `json:"createdAt,omitempty"`
 }
 
 // --- Helpers ---
@@ -81,7 +81,7 @@ func encodeSnapshotResponse(snap sessionstream.Snapshot) snapshotResponse {
 			Kind:      e.Kind,
 			ID:        e.Id,
 			Payload:   payload,
-			CreatedAt: int64(e.CreatedOrdinal),
+			CreatedAt: e.CreatedOrdinal,
 		})
 	}
 	return snapshotResponse{
