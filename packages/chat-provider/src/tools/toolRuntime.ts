@@ -3,6 +3,12 @@ import type { CanonicalFrame } from '../ws/protocol';
 
 export type ToolCompletionStatus = 'success' | 'failed' | 'cancelled' | 'denied' | 'timeout';
 
+export type FrontendToolExecutor = {
+  clientInstanceId: string;
+  connectionId: string;
+  assignmentId: string;
+};
+
 export type ToolCompletion = {
   status: ToolCompletionStatus;
   result?: Record<string, unknown>;
@@ -13,6 +19,7 @@ export type ToolResultSubmission = ToolCompletion & {
   sessionId: string;
   toolCallId: string;
   toolName: string;
+  executor: FrontendToolExecutor;
 };
 
 export type SubmitToolResult = (result: ToolResultSubmission) => Promise<void>;
@@ -28,6 +35,7 @@ export type ToolInvocationStateView = {
   attempt?: number;
   startedAt: number;
   completedAt?: number;
+  executor: FrontendToolExecutor;
 };
 
 export type ToolRuntimeRetention = {
@@ -43,6 +51,9 @@ export type ToolRuntimeDebugEvent = {
     | 'tool-request-duplicate-active'
     | 'tool-request-duplicate-terminal'
     | 'tool-request-identity-conflict'
+    | 'tool-request-executor-missing'
+    | 'tool-request-not-executor'
+    | 'tool-executor-assignment-changed'
     | 'tool-human-waiting'
     | 'tool-completion-claimed'
     | 'tool-result-submit-attempt'
@@ -55,10 +66,13 @@ export type ToolRuntimeDebugEvent = {
   phase?: ToolInvocationPhase;
   attempt?: number;
   reason?: string;
+  executor?: FrontendToolExecutor;
 };
 
 export type ToolRuntime = {
   cancelActiveFrontendTools: () => Promise<void>;
+  setExecutorIdentity: (identity: FrontendToolExecutor | null) => void;
+  executorIdentity: () => Readonly<FrontendToolExecutor> | null;
   handleFrontendToolUIEvent: (frame: CanonicalFrame) => void;
   reconcileFrontendToolRequests: (requests: Array<Record<string, unknown>>, sessionId?: string) => void;
   stateOf: (toolCallId: string, sessionId?: string) => ToolInvocationStateView | null;
@@ -96,6 +110,7 @@ type ToolRequest = {
   toolCallId: string;
   toolName: string;
   input: Record<string, unknown>;
+  executor: FrontendToolExecutor;
 };
 
 type RunningState = {
@@ -146,6 +161,7 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
   const states = new Map<string, InvocationState>();
   const terminalOrder = new Map<string, number>();
   const listeners = new Set<() => void>();
+  let currentExecutor: FrontendToolExecutor | null = null;
 
   function emit(event: ToolRuntimeDebugEvent): void {
     try {
@@ -196,13 +212,15 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
     const toolCallId = String(payload.toolCallId || '').trim();
     const toolName = String(payload.toolName || '').trim();
     const canonicalSessionId = String(sessionId || payload.sessionId || '').trim();
-    if (!toolCallId || !toolName) return null;
+    const executor = parseExecutor(payload.executor);
+    if (!toolCallId || !toolName || !executor) return null;
     return {
       key: encodeV1InvocationKey(canonicalSessionId, toolCallId),
       sessionId: canonicalSessionId,
       toolCallId,
       toolName,
       input: normalizeRecord(payload.input),
+      executor,
     };
   }
 
@@ -212,6 +230,8 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
     if (existing) {
       if (existing.request.toolName !== request.toolName) {
         emit(debugEvent('tool-request-identity-conflict', request, publicPhase(existing), undefined, 'tool-name-mismatch'));
+      } else if (!sameExecutor(existing.request.executor, request.executor)) {
+        emit(debugEvent('tool-request-identity-conflict', request, publicPhase(existing), undefined, 'executor-mismatch'));
       } else if (existing.phase === 'terminal') {
         emit(debugEvent('tool-request-duplicate-terminal', request, 'terminal'));
       } else {
@@ -266,6 +286,7 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
         sessionId: delivering.request.sessionId,
         toolCallId: delivering.request.toolCallId,
         toolName: delivering.request.toolName,
+        executor: cloneExecutor(delivering.request.executor),
         ...delivering.completion,
       });
     } catch (error) {
@@ -305,7 +326,24 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
 
   async function executeFrontendTool(payload: Record<string, unknown>, sessionId = ''): Promise<void> {
     const request = requestFromPayload(payload, sessionId);
-    if (!request) return;
+    if (!request) {
+      const toolCallId = String(payload.toolCallId ?? '').trim();
+      const toolName = String(payload.toolName ?? '').trim();
+      if (toolCallId && toolName && !parseExecutor(payload.executor)) {
+        emit({
+          type: 'tool-request-executor-missing',
+          sessionId: String(sessionId || payload.sessionId || '').trim(),
+          toolCallId,
+          toolName,
+          reason: 'complete executor identity is required',
+        });
+      }
+      return;
+    }
+    if (!currentExecutor || !sameExecutor(request.executor, currentExecutor)) {
+      emit(debugEvent('tool-request-not-executor', request, undefined, undefined, currentExecutor ? 'assignment-mismatch' : 'assignment-unacknowledged'));
+      return;
+    }
     const state = claimRequest(request);
     if (!state) return;
 
@@ -399,6 +437,7 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
       startedAt: state.startedAt,
       ...(state.phase === 'completing' ? { attempt: state.attempt } : {}),
       ...(state.phase === 'terminal' ? { completedAt: state.completedAt } : {}),
+      executor: cloneExecutor(state.request.executor),
     };
   }
 
@@ -457,8 +496,25 @@ export function createToolRuntime(args: CreateToolRuntimeArgs): ToolRuntime {
     await Promise.all(deliveries);
   }
 
+  function setExecutorIdentity(identity: FrontendToolExecutor | null): void {
+    const next = identity === null ? null : parseExecutor(identity);
+    if (identity !== null && !next) throw new Error('tool runtime requires a complete executor identity');
+    if ((next === null && currentExecutor === null) || (next && currentExecutor && sameExecutor(next, currentExecutor))) return;
+    currentExecutor = next === null ? null : freezeExecutor(next);
+    emit({
+      type: 'tool-executor-assignment-changed',
+      sessionId: '',
+      toolCallId: '',
+      toolName: '',
+      ...(currentExecutor ? { executor: cloneExecutor(currentExecutor) } : { reason: 'cleared' }),
+    });
+    notify();
+  }
+
   return {
     cancelActiveFrontendTools,
+    setExecutorIdentity,
+    executorIdentity: () => currentExecutor,
     handleFrontendToolUIEvent,
     reconcileFrontendToolRequests,
     stateOf,
@@ -510,6 +566,34 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function parseExecutor(value: unknown): FrontendToolExecutor | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const clientInstanceId = String(record.clientInstanceId ?? '').trim();
+  const connectionId = String(record.connectionId ?? '').trim();
+  const assignmentId = String(record.assignmentId ?? '').trim();
+  if (!clientInstanceId || !connectionId || !assignmentId) return null;
+  return { clientInstanceId, connectionId, assignmentId };
+}
+
+function cloneExecutor(executor: FrontendToolExecutor): FrontendToolExecutor {
+  return {
+    clientInstanceId: executor.clientInstanceId,
+    connectionId: executor.connectionId,
+    assignmentId: executor.assignmentId,
+  };
+}
+
+function freezeExecutor(executor: FrontendToolExecutor): FrontendToolExecutor {
+  return Object.freeze(cloneExecutor(executor));
+}
+
+function sameExecutor(left: FrontendToolExecutor, right: FrontendToolExecutor): boolean {
+  return left.clientInstanceId === right.clientInstanceId
+    && left.connectionId === right.connectionId
+    && left.assignmentId === right.assignmentId;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -529,5 +613,6 @@ function debugEvent(
     ...(phase ? { phase } : {}),
     ...(attempt !== undefined ? { attempt } : {}),
     ...(reason ? { reason } : {}),
+    executor: cloneExecutor(request.executor),
   };
 }

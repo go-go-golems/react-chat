@@ -290,6 +290,7 @@ export const frontendToolTimelineAdapter = defineLiveAndHydrateAdapter({
               mode: payload.mode,
               status: payload.status || 'requested',
               input: payload.input || {},
+              executor: payload.executor || {},
             }),
           };
         case 'ChatFrontendToolResultReceived':
@@ -301,6 +302,7 @@ export const frontendToolTimelineAdapter = defineLiveAndHydrateAdapter({
               status: payload.status || 'success',
               result: payload.result || {},
               error: payload.error,
+              executor: payload.executor || {},
             }),
           };
         default:
@@ -324,6 +326,7 @@ export const frontendToolTimelineAdapter = defineLiveAndHydrateAdapter({
         input: payload.input || {},
         result: payload.result || undefined,
         error: asString(payload.error),
+        executor: payload.executor || {},
       });
     },
   },

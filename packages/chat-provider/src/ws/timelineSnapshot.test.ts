@@ -15,6 +15,8 @@ function registryWithCoreAdapters() {
 function toolRuntime(): ToolRuntime {
   return {
     cancelActiveFrontendTools: vi.fn(),
+    setExecutorIdentity: vi.fn(),
+    executorIdentity: vi.fn(() => null),
     handleFrontendToolUIEvent: vi.fn(),
     reconcileFrontendToolRequests: vi.fn(),
     stateOf: vi.fn(() => null),

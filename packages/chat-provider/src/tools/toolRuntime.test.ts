@@ -1,6 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createToolRegistry } from './toolRegistry';
-import { createToolRuntime, type ToolResultSubmission } from './toolRuntime';
+import { createToolRuntime as createRawToolRuntime, type FrontendToolExecutor, type ToolResultSubmission } from './toolRuntime';
+
+const TEST_EXECUTOR: FrontendToolExecutor = {
+  clientInstanceId: 'client-a',
+  connectionId: 'connection-a',
+  assignmentId: 'assignment-a',
+};
+
+function createToolRuntime(args: Parameters<typeof createRawToolRuntime>[0]) {
+  const runtime = createRawToolRuntime(args);
+  runtime.setExecutorIdentity(TEST_EXECUTOR);
+  return runtime;
+}
+
+function toolRequest(toolCallId: string, toolName: string) {
+  return { toolCallId, toolName, input: {}, executor: TEST_EXECUTOR };
+}
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -24,7 +40,7 @@ describe('ToolRuntime invocation state machine', () => {
     registry.register({ name: 'lookup', mode: 'frontend', execute });
     const submitToolResult = vi.fn(async () => undefined);
     const runtime = createToolRuntime({ registry, submitToolResult });
-    const request = { toolCallId: 'call-1', toolName: 'lookup', input: {} };
+    const request = toolRequest('call-1', 'lookup');
 
     runtime.reconcileFrontendToolRequests([request], 'session-1');
     runtime.reconcileFrontendToolRequests([request], 'session-1');
@@ -55,7 +71,7 @@ describe('ToolRuntime invocation state machine', () => {
       submitToolResult,
       scheduleRetry: (callback) => scheduled.push(callback),
     });
-    const request = { toolCallId: 'call-1', toolName: 'mutate_ui', input: {} };
+    const request = toolRequest('call-1', 'mutate_ui');
 
     runtime.reconcileFrontendToolRequests([request], 'session-1');
     await vi.waitFor(() => expect(submitToolResult).toHaveBeenCalledTimes(1));
@@ -80,7 +96,7 @@ describe('ToolRuntime invocation state machine', () => {
     const delivery = deferred<void>();
     const submitToolResult = vi.fn(() => delivery.promise);
     const runtime = createToolRuntime({ registry, submitToolResult });
-    const request = { toolCallId: 'call-2', toolName: 'confirm', input: {} };
+    const request = toolRequest('call-2', 'confirm');
 
     runtime.reconcileFrontendToolRequests([request], 'session-1');
     expect(runtime.isPendingHumanTool('call-2', 'session-1')).toBe(true);
@@ -106,7 +122,7 @@ describe('ToolRuntime invocation state machine', () => {
     const submitToolResult = vi.fn(async () => undefined);
     const runtime = createToolRuntime({ registry, submitToolResult });
 
-    runtime.reconcileFrontendToolRequests([{ toolCallId: 'call-3', toolName: 'slow_tool', input: {} }], 'session-1');
+    runtime.reconcileFrontendToolRequests([toolRequest('call-3', 'slow_tool')], 'session-1');
     await expectPhase(runtime, 'call-3', 'running');
     await runtime.cancelActiveFrontendTools();
     expect(runtime.stateOf('call-3', 'session-1')?.phase).toBe('terminal');
@@ -124,7 +140,7 @@ describe('ToolRuntime invocation state machine', () => {
     const delivery = deferred<void>();
     const submitToolResult = vi.fn(() => delivery.promise);
     const runtime = createToolRuntime({ registry, submitToolResult });
-    const request = { toolCallId: 'missing-call', toolName: 'missing_tool', input: {} };
+    const request = toolRequest('missing-call', 'missing_tool');
 
     runtime.reconcileFrontendToolRequests([request], 'session-1');
     runtime.reconcileFrontendToolRequests([request], 'session-1');
@@ -141,7 +157,7 @@ describe('ToolRuntime invocation state machine', () => {
     registry.register({ name: 'lookup', mode: 'frontend', execute });
     const submitToolResult = vi.fn(async () => undefined);
     const runtime = createToolRuntime({ registry, submitToolResult });
-    const request = { toolCallId: 'shared-call', toolName: 'lookup', input: {} };
+    const request = toolRequest('shared-call', 'lookup');
 
     runtime.reconcileFrontendToolRequests([request], 'session-a');
     runtime.reconcileFrontendToolRequests([request], 'session-b');
@@ -168,10 +184,10 @@ describe('ToolRuntime invocation state machine', () => {
       onDebugEvent: debug,
     });
 
-    runtime.reconcileFrontendToolRequests([{ toolCallId: 'call-1', toolName: 'lookup', input: {} }], 'session-1');
+    runtime.reconcileFrontendToolRequests([toolRequest('call-1', 'lookup')], 'session-1');
     await expectPhase(runtime, 'call-1', 'terminal');
     currentTime += 10;
-    runtime.reconcileFrontendToolRequests([{ toolCallId: 'call-2', toolName: 'lookup', input: {} }], 'session-1');
+    runtime.reconcileFrontendToolRequests([toolRequest('call-2', 'lookup')], 'session-1');
     await expectPhase(runtime, 'call-2', 'terminal');
     expect(runtime.stateOf('call-1', 'session-1')).toBeNull();
 
@@ -187,5 +203,73 @@ describe('ToolRuntime invocation state machine', () => {
       submitToolResult: vi.fn(async () => undefined),
       retention: { maxTerminalEntries: 0 },
     })).toThrow(/maxTerminalEntries/);
+  });
+
+  it('lets exactly one of two assigned runtimes execute and submit', async () => {
+    const registryA = createToolRegistry();
+    const registryB = createToolRegistry();
+    const executeA = vi.fn(async () => ({ owner: 'a' }));
+    const executeB = vi.fn(async () => ({ owner: 'b' }));
+    registryA.register({ name: 'mutate', mode: 'frontend', execute: executeA });
+    registryB.register({ name: 'mutate', mode: 'frontend', execute: executeB });
+    const submitA = vi.fn(async () => undefined);
+    const submitB = vi.fn(async () => undefined);
+    const runtimeA = createRawToolRuntime({ registry: registryA, submitToolResult: submitA });
+    const runtimeB = createRawToolRuntime({ registry: registryB, submitToolResult: submitB });
+    runtimeA.setExecutorIdentity(TEST_EXECUTOR);
+    runtimeB.setExecutorIdentity({ clientInstanceId: 'client-b', connectionId: 'connection-b', assignmentId: 'assignment-b' });
+
+    const request = toolRequest('call-owner', 'mutate');
+    runtimeA.reconcileFrontendToolRequests([request], 'session-1');
+    runtimeB.reconcileFrontendToolRequests([request], 'session-1');
+
+    await vi.waitFor(() => expect(submitA).toHaveBeenCalledTimes(1));
+    expect(executeA).toHaveBeenCalledTimes(1);
+    expect(executeB).not.toHaveBeenCalled();
+    expect(submitB).not.toHaveBeenCalled();
+    expect(runtimeB.stateOf('call-owner', 'session-1')).toBeNull();
+  });
+
+  it('fails closed before claim when executor identity is missing', async () => {
+    const registry = createToolRegistry();
+    const execute = vi.fn(async () => ({ ok: true }));
+    registry.register({ name: 'lookup', mode: 'frontend', execute });
+    const debug = vi.fn();
+    const submit = vi.fn(async () => undefined);
+    const runtime = createRawToolRuntime({ registry, submitToolResult: submit, onDebugEvent: debug });
+    runtime.setExecutorIdentity(TEST_EXECUTOR);
+
+    runtime.reconcileFrontendToolRequests([{ toolCallId: 'missing-executor', toolName: 'lookup', input: {} }], 'session-1');
+    await Promise.resolve();
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+    expect(runtime.stateOf('missing-executor', 'session-1')).toBeNull();
+    expect(debug).toHaveBeenCalledWith(expect.objectContaining({ type: 'tool-request-executor-missing' }));
+  });
+
+  it('retries with the invocation executor after current assignment changes', async () => {
+    const registry = createToolRegistry();
+    registry.register({ name: 'mutate', mode: 'frontend', execute: async () => ({ changed: true }) });
+    const scheduled: Array<() => void> = [];
+    const submissions: ToolResultSubmission[] = [];
+    const runtime = createRawToolRuntime({
+      registry,
+      submitToolResult: vi.fn(async (submission: ToolResultSubmission) => {
+        submissions.push(structuredClone(submission));
+        if (submissions.length === 1) throw new Error('offline');
+      }),
+      scheduleRetry: (callback) => scheduled.push(callback),
+    });
+    runtime.setExecutorIdentity(TEST_EXECUTOR);
+    runtime.reconcileFrontendToolRequests([toolRequest('call-retry', 'mutate')], 'session-1');
+    await vi.waitFor(() => expect(submissions).toHaveLength(1));
+
+    runtime.setExecutorIdentity({ clientInstanceId: 'client-a', connectionId: 'connection-new', assignmentId: 'assignment-new' });
+    scheduled.shift()?.();
+    await vi.waitFor(() => expect(submissions).toHaveLength(2));
+
+    expect(submissions[0]?.executor).toEqual(TEST_EXECUTOR);
+    expect(submissions[1]?.executor).toEqual(TEST_EXECUTOR);
   });
 });
