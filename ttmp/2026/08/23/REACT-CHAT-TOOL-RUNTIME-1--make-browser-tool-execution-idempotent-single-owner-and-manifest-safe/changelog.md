@@ -160,3 +160,13 @@ PR 15 readiness follow-up: pre-connect sync now waits without spinning; terminal
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.test.ts — Pre-connect, failure, and reset regressions
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Terminal/reset-safe readiness lifecycle
 
+
+## 2026-08-25
+
+PR 15 ownership-cache review: every send now obtains a fresh assignment acknowledgement; design distinguishes capability-content caching from authority and records turn-scoped atomic executor capture as the stronger architecture (7104f9a).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/packages/chat-provider/src/core/createChatClient.ts — Fresh authority acknowledgement before send
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Accepted send-revalidation decision and turn-binding limitation
+

@@ -1360,3 +1360,87 @@ Backoff remains non-terminal and keeps waiters pending, while stopped/failed/res
 ### Technical details
 
 Epoch validation occurs before mutable session lookup so reset cannot turn a stale operation into a harmless-looking no-op or allow it to acquire a future session/connection. Public pre-connect manifest sync captures the current epoch and remains pending until the first legitimate ready transition.
+
+## Step 16: Reassert authority before each send and identify the turn-binding gap
+
+PR review exposed a deeper issue than cache invalidation. A manifest acknowledgement has two meanings: it confirms manifest content and records executor ownership at one instant. Content can remain unchanged while ownership becomes stale because another tab accepts a manifest. Reusing one cache entry for both meanings allowed a tab to send while believing it still owned tool execution.
+
+The immediate fix forces a fresh manifest acceptance before every message send. The design now records the stronger architectural endpoint: if concurrent tabs must bind each model turn to its initiating browser, executor selection must be captured atomically with the message/turn and propagated into tool requests from that turn.
+
+### Prompt Context
+
+**User prompt (verbatim):** `packages/chat-provider/src/core/createChatClient.ts
+      revision: typeof body.revision === 'number' ? body.revision : snapshot.revision,
+      revision: body.revision,
+      digest: snapshot.digest,
+      executor,
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+now
+
+P1 Badge Revalidate cached ownership before sending
+
+When two tabs share a session and tab B accepts a manifest after tab A, A's cached executor here is no longer the server's current assignment. A later send() from A hits the lastManifestAck fast path at lines 375–378 and sends the message without another manifest POST, so any resulting tool calls use B's manifest and assignment while A still believes it owns assignment A; A's tools or human controls therefore remain inert, and tools absent from B's manifest may be unavailable entirely. Deduplication should be limited to concurrent queued syncs, or each send must obtain a fresh authoritative acknowledgement.
+
+Useful? React with 👍 / 👎.
+
+
+Is this something that is worth addressing architecturally or are we just stamping out bugs?`
+
+**Assistant interpretation:** Fix stale cached ownership before send and determine whether recurring review findings reveal a missing abstraction rather than isolated mistakes.
+
+**Inferred user intent:** Stop incremental bug repair from obscuring a more coherent ownership architecture.
+
+**Commit (code):** `7104f9a` — "fix(chat-provider): reassert ownership before send"
+
+### What I did
+
+- Added a force-acknowledgement path through manifest synchronization.
+- Made every `send()` bypass `lastManifestAck` deduplication.
+- Kept ordinary content sync deduplication for non-authority-sensitive calls.
+- Added a regression where the same connection receives a new assignment before message POST.
+- Updated the authoritative design with send-time revalidation and the deferred turn-scoped executor architecture.
+
+### Why
+
+- Cached manifest content and current authority have different invalidation rules.
+- The server is the only source of current assignment truth.
+
+### What worked
+
+- Provider tests increased from 82 to 83 and pass.
+- Workspace tests increased from 88 to 89 and pass.
+- Full typechecks, builds, package smoke, Go tests, and vet pass.
+
+### What didn't work
+
+The reconnect-send test initially expected one reconnect manifest before the message. With mandatory send-time revalidation, the autonomous reconnect sync and authority-sensitive send each post, yielding three total manifests including the initial connection. Updating the assertion captured the intended contract.
+
+### What I learned
+
+- A cache of accepted capabilities is not a cache of current ownership.
+- Fresh acceptance immediately before send closes ordinary stale ownership, but two independent HTTP operations do not provide turn-level causal atomicity under simultaneous sends.
+
+### What was tricky to build
+
+The implementation needed to preserve useful manifest deduplication without allowing authority-sensitive send paths to use it. A force flag keeps this distinction explicit. The remaining interleaving is architectural: A can accept, B can accept, then A can post its message. Preventing that requires server-side turn capture, not another browser cache check.
+
+### What warrants a second pair of eyes
+
+- Review whether one extra manifest POST per send is operationally acceptable.
+- Decide whether concurrent prompting requires a follow-up protocol with message-bound executor identity.
+
+### What should be done in the future
+
+- Design a turn-scoped executor capture: message acceptance returns/captures executor identity, and all frontend requests from that turn use it immutably.
+- Keep current session-current assignment for calls not associated with a user message only if their provenance is explicit.
+
+### Code review instructions
+
+1. Review the forced acknowledgement argument from `send` through `postManifestSnapshot`.
+2. Review the new stale-cache regression.
+3. Read the updated acknowledgement-ordering section and decision record.
+
+### Technical details
+
+The first-release fix is sufficient for ordinary honest clients because inactive tabs do not continuously republish. It does not claim atomic turn ownership under simultaneous multi-tab sends; that limitation is now explicit rather than hidden behind cache behavior.

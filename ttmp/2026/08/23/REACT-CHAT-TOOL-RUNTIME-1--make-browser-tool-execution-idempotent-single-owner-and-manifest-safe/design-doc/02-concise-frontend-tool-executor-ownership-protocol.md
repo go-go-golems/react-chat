@@ -670,19 +670,21 @@ An observer must not create a `waiting-human` state, because `ToolCallOutlet` de
 
 ### 8.4 Manifest acknowledgement ordering
 
-For ordinary sends, react-chat already synchronizes the manifest before sending a message. The revised sequence is:
+For every ordinary send, react-chat obtains a **fresh server acknowledgement** before sending the message. A cached acknowledgement proves that manifest content was accepted at an earlier point; it does not prove the connection is still the current executor after another tab has accepted a manifest. The sequence is:
 
 ```text
 WebSocket ready
 -> create connection_id
 -> clear old acknowledged assignment
--> POST manifest(client, connection, revision, tools)
+-> POST manifest(client, connection, revision, tools), bypassing the acknowledgement cache
 -> validate acknowledgement client/connection
 -> install executor tuple in runtime
 -> allow message send
 ```
 
-This guarantees the model cannot issue a new request before the sender has installed the assignment returned by its manifest sync.
+This guarantees the sender reasserts ownership and installs the returned assignment immediately before submitting its message. Deduplication remains valid for content synchronization and concurrent queued work, but it must not suppress this send-time authority revalidation.
+
+The manifest POST and message POST are still separate operations. Two tabs sending concurrently can interleave their acceptance/message pairs. Strong causal ownership for an entire model turn would require the message command to capture an executor assignment atomically and for frontend-tool requests produced by that turn to use the captured tuple rather than mutable session ownership. That is the preferred future architecture if concurrent multi-tab prompting must guarantee that each turn's tools return to its initiating tab.
 
 A request can still arrive during reconnect for an older assignment. It must be ignored unless it matches the currently acknowledged tuple. Snapshot hydration after sync reconciles requested entities again. The implementation should explicitly order reconnect as:
 
@@ -975,6 +977,15 @@ This chooses possible temporary unavailability over duplicate consequential exec
 - **Rationale:** It is simple, server-authoritative, testable, and guarantees one selected tuple.
 - **Consequences:** A background/reconnecting tab may become owner. This is a UX limitation, not a duplicate-execution safety failure.
 - **Status:** accepted for first release.
+
+### Decision: Revalidate ownership before every message send
+
+- **Context:** A manifest acknowledgement can remain content-current while another tab becomes the session executor. Reusing that acknowledgement lets a sender submit a prompt while retaining stale local ownership.
+- **Options considered:** trust the cached acknowledgement; expire it by time; force manifest acceptance before send; atomically bind each message/turn to an executor.
+- **Decision:** Bypass acknowledgement deduplication before every message send and install the fresh assignment before posting the message.
+- **Rationale:** This closes the demonstrated honest-client stale-ownership gap without adding clocks or a new turn protocol.
+- **Consequences:** Sends incur one extra manifest request. Concurrent tabs can still interleave the two HTTP operations; turn-scoped atomic executor capture is the stronger future design.
+- **Status:** accepted for first release; turn-scoped executor capture deferred.
 
 ### Decision: Never reassign an in-flight call
 
