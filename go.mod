@@ -5,7 +5,7 @@ go 1.26.6
 require (
 	github.com/go-go-golems/geppetto v0.13.11
 	github.com/go-go-golems/glazed v1.4.3
-	github.com/go-go-golems/pinocchio v0.11.14
+	github.com/go-go-golems/pinocchio v0.11.16
 	github.com/go-go-golems/sessionstream v0.1.2
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1

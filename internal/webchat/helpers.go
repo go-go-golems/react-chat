@@ -28,22 +28,33 @@ type toolDescriptorRequest struct {
 }
 
 type toolManifestRequest struct {
-	Revision uint64                  `json:"revision,omitempty"`
-	Tools    []toolDescriptorRequest `json:"tools"`
+	ClientInstanceID string                  `json:"clientInstanceId"`
+	ConnectionID     string                  `json:"connectionId"`
+	Revision         uint64                  `json:"revision,omitempty"`
+	Tools            []toolDescriptorRequest `json:"tools"`
+}
+
+type frontendToolExecutor struct {
+	ClientInstanceID string `json:"clientInstanceId"`
+	ConnectionID     string `json:"connectionId"`
+	AssignmentID     string `json:"assignmentId"`
 }
 
 type toolResultRequest struct {
-	ToolCallID string         `json:"toolCallId"`
-	ToolName   string         `json:"toolName,omitempty"`
-	Result     map[string]any `json:"result,omitempty"`
-	Status     string         `json:"status,omitempty"`
-	Error      string         `json:"error,omitempty"`
+	ToolCallID string               `json:"toolCallId"`
+	ToolName   string               `json:"toolName,omitempty"`
+	Result     map[string]any       `json:"result,omitempty"`
+	Status     string               `json:"status,omitempty"`
+	Error      string               `json:"error,omitempty"`
+	Executor   frontendToolExecutor `json:"executor"`
 }
 
 type toolCommandResponse struct {
-	SessionID string `json:"sessionId"`
-	Accepted  bool   `json:"accepted"`
-	Status    string `json:"status"`
+	SessionID string                `json:"sessionId"`
+	Accepted  bool                  `json:"accepted"`
+	Status    string                `json:"status"`
+	Revision  uint64                `json:"revision,omitempty"`
+	Executor  *frontendToolExecutor `json:"executor,omitempty"`
 }
 
 type errorResponse = serverkit.ErrorResponse
