@@ -69,7 +69,7 @@ The current-protocol phases are implemented:
 
 Current defaults retain 1,000 terminal invocations for 30 minutes and retry result delivery with exponential delays from 250ms to 5 seconds. Automatic effects are never retried. Built-package validation passed react-chat typecheck, 74 tests, distribution/pack smoke, plus PBUI chat-provider consumer typecheck, 208 tests, and production build.
 
-Protocol-v2 executor assignment, client/generation identity, durable terminal recovery, deadlines, and multi-tab lease behavior remain open. They require coordinated changes under `PINOCCHIO-TOOLCALL-1` and `PBUI-TOOLCALL-1`; no client-only ownership election or hidden dual-protocol adapter was added. Package versions were not bumped or published in these implementation commits.
+The in-runtime hardening is published as npm `@go-go-golems/chat-provider@0.5.1`. Cross-tab ownership remains open, but its first-release scope is now narrowed and authoritative in `design-doc/02-concise-frontend-tool-executor-ownership-protocol.md`: use a tab-stable `client_instance_id`, ready-transport `connection_id`, and server-generated `assignment_id`, without timed leases, heartbeats, deadlines, or automatic in-flight reassignment. Durable terminal recovery and the broader protocol-v2 fields remain later work. No client-only ownership election or hidden dual-protocol adapter is permitted.
 
 ## 1. Scope and package orientation
 
@@ -415,6 +415,8 @@ React local state is UX only. Runtime compare-and-set is correctness.
 A remount of `waiting-human` should render the same request, not start a second automatic interaction. PBUI's `pbui_accept` uses a component-local `started` ref, which resets on remount; the generic runtime should provide an invocation-scoped human lifecycle or claim token so integrations can distinguish first activation from rehydrated display.
 
 ## 8. Browser executor ownership
+
+> **Scope update:** The detailed first-release contract in `02-concise-frontend-tool-executor-ownership-protocol.md` supersedes this section wherever this earlier guide requires a timed lease, full run/manifest/capability identity, or a larger protocol-v2 bundle. The selected concise tuple is `(client_instance_id, connection_id, assignment_id)`; the server assignment is an epoch/provenance value, not a timed lease or authentication secret.
 
 ### 8.1 Client identity
 

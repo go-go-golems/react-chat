@@ -15,3 +15,5 @@
 - [x] Migrate chat-overlay store adapters to published Pinocchio v0.11.14 APIs and validate outside go.work <!-- t:89o4 -->
 - [x] Run new make lint target and resolve cleanup errcheck findings <!-- t:rwmb -->
 - [x] Address PR 12 reconnect-manifest and session-bound result retry review findings <!-- t:3gts -->
+- [x] Finalize concise client connection assignment executor protocol across Pinocchio react-chat and PBUI <!-- t:rxt5 -->
+- [ ] Validate and upload concise executor protocol design bundle to reMarkable <!-- t:ogge -->

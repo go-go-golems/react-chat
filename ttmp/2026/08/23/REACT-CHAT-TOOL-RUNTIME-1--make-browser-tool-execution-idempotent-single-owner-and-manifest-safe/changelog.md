@@ -93,3 +93,12 @@ Cleared PR 12 push security gate by preserving unsigned snapshot ordinals (commi
 
 - /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/internal/webchat/helpers.go — Remove overflowing uint64-to-int64 conversion
 
+
+## 2026-08-25
+
+Authored the authoritative concise cross-tab executor protocol using client, connection, and server assignment identities; narrowed the prior timed-lease proposal and defined strict rollout/testing.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-08-20/add-pbui-agent/react-chat/ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md — Primary design deliverable
+

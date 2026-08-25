@@ -54,12 +54,15 @@ RelatedFiles:
         Immutable invocation session in result submissions (commit 88d6255)
     - Path: repo://packages/chat-provider/src/ws/timelineSnapshot.ts
       Note: Session-namespaced hydration (commit e341aae)
+    - Path: repo://ttmp/2026/08/23/REACT-CHAT-TOOL-RUNTIME-1--make-browser-tool-execution-idempotent-single-owner-and-manifest-safe/design-doc/02-concise-frontend-tool-executor-ownership-protocol.md
+      Note: Authoritative concise executor protocol and Step 10 evidence
 ExternalSources: []
 Summary: Chronological investigation, design, validation, and delivery record for chat-provider browser frontend-tool runtime hardening.
 LastUpdated: 2026-08-23T17:25:00-04:00
 WhatFor: Let implementers retrace replay, human completion, multi-tab ownership, manifest, and timeout design decisions.
 WhenToUse: When implementing, reviewing, resuming, or releasing REACT-CHAT-TOOL-RUNTIME-1.
 ---
+
 
 
 
@@ -864,3 +867,77 @@ The result fix also had to avoid a breaking public API. Runtime submissions requ
 [REMINDER] Output a <summary>...</summary> block at the VERY END of your response. This is mandatory."
 
 The PR comments are `discussion_r3848533670` (manifest reconnect) and `discussion_r3848533674` (session-bound retry). Push-gate follow-up commit `03d733a5953f7007b4447f140154dee1abc32e0f` preserves unsigned snapshot ordinals.
+
+## Step 10: Specify the concise cross-tab executor protocol
+
+This step turned the broad protocol-v2/lease proposal into an authoritative first-release contract. The design keeps the safety property needed by the reproduced two-tab failure while removing timed leases, heartbeats, deadlines, run IDs, capability fields, and automatic in-flight takeover. It uses a tab-stable client ID, a ready-transport connection ID, and a server-generated assignment epoch.
+
+The document is grounded in the current Pinocchio protobuf/manager, react-chat runtime/client/hydration path, and PBUI HTTP adapter. It defines strict migration, acknowledgement ordering, pending-call immutability, human-tool behavior, publication rollback, durable projection, tests, rollout, and the honest-client security boundary.
+
+### Prompt Context
+
+**User prompt (verbatim):** `Ok,write a detailed design doc about this concise version, (and/or update existing ones). Upload to remarkable.`
+
+**Assistant interpretation:** Consolidate the agreed concise executor tuple into one implementation-ready cross-repository design, update older guides so they do not continue prescribing the broader timed-lease scope, validate ticket metadata, commit the documentation, and deliver it as a reMarkable bundle.
+
+**Inferred user intent:** Make the smallest reasonable single-owner design reviewable and actionable enough to implement immediately without losing important reconnect or stale-assignment correctness.
+
+### What I did
+
+- Created `design-doc/02-concise-frontend-tool-executor-ownership-protocol.md` as the authoritative contract.
+- Inspected current protobuf, manager, projection, runtime, manifest sync, hydration, result retry, and PBUI handler code.
+- Defined `(client_instance_id, connection_id, assignment_id)` semantics and wire/API sketches.
+- Defined latest-accepted-different-connection ownership for future calls, same-connection assignment retention, and no in-flight reassignment.
+- Specified atomic `AcceptManifest` acknowledgement and compare-before-rollback publication semantics.
+- Added exhaustive test matrices, file-level implementation phases, compatibility table, risks, alternatives, and six decision records.
+- Updated the older react-chat guide to defer to the concise document.
+
+### Why
+
+- A client ID alone does not distinguish reconnect incarnations or repeated ownership periods.
+- A timed lease system is not required to prevent the demonstrated honest-client double execution.
+- One authoritative document prevents the three repositories from implementing subtly incompatible identity shapes.
+
+### What worked
+
+- Existing code boundaries support the design: PBUI already owns both Hub and Manager, the Hub is an event publisher, react-chat already tracks ready generations, and Pinocchio already captures immutable pending/terminal state.
+- The selected tuple composes with current terminal idempotency and durable timeline projection without introducing a parallel runtime.
+
+### What didn't work
+
+- The prior guides distributed executor requirements across three tickets and mixed immediate duplicate-execution containment with future leases, run identity, capabilities, and durable recovery. They could not serve as a concise authoritative implementation contract without a superseding document.
+- No implementation was attempted; this interval is design and delivery only.
+
+### What I learned
+
+- Manifest acknowledgement must return the exact assignment from the same atomic acceptance operation. `Submit` followed by `CurrentManifest` would race another tab.
+- The assignment ID is observable broadcast provenance, not an authentication secret. Existing route authorization remains the security boundary.
+- Reassigning an in-flight call is unsafe without knowing whether the old executor already performed its effect; cancellation/timeout is the correct first-release behavior.
+
+### What was tricky to build
+
+The hardest ordering edge is reconnect hydration. A new connection needs its manifest acknowledgement before hydrated requested calls become executable, while old assigned requests must remain visible but inert. The design resolves this by clearing executable assignment on a new ready generation, acknowledging the new tuple, then reconciling durable requested entities. Result retries retain the invocation-captured tuple rather than reading mutable current assignment.
+
+### What warrants a second pair of eyes
+
+- Review whether latest accepted different connection is acceptable as the first ownership-selection UX.
+- Review compare-before-rollback behavior when manifest event publication fails concurrently with a newer manifest.
+- Confirm that opaque bounded IDs, rather than strict UUID parsing in Pinocchio, are the right host-compatibility boundary.
+- Confirm explicit acknowledgement can be exposed through `Manager.AcceptManifest` without creating duplicate publish paths.
+
+### What should be done in the future
+
+- Implement and validate the accepted concise contract in Pinocchio, react-chat, then PBUI.
+- Keep heartbeat/timed-lease, hostile-client proof, active-tab selection, and durable recovery as separately reviewed follow-ups.
+
+### Code review instructions
+
+1. Read the new design from executive summary through §§4–10 before reviewing file-level phases.
+2. Compare protobuf sketches with Pinocchio's current `frontend_tool.proto` field numbers.
+3. Trace `AcceptManifest -> Request -> pendingCall -> HandleResult -> plugin projection`.
+4. Trace `ready -> manifest ack -> runtime assignment -> hydrate/reconcile -> captured result retry` in react-chat.
+5. Run `docmgr doctor --ticket REACT-CHAT-TOOL-RUNTIME-1 --stale-after 30` and inspect the rendered PDF bundle.
+
+### Technical details
+
+The first-release executor tuple is complete only when all three fields are non-empty. Assignment changes apply to future calls only. Same-connection higher manifest revisions retain assignment; same-revision identical manifests are idempotent; same-revision divergent manifests and lower revisions are rejected. Missing identity has no legacy fallback.
