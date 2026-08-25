@@ -61,8 +61,14 @@ export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOpt
             : ordinalId(event.ordinal);
           return { family: aliases[name] ?? 'timeline', eventType: `→ ${name || 'mutation'}`, eventId: id };
         }
-        default:
-          return { family: 'other', eventType: String((event as { type?: unknown }).type ?? 'event'), eventId: '' };
+        default: {
+          const toolEvent = event as { type?: unknown; toolCallId?: unknown };
+          const eventType = String(toolEvent.type ?? 'event');
+          if (eventType.startsWith('tool-')) {
+            return { family: 'tool', eventType, eventId: asNonEmptyString(toolEvent.toolCallId) };
+          }
+          return { family: 'other', eventType, eventId: '' };
+        }
       }
     },
 
@@ -88,8 +94,17 @@ export function createDefaultChatDebugClassifier(options: ChatDebugClassifierOpt
           return `resume since #${event.sinceOrdinal}`;
         case 'buffer-depth':
           return `buffer frames=${event.frames} bytes=${event.bytes}`;
-        default:
-          return String((event as { type?: unknown }).type ?? 'event');
+        default: {
+          const toolEvent = event as { type?: unknown; toolCallId?: unknown; attempt?: unknown; reason?: unknown };
+          const eventType = String(toolEvent.type ?? 'event');
+          if (eventType.startsWith('tool-')) {
+            const id = asNonEmptyString(toolEvent.toolCallId);
+            const attempt = toolEvent.attempt === undefined ? '' : ` attempt=${String(toolEvent.attempt)}`;
+            const reason = asNonEmptyString(toolEvent.reason);
+            return `${eventType}${id ? ` ${id}` : ''}${attempt}${reason ? ` ${reason}` : ''}`;
+          }
+          return eventType;
+        }
       }
     },
   };

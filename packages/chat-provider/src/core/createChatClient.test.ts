@@ -1,6 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createChatStore } from '../store/store';
+import { createToolRegistry } from '../tools/toolRegistry';
+import type { ConnectArgs } from '../ws/wsManager';
 import { createChatClient, type ChatProviderConfig } from './createChatClient';
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -14,25 +26,24 @@ function memoryStorage(initial: Record<string, string> = {}) {
 function clientWith(config: ChatProviderConfig) {
   const store = createChatStore();
   const wsManager = {
-    connect: vi.fn(async () => undefined),
+    connect: vi.fn(async (_args: ConnectArgs) => undefined),
     disconnect: vi.fn(),
+  };
+  const toolRegistry = createToolRegistry();
+  const toolRuntime = {
+    cancelActiveFrontendTools: vi.fn(async (): Promise<void> => undefined),
+    handleFrontendToolUIEvent: vi.fn(),
+    reconcileFrontendToolRequests: vi.fn(),
+    stateOf: vi.fn(() => null),
+    subscribe: vi.fn(() => () => undefined),
+    isPendingHumanTool: vi.fn(() => false),
+    completeHumanTool: vi.fn(async () => 'not-pending' as const),
   };
   const client = createChatClient({
     config,
     store,
-    toolRegistry: {
-      register: vi.fn(),
-      get: vi.fn(),
-      manifest: vi.fn(() => []),
-      revision: vi.fn(() => 0),
-    },
-    toolRuntime: {
-      cancelActiveFrontendTools: vi.fn(),
-      handleFrontendToolUIEvent: vi.fn(),
-      reconcileFrontendToolRequests: vi.fn(),
-      isPendingHumanTool: vi.fn(() => false),
-      respondToHumanTool: vi.fn(async () => undefined),
-    },
+    toolRegistry,
+    toolRuntime,
     adapterRegistry: {
       register: vi.fn(),
       projectLive: vi.fn(() => null),
@@ -43,7 +54,7 @@ function clientWith(config: ChatProviderConfig) {
     },
     wsManager: wsManager as never,
   });
-  return { client, store, wsManager };
+  return { client, store, wsManager, toolRuntime, toolRegistry };
 }
 
 afterEach(() => {
@@ -104,6 +115,84 @@ describe('chat session persistence', () => {
   });
 });
 
+describe('tool manifest synchronization', () => {
+  it('serializes snapshots, preserves revision order, and skips an acknowledged digest', async () => {
+    const firstResponse = deferred<Response>();
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (fetchImpl.mock.calls.length === 1) return firstResponse.promise;
+      return new Response(JSON.stringify({ accepted: true, revision: 2 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const { client, store, toolRegistry } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+
+    const first = client.tools.syncManifest();
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    toolRegistry.register({ name: 'beta', execute: () => ({}) }, { owner: 'test' });
+    const second = client.tools.syncManifest();
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    firstResponse.resolve(new Response(JSON.stringify({ accepted: true, revision: 1 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const revisions = fetchImpl.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).revision);
+    expect(revisions).toEqual([1, 2]);
+
+    await expect(client.tools.syncManifest()).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('republishes an acknowledged manifest after a connection becomes ready again', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ accepted: true, revision: 1 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const { client, store, toolRegistry, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+
+    await client.connect();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    connection?.onStatus?.('ready');
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect(fetchImpl.mock.calls.every(([url]) => String(url).endsWith('/sessions/session-1/tools/manifest'))).toBe(true);
+    await client.tools.syncManifest();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('continues the sync queue after a failed snapshot without acknowledging it', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      if (fetchImpl.mock.calls.length === 1) return new Response('offline', { status: 503 });
+      return new Response(JSON.stringify({ accepted: true, revision: 2 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const { client, store, toolRegistry } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    toolRegistry.register({ name: 'alpha', execute: () => ({}) }, { owner: 'test' });
+    const first = client.tools.syncManifest();
+    toolRegistry.register({ name: 'beta', execute: () => ({}) }, { owner: 'test' });
+    const second = client.tools.syncManifest();
+
+    await expect(first).rejects.toThrow('sync-tool-manifest failed: 503 offline');
+    await expect(second).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(store.getState().overlay.error).toContain('sync-tool-manifest failed: 503 offline');
+  });
+});
+
 describe('chat HTTP operations', () => {
   it('runs request hooks, injects headers, and sends attachment references', async () => {
     const localStorage = memoryStorage({ 'chat-provider.sessionId': 'session-1' });
@@ -134,6 +223,33 @@ describe('chat HTTP operations', () => {
       attachments: [{ attachmentId: 'att-1', kind: 'image', mediaType: 'image/png' }],
     });
     expect(new Headers(messageCall?.[1]?.headers).get('Authorization')).toBe('Bearer test-token');
+  });
+
+  it('submits a retained tool result to its originating session', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const { client, store } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'new-session' });
+
+    await client.tools.submitResult({
+      sessionId: 'origin-session',
+      toolCallId: 'call-1',
+      toolName: 'mutate_ui',
+      status: 'success',
+      result: { changed: true },
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/chat/sessions/origin-session/tools/results',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          toolCallId: 'call-1',
+          toolName: 'mutate_ui',
+          status: 'success',
+          result: { changed: true },
+        }),
+      }),
+    );
   });
 
   it('uploads and removes attachments through the active session', async () => {
@@ -195,6 +311,29 @@ describe('chat HTTP operations', () => {
 
     await expect(client.send({ prompt: 'hello' })).rejects.toThrow('send-message failed: 403 not allowed');
     expect(store.getState().overlay.error).toBe('send-message failed: 403 not allowed');
+  });
+
+  it('awaits frontend-tool cancellation before posting stop', async () => {
+    const localStorage = memoryStorage({ 'chat-provider.sessionId': 'session-1' });
+    vi.stubGlobal('window', { location: { href: 'https://example.test/' }, localStorage });
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const { client, store, toolRuntime } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+    let finishCancellation!: () => void;
+    toolRuntime.cancelActiveFrontendTools.mockImplementation(() => new Promise<void>((resolve) => {
+      finishCancellation = resolve;
+    }));
+
+    const stopping = client.stop();
+    await Promise.resolve();
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    finishCancellation();
+    await stopping;
+    expect(fetchImpl).toHaveBeenCalledWith(
+      '/api/chat/sessions/session-1/stop',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('updates Redux and rejects when stopping a run fails', async () => {

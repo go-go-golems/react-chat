@@ -44,20 +44,25 @@ export function normalizeChatExtensions(config?: ChatExtensionConfig): ChatExten
 
 export function installChatExtension(runtime: ChatRuntimeApi, extension: ChatExtension): () => void {
   const cleanupFns: Array<() => void> = [];
+  const owner = extension.name?.trim() || 'chat-provider.extension';
 
-  for (const tool of extension.tools ?? []) cleanupFns.push(runtime.tools.register(tool));
+  for (const tool of extension.tools ?? []) cleanupFns.push(runtime.tools.register(tool, { owner }));
   for (const widget of extension.widgets ?? []) cleanupFns.push(runtime.widgets.register(widget));
   for (const adapter of extension.timelineAdapters ?? []) cleanupFns.push(runtime.timelineAdapters.register(adapter));
 
   const customCleanup = extension.install?.(runtime);
   if (typeof customCleanup === 'function') cleanupFns.push(customCleanup);
 
-  void runtime.client.tools.syncManifest();
+  syncManifestInBackground(runtime.client);
 
   return () => {
     for (let i = cleanupFns.length - 1; i >= 0; i--) cleanupFns[i]?.();
-    void runtime.client.tools.syncManifest();
+    syncManifestInBackground(runtime.client);
   };
+}
+
+function syncManifestInBackground(client: ChatClient): void {
+  void client.tools.syncManifest().catch(() => undefined);
 }
 
 export function installChatExtensions(runtime: ChatRuntimeApi, extensions: ChatExtension[]): () => void {

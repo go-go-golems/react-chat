@@ -1,0 +1,22 @@
+pre-commit:
+  # Several commands below invoke build/generate paths that touch the web frontend
+  # workspace. Running them concurrently leads to intermittent node_modules races.
+  parallel: false
+  commands:
+    lint:
+      glob: '*.go'
+      run: make lintmax 
+    test:
+      glob: '*.go'
+      run: make test
+
+pre-push:
+  # `make goreleaser` runs `go generate ./...`, which can reinstall/rebuild the
+  # frontend while lint/test are traversing `./...`. Keep this hook serial so
+  # pushes are deterministic.
+  parallel: false
+  commands:
+    lint:
+      run: GOWORK=off make lintmax gosec govulncheck
+    test:
+      run: GOWORK=off make test

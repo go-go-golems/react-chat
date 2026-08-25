@@ -30,6 +30,7 @@ export function ChatProvider({ children, config }: ChatProviderProps) {
     const toolRuntime = createToolRuntime({
       registry: toolRegistry,
       submitToolResult: (result) => submitToolResult(result),
+      onDebugEvent: config?.onDebugEvent,
     });
     const client = createChatClient({
       config,

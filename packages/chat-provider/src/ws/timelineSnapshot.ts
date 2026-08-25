@@ -48,7 +48,7 @@ export function applySnapshot(
     if (!projection) continue;
     applyTimelineMutation(dispatch, projection.mutation);
   }
-  reconcileHydratedState(debugEntities, dispatch, toolRuntime);
+  reconcileHydratedState(debugEntities, dispatch, toolRuntime, sessionId);
   return debugEntities;
 }
 
@@ -56,6 +56,7 @@ export function reconcileHydratedState(
   entities: SnapshotDebugEntity[],
   dispatch: AppDispatch,
   toolRuntime?: ToolRuntime,
+  sessionId = '',
 ): void {
   const mapped = entities.flatMap((entity) => entity.mapped ? [entity.mapped] : []);
   const messages = entities
@@ -89,5 +90,5 @@ export function reconcileHydratedState(
           : 'idle';
 
   dispatch(overlaySlice.actions.setRunStatus(runStatus));
-  toolRuntime?.reconcileFrontendToolRequests(requestedTools);
+  toolRuntime?.reconcileFrontendToolRequests(requestedTools, sessionId);
 }

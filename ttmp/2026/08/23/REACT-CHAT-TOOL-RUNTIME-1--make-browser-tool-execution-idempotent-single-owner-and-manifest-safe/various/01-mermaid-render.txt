@@ -1,0 +1,4 @@
+PASS block-1.mmd
+PASS block-2.mmd
+PASS block-3.mmd
+blocks=3

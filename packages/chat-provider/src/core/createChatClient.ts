@@ -2,8 +2,8 @@ import { overlaySlice } from '../store/overlaySlice';
 import { runStatsSlice } from '../store/runStatsSlice';
 import type { AppDispatch, ChatStore } from '../store/store';
 import { timelineSlice } from '../store/timelineSlice';
-import type { ToolRegistry } from '../tools/toolRegistry';
-import type { ToolRuntime } from '../tools/toolRuntime';
+import type { ToolManifestSnapshot, ToolRegistry } from '../tools/toolRegistry';
+import type { ToolCompletionStatus, ToolRuntime } from '../tools/toolRuntime';
 import type { TimelineAdapterRegistry } from '../ws/timelineAdapterRegistry';
 import type { ChatDebugHandler, WsManager } from '../ws/wsManager';
 import type { SessionStreamTransportConfig } from '../ws/sessionStreamTransport';
@@ -60,11 +60,20 @@ export type ChatProviderConfig = ChatExtensionConfig & {
 };
 
 export type ToolResultSubmission = {
+  sessionId?: string;
   toolCallId: string;
   toolName: string;
-  status: 'success' | 'failed' | 'cancelled' | 'denied';
+  status: ToolCompletionStatus;
   result?: Record<string, unknown>;
   error?: string;
+};
+
+type ToolManifestAck = {
+  accepted: boolean;
+  sessionId: string;
+  connectionGeneration: number;
+  revision: number;
+  digest: string;
 };
 
 export type ChatClientTools = ToolRegistry & {
@@ -151,6 +160,9 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   const apiBase = config.apiBase ?? basePrefix;
   const dispatch = args.store.dispatch as AppDispatch;
   const fetchImpl = config.http?.fetch ?? fetch;
+  let manifestSyncTail: Promise<void> = Promise.resolve();
+  let lastManifestAck: ToolManifestAck | null = null;
+  let connectionGeneration = 0;
 
   async function request(operation: ChatOperation, url: string, init: RequestInit = {}): Promise<Response> {
     await config.http?.beforeRequest?.(operation);
@@ -195,35 +207,74 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
       dispatch,
       toolRuntime: args.toolRuntime,
       adapterRegistry: args.adapterRegistry,
-      onStatus: (s) => dispatch(overlaySlice.actions.setWsStatus(s)),
+      onStatus: (status) => {
+        dispatch(overlaySlice.actions.setWsStatus(status));
+        if (status === 'ready') {
+          connectionGeneration += 1;
+          void syncToolManifest().catch(() => undefined);
+        }
+      },
       onDebugEvent: config.onDebugEvent,
     });
   }
 
-  async function syncToolManifest() {
+  async function syncToolManifest(): Promise<void> {
     const sessionId = args.store.getState().overlay.sessionId;
     if (!sessionId) return;
-    await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
+    const snapshot = args.toolRegistry.snapshot();
+    const generation = connectionGeneration;
+    const operation = manifestSyncTail.then(() => postManifestSnapshot(sessionId, snapshot, generation));
+    manifestSyncTail = operation.then(() => undefined, () => undefined);
+    try {
+      await operation;
+    } catch (error) {
+      dispatch(overlaySlice.actions.setError(error instanceof Error ? error.message : String(error)));
+      throw error;
+    }
+  }
+
+  async function postManifestSnapshot(sessionId: string, snapshot: ToolManifestSnapshot, generation: number): Promise<ToolManifestAck> {
+    if (
+      lastManifestAck?.sessionId === sessionId
+      && lastManifestAck.connectionGeneration === generation
+      && lastManifestAck.digest === snapshot.digest
+    ) return lastManifestAck;
+    const response = await request('sync-tool-manifest', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/manifest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ revision: args.toolRegistry.revision(), tools: args.toolRegistry.manifest() }),
+      body: JSON.stringify({ revision: snapshot.revision, tools: snapshot.tools }),
     });
+    const body = await response.json().catch(() => ({})) as { accepted?: boolean; revision?: number };
+    if (body.accepted === false) throw new Error(`sync-tool-manifest rejected revision ${snapshot.revision}`);
+    const acknowledgement: ToolManifestAck = {
+      accepted: true,
+      sessionId,
+      connectionGeneration: generation,
+      revision: typeof body.revision === 'number' ? body.revision : snapshot.revision,
+      digest: snapshot.digest,
+    };
+    lastManifestAck = acknowledgement;
+    return acknowledgement;
   }
 
   async function submitToolResult(result: ToolResultSubmission) {
-    const sessionId = args.store.getState().overlay.sessionId;
+    const sessionId = result.sessionId?.trim() || args.store.getState().overlay.sessionId;
     if (!sessionId) throw new Error('cannot submit frontend tool result without a session');
+    const { sessionId: _sessionId, ...body } = result;
     await request('submit-tool-result', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/tools/results`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result),
+      body: JSON.stringify(body),
     });
   }
 
   const tools: ChatClientTools = {
     register: args.toolRegistry.register.bind(args.toolRegistry),
+    replace: args.toolRegistry.replace.bind(args.toolRegistry),
     get: args.toolRegistry.get.bind(args.toolRegistry),
+    owner: args.toolRegistry.owner.bind(args.toolRegistry),
     manifest: args.toolRegistry.manifest.bind(args.toolRegistry),
+    snapshot: args.toolRegistry.snapshot.bind(args.toolRegistry),
     revision: args.toolRegistry.revision.bind(args.toolRegistry),
     syncManifest: syncToolManifest,
     submitResult: submitToolResult,
@@ -301,7 +352,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
         dispatch(overlaySlice.actions.setError(null));
         const sessionId = args.store.getState().overlay.sessionId;
         if (!sessionId) return;
-        args.toolRuntime.cancelActiveFrontendTools();
+        await args.toolRuntime.cancelActiveFrontendTools();
         await request('stop-run', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/stop`, { method: 'POST' });
       } catch (err) {
         dispatch(overlaySlice.actions.setError(err instanceof Error ? err.message : String(err)));
@@ -314,7 +365,7 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     toggle() { dispatch(overlaySlice.actions.toggleOpen()); },
 
     reset() {
-      args.toolRuntime.cancelActiveFrontendTools();
+      void args.toolRuntime.cancelActiveFrontendTools();
       args.wsManager.disconnect();
       persistSessionId(config, null);
       dispatch(overlaySlice.actions.reset());

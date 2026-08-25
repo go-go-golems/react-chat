@@ -17,8 +17,10 @@ function toolRuntime(): ToolRuntime {
     cancelActiveFrontendTools: vi.fn(),
     handleFrontendToolUIEvent: vi.fn(),
     reconcileFrontendToolRequests: vi.fn(),
+    stateOf: vi.fn(() => null),
+    subscribe: vi.fn(() => () => undefined),
     isPendingHumanTool: vi.fn(() => false),
-    respondToHumanTool: vi.fn(),
+    completeHumanTool: vi.fn(async () => 'not-pending' as const),
   };
 }
 
@@ -47,7 +49,7 @@ describe('applySnapshot', () => {
     expect(store.getState().overlay.runStatus).toBe('streaming');
     expect(runtime.reconcileFrontendToolRequests).toHaveBeenCalledWith([
       expect.objectContaining({ toolCallId: 'tool-1', toolName: 'confirm', status: 'requested' }),
-    ]);
+    ], 's-1');
   });
 
   it('resets stale streaming status from a completed snapshot', () => {

@@ -10,5 +10,6 @@ web/dist/
 web/debug-storybook.log
 
 # Local tool output
+.bin/
 .playwright-mcp/
 .devctl/
