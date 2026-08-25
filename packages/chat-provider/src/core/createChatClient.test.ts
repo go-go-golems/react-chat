@@ -25,9 +25,14 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 function clientWith(config: ChatProviderConfig) {
   const store = createChatStore();
+  let activeConnection: ConnectArgs | null = null;
   const wsManager = {
-    connect: vi.fn(async (args: ConnectArgs) => { args.onStatus?.('ready'); }),
-    disconnect: vi.fn(),
+    connect: vi.fn(async (args: ConnectArgs) => {
+      if (activeConnection) return;
+      activeConnection = args;
+      args.onStatus?.('ready');
+    }),
+    disconnect: vi.fn(() => { activeConnection = null; }),
   };
   let generatedId = 0;
   const baseFetch = config.http?.fetch ?? fetch;
@@ -306,6 +311,53 @@ describe('tool manifest synchronization', () => {
       expect.stringContaining('/tools/manifest'),
       expect.stringContaining('/messages'),
     ]);
+  });
+
+  it('allows a pre-connect manifest sync to wait for the first ready transition', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    const sync = client.tools.syncManifest();
+    await Promise.resolve();
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await client.connect();
+    await expect(sync).resolves.toBeUndefined();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a send waiting for readiness when reconnect reaches a terminal state', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    const send = client.send({ prompt: 'must not survive failure' });
+    const failure = expect(send).rejects.toThrow('connection failed before executor readiness');
+    await vi.waitFor(() => expect(wsManager.connect).toHaveBeenCalledTimes(2));
+    connection?.onStatus?.('failed');
+
+    await failure;
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates readiness waiters on reset', async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 200 }));
+    const { client, store, wsManager } = clientWith({ http: { fetch: fetchImpl as typeof fetch } });
+    store.dispatch({ type: 'overlay/setSessionId', payload: 'session-1' });
+
+    await client.connect();
+    const connection = wsManager.connect.mock.calls[0]?.[0];
+    connection?.onStatus?.('backoff');
+    const send = client.send({ prompt: 'must not cross reset' });
+    const failure = expect(send).rejects.toThrow('connection invalidated before manifest synchronization');
+    client.reset();
+
+    await failure;
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('aborts an in-flight stale manifest when the transport enters backoff', async () => {

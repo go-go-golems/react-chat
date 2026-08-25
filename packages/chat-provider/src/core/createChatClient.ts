@@ -227,24 +227,39 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
   let hasReadyConnection = false;
   let clientInstanceId = '';
   let connectionId = '';
-  let resolveReadyConnection: (() => void) | null = null;
-  let readyConnectionPromise: Promise<void> = Promise.resolve();
+  type ReadyWaiter = { resolve: () => void; reject: (error: Error) => void };
+  const readyWaiters = new Set<ReadyWaiter>();
+  let readinessInvalidation = 0;
   let activeManifestController: AbortController | null = null;
 
-  function markConnectionNotReady(): void {
-    if (resolveReadyConnection) return;
-    readyConnectionPromise = new Promise<void>((resolve) => {
-      resolveReadyConnection = resolve;
-    });
+  function markConnectionReady(): void {
+    for (const waiter of readyWaiters) waiter.resolve();
+    readyWaiters.clear();
   }
 
-  function markConnectionReady(): void {
-    resolveReadyConnection?.();
-    resolveReadyConnection = null;
+  function rejectReadyWaiters(reason: string): void {
+    readinessInvalidation += 1;
+    const error = new Error(reason);
+    for (const waiter of readyWaiters) waiter.reject(error);
+    readyWaiters.clear();
   }
 
   async function waitForReadyConnection(): Promise<void> {
-    while (!connectionId) await readyConnectionPromise;
+    while (!connectionId) {
+      await new Promise<void>((resolve, reject) => {
+        const waiter: ReadyWaiter = {
+          resolve: () => {
+            readyWaiters.delete(waiter);
+            resolve();
+          },
+          reject: (error) => {
+            readyWaiters.delete(waiter);
+            reject(error);
+          },
+        };
+        readyWaiters.add(waiter);
+      });
+    }
   }
 
   async function request(operation: ChatOperation, url: string, init: RequestInit = {}): Promise<Response> {
@@ -303,22 +318,26 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
           markConnectionReady();
           if (isReconnect) void syncToolManifest().catch(() => undefined);
         } else if (status === 'backoff' || status === 'stopped' || status === 'failed') {
-          markConnectionNotReady();
           connectionId = '';
           lastManifestAck = null;
           activeManifestController?.abort();
           activeManifestController = null;
           args.toolRuntime.setExecutorIdentity(null);
+          if (status === 'stopped' || status === 'failed') {
+            rejectReadyWaiters(`frontend tool connection ${status} before executor readiness`);
+          }
         }
       },
       onDebugEvent: config.onDebugEvent,
     });
   }
 
-  async function syncToolManifest(): Promise<void> {
+  async function syncToolManifest(expectedInvalidation = readinessInvalidation): Promise<void> {
+    if (expectedInvalidation !== readinessInvalidation) throw new Error('frontend tool connection invalidated before manifest synchronization');
     const sessionId = args.store.getState().overlay.sessionId;
     if (!sessionId) return;
     await waitForReadyConnection();
+    if (expectedInvalidation !== readinessInvalidation) throw new Error('frontend tool connection invalidated before manifest synchronization');
     const snapshot = args.toolRegistry.snapshot();
     const generation = connectionGeneration;
     const requestedClientId = clientInstanceId;
@@ -472,9 +491,10 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     async connect() {
       try {
         dispatch(overlaySlice.actions.setError(null));
+        const expectedInvalidation = readinessInvalidation;
         const sessionId = await ensureSession();
         await ensureConnection(sessionId);
-        await syncToolManifest();
+        await syncToolManifest(expectedInvalidation);
       } catch (err) {
         dispatch(overlaySlice.actions.setError(err instanceof Error ? err.message : String(err)));
         throw err;
@@ -484,9 +504,10 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     async send(message: SendMessageRequest) {
       try {
         dispatch(overlaySlice.actions.setError(null));
+        const expectedInvalidation = readinessInvalidation;
         const sessionId = await ensureSession();
         await ensureConnection(sessionId);
-        await syncToolManifest();
+        await syncToolManifest(expectedInvalidation);
         const sendBody = await (config.sendMessageBody?.(message) ?? message);
         await request('send-message', `${apiBase}/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
           method: 'POST',
@@ -519,10 +540,10 @@ export function createChatClient(args: CreateChatClientArgs): ChatClient {
     reset() {
       void args.toolRuntime.cancelActiveFrontendTools();
       args.toolRuntime.setExecutorIdentity(null);
-      markConnectionNotReady();
       connectionId = '';
       hasReadyConnection = false;
       lastManifestAck = null;
+      rejectReadyWaiters('frontend tool connection reset before executor readiness');
       activeManifestController?.abort();
       activeManifestController = null;
       args.wsManager.disconnect();
